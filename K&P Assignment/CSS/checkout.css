@@ -1,0 +1,39 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-image: url("../pic/bt.jpg");
+    background-size: cover;
+    background-position: center;
+    margin: 0;
+}
+
+.container {
+    width: 70%;
+    display: flex;
+    padding: 130px 20px 0 20px;
+    margin: 0 auto 30px auto;
+}
+
+.event-details, 
+.summary {
+    margin: 10px;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: white;
+}
+
+.summary {
+    width: 300px;
+    height: auto;
+}
+
+
+
+.event-details {
+    width: 600px;
+    height: auto;
+}
+
+.summary {
+    max-width: 35%;
+}

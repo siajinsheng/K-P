@@ -1,0 +1,41 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    color: #333;
+}
+
+.ticketTable,
+.eventTable {
+    margin-top: 20px;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.ticketTable table,
+.eventTable table {
+    border-collapse: collapse;
+    width: 100%;
+    background-color: #fff;
+}
+
+.ticketTable th, .ticketTable td,
+.eventTable th, .eventTable  td {
+    text-align: left;
+    padding: 8px;
+    border: 1px solid #ddd;
+}
+
+.ticketTable th,
+.eventTable th {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.ticketTable tr:nth-child(even) {
+    background-color: #f2f2f2;
+}

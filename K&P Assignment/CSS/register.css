@@ -1,0 +1,93 @@
+.register_form {
+    padding-top: 140px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: url(../pic/login_page.jpg) no-repeat;
+    background-size: cover;
+    background-position: center;
+  }
+  
+  .container {
+    position: relative;
+    max-width: 570px;
+    width: auto;
+    height: 800px;
+    padding: 0 20px 0 20px;
+    background: transparent;
+    border: 2px solid white;
+    border-radius: 20px;
+    backdrop-filter: blur(30px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    transition: height .2s ease;
+  }
+  
+  form h2 {
+    color: whitesmoke;
+    text-align: center;
+  }
+  
+  .login-btn {
+    width: 100%;
+    height: 45px;
+    background: rgb(0, 0, 0);
+    border: none;
+    outline: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    color: aliceblue;
+    font-weight: 500;
+    }
+  
+  .inside-box {
+    display: flex;
+    flex-direction: column;
+    padding: 17px;
+  }
+  
+  label, .icon {
+    color: white;
+    font-weight: 600;
+  }
+  
+  .inside-box input {
+    width: 500px;
+    border: 2px solid white;
+    border-radius: 4px;
+    display: block;
+    font-weight: 600;
+    font-size: 16px;
+    padding: 10px;
+  }
+  
+  .login-register p {
+    color: white;
+  }
+  
+  .login-register a {
+    color: rgb(231, 219, 47);
+    font-size: 19px;
+  }
+  
+  .inside-box input:focus {
+    outline: 0;
+  }
+  
+  .inside-box.success input {
+    border-color: lightgreen;
+  }
+  
+  .inside-box.error input {
+    border-color: #ff3860;
+  }
+  
+  .inside-box .error {
+    color: #ff3860;
+    font-size: 14px;
+    height: 15px;
+    font-weight: 600;
+  }
