@@ -29,7 +29,7 @@
           of passionate individuals dedicated to the art of theatre. Founded with the aim of
           fostering creativity, collaboration, and artistic expression, our society provides
           an inclusive platform for students from all backgrounds to explore and engage in the
-          world of performing arts. nnvdsdsnidsvnmvndvdsvdsvisdvdisvduvdsivhduvhdsivhudsvhvj
+          world of performing arts.
         </p>
         <button><a href="AboutUs.php">Read More</a></button>
       </div>
