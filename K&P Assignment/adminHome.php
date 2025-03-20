@@ -1,3 +1,7 @@
+<?php
+include ('header(admin).php');
+echo print_r($_SESSION);
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -179,7 +183,6 @@
 
 <body>
     <?php
-    include ('header(admin).php');
     $query1 = "SELECT * FROM events";
     $result1 = mysqli_query($connection, $query1);
     $total_events = mysqli_num_rows($result1);

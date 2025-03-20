@@ -1,8 +1,10 @@
 <?php
 include('connectDatabase.php');
+session_start();
 ?>
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"></html>
 
 <head>
     <meta charset="UTF-8">
@@ -33,6 +35,9 @@ include('connectDatabase.php');
                 </li>
                 <li>
                     <a href="adminLogOut.php">Log Out</a>
+                </li>
+                <li>
+                    <a href="adminProfile.php">Profile</a>
                 </li>
             </ul>
         </div>
