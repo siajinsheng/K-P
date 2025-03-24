@@ -42,3 +42,8 @@ function req($key, $value = null)
     $value = $_REQUEST[$key] ?? $value;
     return is_array($value) ? array_map('trim', $value) : trim($value);
 }
+
+// Global PDO object
+$_db = new PDO('mysql:dbname=k&p', 'root', '', [
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
+]);
