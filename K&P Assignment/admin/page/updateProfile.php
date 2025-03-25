@@ -1,5 +1,5 @@
 <?php
-include('header(admin).php');
+include('header.php');
 
 $errors = [];
 $admin_id = $_SESSION['adminID'];
@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (mysqli_stmt_execute($stmt)) {
                 echo "<script>
                     alert('Admin profile updated successfully!');
-                    window.location.href = 'adminProfile.php';
+                    window.location.href = 'profile.php';
                 </script>";
                 exit();
             } else {
@@ -209,7 +209,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
     <div class="profile-container">
         <h1>Update Profile</h1>
-        <form method="POST" action="updateAdminProfile.php" enctype="multipart/form-data" onsubmit="handleFormSubmit(event);">
+        <form method="POST" action="updateProfile.php" enctype="multipart/form-data" onsubmit="handleFormSubmit(event);">
             <div class="form-group">
                 <label for="admin_profile_pic">Profile Picture</label>
                 <input type="file" name="admin_profile_pic" accept=".jpeg, .jpg, .png">
@@ -245,7 +245,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
             <div class="button-container">
                 <button type="submit">Update</button>
-                <a href="adminProfile.php" class="button cancel-button">Cancel</a>
+                <a href="profile.php" class="button cancel-button">Cancel</a>
             </div>
         </form>
     </div>
@@ -253,5 +253,5 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 </html>
 <?php
-include('footer(admin).php');
+include('footer.php');
 ?>

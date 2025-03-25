@@ -4,7 +4,7 @@ session_start();
 
 session_destroy();
 
-header("location:AdminLogin.php");
+header("location:login.php");
 
 
 ?>

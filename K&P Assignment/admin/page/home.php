@@ -1,6 +1,25 @@
 <?php
-include ('header(admin).php');
+include('header.php');
 echo print_r($_SESSION);
+
+try {
+    $query1 = "SELECT * FROM events";
+    $stmt1 = $_db->query($query1);
+    $total_events = $stmt1->rowCount();
+
+    $query2 = "SELECT * FROM booking";
+    $stmt2 = $_db->query($query2);
+    $total_bookings = $stmt2->rowCount();
+
+    $query3 = "SELECT * FROM student";
+    $stmt3 = $_db->query($query3);
+    $total_students = $stmt3->rowCount();
+} catch (PDOException $e) {
+    error_log("Database error: " . $e->getMessage());
+    $total_events = 0;
+    $total_bookings = 0;
+    $total_students = 0;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -182,19 +201,6 @@ echo print_r($_SESSION);
 </head>
 
 <body>
-    <?php
-    $query1 = "SELECT * FROM events";
-    $result1 = mysqli_query($connection, $query1);
-    $total_events = mysqli_num_rows($result1);
-
-    $query2 = "SELECT * FROM booking";
-    $result2 = mysqli_query($connection, $query2);
-    $total_bookings = mysqli_num_rows($result2);
-
-    $query3 = "SELECT * FROM student";
-    $result3 = mysqli_query($connection, $query3);
-    $total_students = mysqli_num_rows($result3);
-    ?>
     <ul class="wrapper">
         <a id="btn-message" class="button-message" href="viewEvent.php">
             <div class="notice-content">
@@ -241,7 +247,7 @@ echo print_r($_SESSION);
     </ul>
     <ul class="wrapper2"></ul>
     <?php
-    include ('footer(admin).php');
+    include('footer.php');
     ?>
     <script src="https://kit.fontawesome.com/d317456e1b.js" crossorigin="anonymous"></script>
 </body>

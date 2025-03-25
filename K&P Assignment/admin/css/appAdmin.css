@@ -36,6 +36,8 @@ body {
 .navbar {
     display: flex;
     align-items: center;
+    height: 100%;
+
 }
 
 .navbar a {
@@ -46,6 +48,7 @@ body {
     width: 100%;
     display: flex;
     justify-content: flex-end;
+    align-items: center;
 }
 
 .navbar ul li {

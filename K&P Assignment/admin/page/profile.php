@@ -1,5 +1,5 @@
 <?php
-include('header(admin).php');
+include('header.php');
 
 $errors = [];
 
@@ -141,11 +141,11 @@ if (!$admin) {
                 <td><?php echo $admin['admin_update_time']; ?></td>
             </tr>
         </table>
-        <a href="updateAdminProfile.php" class="button">Update Profile</a>
+        <a href="updateProfile.php" class="button">Update Profile</a>
     </div>
 </body>
 
 </html>
 <?php
-include('footer(admin).php');
+include('footer.php');
 ?>

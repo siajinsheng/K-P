@@ -15,7 +15,7 @@ if (isset($_COOKIE['admin_id']) && isset($_COOKIE['password'])) {
 }
 
 if (!empty($_SESSION['current_user'])) {
-    header("location:adminHome.php");
+    header("location:home.php");
     exit;
 }
 
@@ -31,7 +31,7 @@ if (!isset($_SESSION['login_attempts'])) {
 if ($_SESSION['login_attempts'] >= 2 && (time() - $_SESSION['last_attempt_time']) < 10) {
     echo '<script>
             alert("Too many failed login attempts. Please try again after 10 seconds.");
-            window.location.href = "AdminLogin.php";
+            window.location.href = "login.php";
           </script>';
     exit;
 }
@@ -87,14 +87,14 @@ if (isset($_POST['submit'])) {
 
             echo "<script>
             alert('Login Successfully !');
-            window.location.href = 'adminHome.php';
+            window.location.href = 'home.php';
             </script>";
             exit;
         } else {
             $_SESSION['login_attempts']++;
             $_SESSION['last_attempt_time'] = time();
             echo '<script>
-                        window.location.href = "AdminLogin.php";
+                        window.location.href = "login.php";
                         alert("Login Failed. Invalid ID or Password!!!")
                     </script>';
         }
@@ -158,7 +158,7 @@ echo print_r($_SESSION);
     <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
 
     <?php
-    include('footer(admin).php');
+    include('footer.php');
     ?>
 
 </body>
