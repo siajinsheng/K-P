@@ -1,0 +1,178 @@
+/* Sorting */
+.table th a {
+    color: inherit;
+    display: block;
+}
+
+.table th a.asc::after {
+    content: ' ▴';
+}
+
+.table th a.desc::after {
+    content: ' ▾';
+}
+
+/* General Styling for Form */
+form {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+form p {
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 8px;
+    font-weight: bold;
+    margin-top: auto;
+}
+
+/* Styling for Search Bar */
+input[type="search"] {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 250px;
+    font-size: 14px;
+    margin-right: 20px;
+}
+
+input[type="search"]:focus {
+    border-color: #007BFF;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    outline: none;
+}
+
+/* Styling for Select Dropdown (Filter) */
+select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: white;
+    width: 200px;
+}
+
+select:focus {
+    border-color: #007BFF;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    outline: none;
+}
+
+/* Button Styling */
+button {
+    padding: 10px 20px;
+    background-color: #007BFF;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+/* Table Styling */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+/* Table header styling */
+.table th {
+    background-color: #343a40;
+    color: white;
+    padding: 10px;
+    text-align: left;
+}
+
+/* Table cell styling */
+.table td {
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+/* Highlight the bottom line for every five records */
+.table tr:nth-child(5n) {
+    border-bottom: 2px solid #007BFF;
+}
+
+/* Optional: Change the background color on hover */
+.table tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Status Cell Highlight */
+.table td.status {
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+}
+
+.table td.status.active {
+    background-color: #28a745;
+}
+
+.table td.status.blocked {
+    background-color: #dc3545;
+}
+
+/* Status Text Colors */
+.status-blocked {
+    color: rgb(255, 0, 0);
+}
+
+.status-active {
+    color: rgb(23, 203, 23);
+}
+
+/* Action Buttons */
+.button-block {
+    background-color: red;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.button-block:hover {
+    background-color: darkred;
+}
+
+.button-unblock {
+    background-color: rgb(0, 111, 180);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.button-unblock:hover {
+    background-color: darkgreen;
+}
+
+/* Profile Photo Hover */
+.table td:has(.popup) {
+    position: relative;
+}
+
+.table .popup {
+    position: absolute;
+    top: 50%;
+    left: 73%;
+    translate: 5px -50%;
+    z-index: 1;
+    border: 1px solid #333;
+    display: none;
+    max-width: 150px;
+    max-height: 150px;
+}
+
+.table tr:hover .popup {
+    display: block;
+}

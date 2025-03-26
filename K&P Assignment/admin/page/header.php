@@ -1,6 +1,6 @@
 <?php
 require_once '../../_base.php';
-session_start();
+safe_session_start();
 
 $current_user = json_decode($_SESSION['current_user'], true);
 $photo = isset($current_user['admin_profile_pic']) 

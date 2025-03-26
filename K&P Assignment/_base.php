@@ -49,6 +49,12 @@ $_db = new PDO('mysql:dbname=k&p;charset=utf8mb4', 'root', '', [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
 ]);
 
+function safe_session_start() {
+    if (session_status() == PHP_SESSION_NONE) {
+        session_start();
+    }
+}
+
 // Encode HTML special characters
 function encode($value)
 {
@@ -73,7 +79,7 @@ function redirect($url = null)
 // Set or get temporary session variable
 function temp($key, $value = null)
 {
-    session_start(); // Ensure session is started
+    safe_session_start(); // Ensure session is started
     
     if ($value !== null) {
         $_SESSION["temp_$key"] = $value;
@@ -87,7 +93,7 @@ function temp($key, $value = null)
 // Logout user
 function logout($role = null, $url = null)
 {
-    session_start(); // Ensure the session is started to modify session variables
+    safe_session_start(); // Ensure the session is started to modify session variables
 
     // Unset the session based on the role
     if ($role === 'Member') {
@@ -134,7 +140,7 @@ function auth(...$roles)
     echo "Roles passed: " . print_r($roles, true) . "<br>";
     echo "Admin user: " . print_r($_SESSION['admin_user'], true) . "<br>";
     
-    session_start(); // Start the session
+    safe_session_start(); // Start the session
     
     global $_db;
     
@@ -227,4 +233,19 @@ function debug_session_user($user) {
     foreach ($user as $key => $value) {
         echo "$key: " . print_r($value, true) . "<br>";
     }
+}
+
+// Generate <select>
+function html_select($key, $items, $default = '- Select One -', $attr = '')
+{
+    $value = encode($GLOBALS[$key] ?? '');
+    echo "<select id='$key' name='$key' $attr>";
+    if ($default !== null) {
+        echo "<option value=''>$default</option>";
+    }
+    foreach ($items as $id => $text) {
+        $state = $id == $value ? 'selected' : '';
+        echo "<option value='$id' $state>$text</option>";
+    }
+    echo '</select>';
 }
