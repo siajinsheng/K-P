@@ -56,7 +56,7 @@ if (!file_exists($photoPath)) {
 <body>
     <div class="header">
         <div class="navbar">
-            <a href="home.php"><img src="pic/logo.png"></a>
+            <a href="home.php"><img src="../pic/logo.jpg"></a>
             <ul>
                 <li><a href="home.php">Home</a></li>
                 <li><a href="product.php">Product</a></li>
