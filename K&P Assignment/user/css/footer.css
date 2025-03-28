@@ -1,0 +1,29 @@
+.footer {
+    background-color: #f0eeee;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+.footer ul {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding-left: 0;
+}
+
+.footer ul li {
+    font-size: 2em;
+    margin-right: 5%;
+    margin-left: 5%;
+    list-style: none;
+    vertical-align: middle;
+}
+
+.footer p {
+    font-size: 15px;
+    width: 55%;
+    max-width: 500px;
+    min-width: 250px;
+    text-align: center;
+}

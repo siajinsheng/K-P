@@ -90,6 +90,30 @@ function temp($key, $value = null)
     }
 }
 
+// Is unique?
+function is_unique($value, $table, $field)
+{
+    global $_db;
+    $stm = $_db->prepare("SELECT COUNT(*) FROM $table WHERE $field = ?");
+    $stm->execute([$value]);
+    return $stm->fetchColumn() == 0;
+}
+
+// Check password strength
+function is_strong_password($password) {
+    $uppercase = preg_match('@[A-Z]@', $password);
+    $lowercase = preg_match('@[a-z]@', $password);
+    $number    = preg_match('@[0-9]@', $password);
+    $special   = preg_match('@[^\w]@', $password);
+    
+    return $uppercase && $lowercase && $number && $special && strlen($password) >= 8;
+}
+
+// Verify password matches confirmation
+function is_password_match($password, $confirm_password) {
+    return $password === $confirm_password;
+}
+
 // Logout user
 function logout($role = null, $url = null)
 {
