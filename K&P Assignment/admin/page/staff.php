@@ -4,7 +4,7 @@ require '../../_base.php';
 // -------------------------------
 // Manager role authorization
 $_SESSION['previous_url'] = $_SERVER['REQUEST_URI'];
-//auth('Manager');
+auth(0);
 require 'header.php';
 
 // ----------------------------------------------------------------------------

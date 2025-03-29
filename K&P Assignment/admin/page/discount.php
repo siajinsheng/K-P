@@ -1,7 +1,7 @@
 <?php
 require_once '../../_base.php';
 safe_session_start();
-//auth('Admin', 'Manager'); // Ensure only Admin and Manager can access
+auth(0,1);
 require 'header.php';
 
 // Initialize variables for sorting, filtering, and pagination

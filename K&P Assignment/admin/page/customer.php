@@ -4,7 +4,7 @@ require '../../_base.php';
 // -------------------------------
 // Admin role
 $_SESSION['previous_url'] = $_SERVER['REQUEST_URI'];
-//auth('Admin', 'Manager');
+auth(0,1);
 require 'header.php';
 
 $_title = 'Customer List';

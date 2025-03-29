@@ -7,7 +7,6 @@
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css" rel="stylesheet" />
 
     <link type="text/css" rel="stylesheet" href="../css/appAdmin.css" />
-    <title>TARUMT Theatre Society | Coming Soon Event</title>
 </head>
 
 <body>

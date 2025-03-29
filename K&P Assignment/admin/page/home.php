@@ -1,5 +1,6 @@
 <?php
 include('header.php');
+auth(0,1);
 echo print_r($_SESSION);
 
 try {

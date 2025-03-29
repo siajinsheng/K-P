@@ -14,11 +14,13 @@ if (isset($_COOKIE['admin_id']) && isset($_COOKIE['password'])) {
     $saved_password = "";
 }
 
-if (!empty($_SESSION['current_user'])) {
+// Redirect to home if already logged in
+if (!empty($_SESSION['admin_user'])) {
     header("location:home.php");
     exit;
 }
 
+// Login attempt tracking
 if (isset($_SESSION['last_attempt_time']) && (time() - $_SESSION['last_attempt_time']) > 10) {
     $_SESSION['login_attempts'] = 0;
 }
@@ -28,6 +30,7 @@ if (!isset($_SESSION['login_attempts'])) {
     $_SESSION['last_attempt_time'] = time();
 }
 
+// Too many failed attempts
 if ($_SESSION['login_attempts'] >= 2 && (time() - $_SESSION['last_attempt_time']) < 10) {
     echo '<script>
             alert("Too many failed login attempts. Please try again after 10 seconds.");
@@ -38,15 +41,17 @@ if ($_SESSION['login_attempts'] >= 2 && (time() - $_SESSION['last_attempt_time']
 
 if (isset($_POST['submit'])) {
     $admin_id = $_REQUEST['admin_id'];
+    
+    // Validate admin ID
     if ($admin_id == null) {
         $admin_idErr = 'Please Enter Your Admin ID.';
     } else if (!preg_match("/^[A-Z]{1,2}\d{3}$/", $admin_id)) {
         $admin_idErr = 'Please Enter Correct Format ( Axxx or AAxxx )';
-    } else {
-        $admin_id = $_POST['admin_id'];
     }
 
     $password = $_REQUEST['password'];
+    
+    // Password validation
     $uppercase = preg_match('@[A-Z]@', $password);
     $lowercase = preg_match('@[a-z]@', $password);
     $number = preg_match('@[0-9]@', $password);
@@ -58,10 +63,9 @@ if (isset($_POST['submit'])) {
         $_SESSION['login_attempts']++;
         $_SESSION['last_attempt_time'] = time();
         $passwordErr = 'The Password That You Have Entered Is Incorrect.';
-    } else {
-        $password = $_POST['password'];
     }
 
+    // If no validation errors, proceed with login
     if (empty($admin_idErr) && empty($passwordErr)) {
         $sql = "SELECT * FROM admin WHERE admin_id = :admin_id AND admin_password = :password";
         $stmt = $_db->prepare($sql);
@@ -72,13 +76,23 @@ if (isset($_POST['submit'])) {
         $count = $stmt->rowCount();
 
         if ($count == 1) {
+            // Set multiple session variables for robust authentication
             $_SESSION['adminID'] = $row->admin_id;
+            $_SESSION['admin_user'] = $row; // Full admin object
             $_SESSION['current_user'] = json_encode($row);
 
-            // Set cookies if Remember Me is checked
+            // Determine role based on admin_role
+            $role_map = [
+                1 => 'Manager',
+                2 => 'Supervisor',
+                3 => 'Staff'
+            ];
+            $_SESSION['admin_role'] = $role_map[$row->admin_role] ?? 'Staff';
+
+            // Remember Me functionality
             if (isset($_POST['remember_me'])) {
-                setcookie('admin_id', $admin_id, time() + (86400 * 30), "/"); // 30 days
-                setcookie('password', $password, time() + (86400 * 30), "/"); // 30 days
+                setcookie('admin_id', $admin_id, time() + (86400 * 30), "/"); 
+                setcookie('password', $password, time() + (86400 * 30), "/"); 
             } else {
                 // Clear cookies if Remember Me is not checked
                 setcookie('admin_id', '', time() - 3600, "/");
@@ -94,9 +108,9 @@ if (isset($_POST['submit'])) {
             $_SESSION['login_attempts']++;
             $_SESSION['last_attempt_time'] = time();
             echo '<script>
-                        window.location.href = "login.php";
-                        alert("Login Failed. Invalid ID or Password!!!")
-                    </script>';
+                    window.location.href = "login.php";
+                    alert("Login Failed. Invalid ID or Password!!!")
+                </script>';
         }
     }
 }
