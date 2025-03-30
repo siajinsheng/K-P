@@ -1,50 +1,70 @@
 <?php
 require '../../_base.php';
-auth(0, 1);
+auth(1, 0); // Allow only managers and admins
 
-header('Content-Type: application/json');
+// Check if it's a POST request
+if (!is_post()) {
+    echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+    exit;
+}
 
+// Get parameters
+$product_id = $_POST['product_id'] ?? '';
+$product_status = $_POST['product_status'] ?? '';
+
+// Validate input
+if (empty($product_id) || empty($product_status)) {
+    echo json_encode(['success' => false, 'message' => 'Invalid input: Product ID and status required']);
+    exit;
+}
+
+// Validate product exists
 try {
-    // Validate input
-    $product_id = $_POST['product_id'] ?? null;
-    $new_status = $_POST['product_status'] ?? null;
-
-    if (!$product_id || !$new_status) {
-        throw new Exception('Invalid input');
-    }
-
-    // Check current product stock
-    $stock_check_query = "SELECT product_stock FROM product WHERE product_id = ?";
-    $stock_stmt = $_db->prepare($stock_check_query);
-    $stock_stmt->execute([$product_id]);
-    $product = $stock_stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$product) {
-        throw new Exception('Product not found');
-    }
-
-    // Prevent activating product with 0 stock
-    if ($new_status === 'Active' && $product['product_stock'] == 0) {
-        echo json_encode([
-            'success' => false, 
-            'message' => 'Cannot activate product with 0 stock. Update stock first.'
-        ]);
+    $check_query = "SELECT product_id FROM product WHERE product_id = ?";
+    $check_stmt = $_db->prepare($check_query);
+    $check_stmt->execute([$product_id]);
+    
+    if ($check_stmt->rowCount() === 0) {
+        echo json_encode(['success' => false, 'message' => 'Product not found']);
         exit;
     }
+} catch (PDOException $e) {
+    error_log("Error checking product existence: " . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Database error during validation']);
+    exit;
+}
 
-    // Prepare and execute update query
-    $update_query = "UPDATE product SET product_status = ? WHERE product_id = ?";
-    $update_stmt = $_db->prepare($update_query);
-    $result = $update_stmt->execute([$new_status, $product_id]);
+// Validate status against database enum values
+$valid_statuses = ['Available', 'Out of Stock', 'Discontinued'];
+if (!in_array($product_status, $valid_statuses)) {
+    echo json_encode(['success' => false, 'message' => 'Invalid status. Must be one of: ' . implode(', ', $valid_statuses)]);
+    exit;
+}
 
-    if ($result) {
-        echo json_encode(['success' => true]);
+try {
+    // Update the status
+    $query = "UPDATE product SET product_status = ? WHERE product_id = ?";
+    $stmt = $_db->prepare($query);
+    $result = $stmt->execute([$product_status, $product_id]);
+
+    if ($result && $stmt->rowCount() > 0) {
+        // Log the status change
+        $admin_id = isset($_SESSION['admin_user']) ? json_decode($_SESSION['admin_user'])->admin_id : 'Unknown';
+        error_log("Product status updated: Product ID {$product_id} set to {$product_status} by {$admin_id}");
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Product status updated successfully',
+            'product_id' => $product_id,
+            'new_status' => $product_status
+        ]);
+    } else if ($result && $stmt->rowCount() === 0) {
+        // Product exists but no changes were made (status was the same)
+        echo json_encode(['success' => true, 'message' => 'No changes required - status already set']);
     } else {
-        throw new Exception('Failed to update status');
+        echo json_encode(['success' => false, 'message' => 'Update failed']);
     }
-} catch (Exception $e) {
-    echo json_encode([
-        'success' => false, 
-        'message' => $e->getMessage()
-    ]);
+} catch (PDOException $e) {
+    error_log("Error updating product status: " . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
 }

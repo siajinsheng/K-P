@@ -90,8 +90,6 @@ function temp($key, $value = null)
     }
 }
 
-<<<<<<< HEAD
-=======
 // Is unique?
 function is_unique($value, $table, $field)
 {
@@ -116,27 +114,6 @@ function is_password_match($password, $confirm_password) {
     return $password === $confirm_password;
 }
 
-// Logout user
-function logout($role = null, $url = null)
-{
-    safe_session_start(); // Ensure the session is started to modify session variables
-
-    // Unset the session based on the role
-    if ($role === 'Member') {
-        unset($_SESSION['customer_user']);
-    } else {
-        unset($_SESSION['admin_user']);
-    }
-
-    // Clear the "remember me" cookie
-    setcookie('remember_me_token', '', time() - 3600, '/'); // Expire the cookie
-
-    // Redirect to the specified URL or the root if none is provided
-    $redirect_url = $url ?? '/';
-    redirect($redirect_url);
-}
-
->>>>>>> 8d5cb551329eaedf3a2e1568c4c8718e0d98dbd4
 // Generate button
 function html_button($href, $text, $attr = '')
 {

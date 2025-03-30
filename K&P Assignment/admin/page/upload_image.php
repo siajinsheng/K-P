@@ -1,6 +1,8 @@
 <?php
-header('Content-Type: application/json');
+require '../../_base.php';
+auth(0, 1); // Only admin and managers can access
 
+// Define upload directory
 $upload_dir = '../uploads/product_images/';
 
 // Ensure upload directory exists
@@ -8,39 +10,35 @@ if (!file_exists($upload_dir)) {
     mkdir($upload_dir, 0777, true);
 }
 
-try {
-    if (!isset($_FILES['image'])) {
-        throw new Exception('No file uploaded');
-    }
-
+// Check if image was uploaded
+if (isset($_FILES['image']) && !empty($_FILES['image']['name'])) {
+    // Get file information
     $file = $_FILES['image'];
     $filename = $file['name'];
     $tmp_name = $file['tmp_name'];
+    $file_error = $file['error'];
 
-    // Validate file type
-    $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-    if (!in_array($file['type'], $allowed_types)) {
-        throw new Exception('Invalid file type');
+    // Check for errors
+    if ($file_error !== UPLOAD_ERR_OK) {
+        echo json_encode(['success' => false, 'message' => 'Upload failed with error code: ' . $file_error]);
+        exit;
     }
 
-    // Validate file size (5MB max)
-    if ($file['size'] > 5 * 1024 * 1024) {
-        throw new Exception('File too large');
+    // Check file type
+    $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    $file_type = mime_content_type($tmp_name);
+
+    if (!in_array($file_type, $allowed_types)) {
+        echo json_encode(['success' => false, 'message' => 'Only image files are allowed']);
+        exit;
     }
 
-    // Move uploaded file
-    $destination = $upload_dir . $filename;
-    if (move_uploaded_file($tmp_name, $destination)) {
-        echo json_encode([
-            'success' => true, 
-            'filename' => $filename
-        ]);
+    // Move file to destination
+    if (move_uploaded_file($tmp_name, $upload_dir . $filename)) {
+        echo json_encode(['success' => true, 'filename' => $filename]);
     } else {
-        throw new Exception('Failed to move uploaded file');
+        echo json_encode(['success' => false, 'message' => 'Failed to move uploaded file']);
     }
-} catch (Exception $e) {
-    echo json_encode([
-        'success' => false, 
-        'message' => $e->getMessage()
-    ]);
+} else {
+    echo json_encode(['success' => false, 'message' => 'No image uploaded']);
 }
