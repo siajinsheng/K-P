@@ -209,11 +209,12 @@ CREATE TABLE `product` (
 --
 
 CREATE TABLE `quantity` (
-  `quantity_id` int(11) NOT NULL,
+  `quantity_id` int(11) NOT NULL AUTO_INCREMENT,
   `product_id` varchar(255) DEFAULT NULL,
   `size` enum('S','M','L','XL','XXL') NOT NULL,
   `product_stock` int(11) NOT NULL,
-  `product_sold` int(11) DEFAULT 0
+  `product_sold` int(11) DEFAULT 0,
+  PRIMARY KEY (`quantity_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -309,14 +310,7 @@ ALTER TABLE `payment`
 ALTER TABLE `product`
   ADD PRIMARY KEY (`product_id`),
   ADD KEY `category_id` (`category_id`);
-
---
--- Indexes for table `quantity`
---
-ALTER TABLE `quantity`
-  ADD PRIMARY KEY (`quantity_id`),
-  ADD KEY `product_id` (`product_id`);
-
+  
 --
 -- Indexes for table `voucher`
 --

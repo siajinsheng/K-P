@@ -61,9 +61,9 @@ if (!file_exists($photoPath)) {
                 <li><a href="home.php">Home</a></li>
                 <li><a href="product.php">Product</a></li>
                 <li><a href="discount.php">Discount</a></li>
-                <li><a href="order.php">Order</a></li>
+                <li><a href="orders.php">Order</a></li>
                 <li><a href="payment.php">Payment</a></li>
-                <li><a href="customer.php">Customer</a></li>
+                <li><a href="customers.php">Customer</a></li>
                 <li><a href="staff.php">Staff</a></li>
 
                 <div class="profile-dropdown">

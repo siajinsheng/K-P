@@ -1,5 +1,5 @@
 <?php
-$_title = 'Order';
+$_title = 'Order Management';
 require '../../_base.php';
 auth(0,1);
 include "header.php";
@@ -16,10 +16,10 @@ $offset = ($page - 1) * $limit;
 
 // Valid sort fields for injection prevention
 $validSortFields = [
-    'orders_id',
+    'order_id',
     'order_date',
     'cus_name',
-    'total_amount',
+    'order_total',
     'orders_status',
     'payment_status'
 ];
@@ -29,11 +29,11 @@ $sortField = in_array($sortField, $validSortFields) ? $sortField : 'order_date';
 // Count total orders
 $countQuery = "SELECT COUNT(*) FROM orders o
                JOIN customer c ON o.cus_id = c.cus_id
-               JOIN payment p ON o.orders_id = p.orders_id
-               WHERE o.orders_id LIKE ?
+               JOIN payment p ON o.order_id = p.order_id
+               WHERE o.order_id LIKE ?
                OR c.cus_name LIKE ?
                OR o.order_date LIKE ?
-               OR p.total_amount LIKE ?
+               OR o.order_total LIKE ?
                OR o.orders_status LIKE ?
                OR p.payment_status LIKE ?";
 
@@ -47,18 +47,20 @@ $totalOrders = $countStmt->fetchColumn();
 $totalPages = ceil($totalOrders / $limit);
 
 // Main query
-$query = "SELECT o.orders_id, o.order_date, o.quantity, o.orders_status,
-                 c.cus_name, c.cus_email,
+$query = "SELECT o.order_id, o.order_date, od.quantity, o.orders_status,
+                 c.cus_name, c.cus_Email,
                  p.total_amount, p.payment_status, p.payment_date
           FROM orders o
           JOIN customer c ON o.cus_id = c.cus_id
-          JOIN payment p ON o.orders_id = p.orders_id
-          WHERE o.orders_id LIKE :search
+          JOIN payment p ON o.order_id = p.order_id
+          JOIN order_details od ON o.order_id = od.order_id
+          WHERE o.order_id LIKE :search
              OR c.cus_name LIKE :search
              OR o.order_date LIKE :search
-             OR p.total_amount LIKE :search
+             OR o.order_total LIKE :search
              OR o.orders_status LIKE :search
              OR p.payment_status LIKE :search
+          GROUP BY o.order_id
           ORDER BY $sortField $sortDirection
           LIMIT :limit OFFSET :offset";
 
@@ -70,8 +72,13 @@ $stmt->execute();
 $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <link rel="stylesheet" href="../css/order.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= $_title ?></title>
+    <link rel="stylesheet" href="../css/orders.css">
 </head>
 <body>
     <h1 style="text-align: center;">Order Management</h1>
@@ -88,72 +95,105 @@ $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <table>
         <thead>
             <tr>
-                <th><a href="?sort=orders_id&dir=<?= $sortDirection === 'asc' ? 'desc' : 'asc' ?>">Order ID</a></th>
-                <th><a href="?sort=order_date&dir=<?= $sortDirection === 'asc' ? 'desc' : 'asc' ?>">Date</a></th>
+                <th><a href="?sort=order_id&dir=<?= $sortDirection === 'asc' ? 'desc' : 'asc' ?>&searchTerm=<?= urlencode($searchTerm) ?>">Order ID</a></th>
+                <th><a href="?sort=order_date&dir=<?= $sortDirection === 'asc' ? 'desc' : 'asc' ?>&searchTerm=<?= urlencode($searchTerm) ?>">Date</a></th>
                 <th>Customer</th>
                 <th>Quantity</th>
-                <th><a href="?sort=total_amount&dir=<?= $sortDirection === 'asc' ? 'desc' : 'asc' ?>">Total</a></th>
-                <th><a href="?sort=orders_status&dir=<?= $sortDirection === 'asc' ? 'desc' : 'asc' ?>">Order Status</a></th>
-                <th>Payment Status</th>
+                <th><a href="?sort=order_total&dir=<?= $sortDirection === 'asc' ? 'desc' : 'asc' ?>&searchTerm=<?= urlencode($searchTerm) ?>">Total</a></th>
+                <th><a href="?sort=orders_status&dir=<?= $sortDirection === 'asc' ? 'desc' : 'asc' ?>&searchTerm=<?= urlencode($searchTerm) ?>">Order Status</a></th>
+                <th><a href="?sort=payment_status&dir=<?= $sortDirection === 'asc' ? 'desc' : 'asc' ?>&searchTerm=<?= urlencode($searchTerm) ?>">Payment Status</a></th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($orders as $order): ?>
+            <?php if (empty($orders)): ?>
                 <tr>
-                    <td><?= htmlspecialchars($order['orders_id']) ?></td>
-                    <td><?= htmlspecialchars($order['order_date']) ?></td>
-                    <td>
-                        <?= htmlspecialchars($order['cus_name']) ?><br>
-                        <small><?= htmlspecialchars($order['cus_email']) ?></small>
-                    </td>
-                    <td><?= htmlspecialchars($order['quantity']) ?></td>
-                    <td>RM <?= number_format($order['total_amount'], 2) ?></td>
-                    <td>
-                        <span class="status-badge <?= strtolower($order['orders_status']) ?>">
-                            <?= htmlspecialchars($order['orders_status']) ?>
-                        </span>
-                    </td>
-                    <td><?= htmlspecialchars($order['payment_status']) ?></td>
-                    <td>
-                        <a href="view_order_details.php?id=<?= $order['orders_id'] ?>" 
-                           class="btn view-btn">
-                            View
-                        </a>
-                        <?php if ($order['orders_status'] === 'Pending'): ?>
-                            <button class="btn process-btn" 
-                                    onclick="processOrder('<?= $order['orders_id'] ?>')">
-                                Process
-                            </button>
-                        <?php endif; ?>
-                    </td>
+                    <td colspan="8" style="text-align: center;">No orders found</td>
                 </tr>
-            <?php endforeach; ?>
+            <?php else: ?>
+                <?php foreach ($orders as $order): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($order['order_id']) ?></td>
+                        <td><?= htmlspecialchars($order['order_date']) ?></td>
+                        <td>
+                            <?= htmlspecialchars($order['cus_name']) ?><br>
+                            <small><?= htmlspecialchars($order['cus_Email']) ?></small>
+                        </td>
+                        <td><?= htmlspecialchars($order['quantity']) ?></td>
+                        <td>RM <?= number_format($order['total_amount'], 2) ?></td>
+                        <td>
+                            <span class="status-badge <?= strtolower($order['orders_status']) ?>">
+                                <?= htmlspecialchars($order['orders_status']) ?>
+                            </span>
+                        </td>
+                        <td>
+                            <span class="payment-badge <?= strtolower($order['payment_status']) ?>">
+                                <?= htmlspecialchars($order['payment_status']) ?>
+                            </span>
+                        </td>
+                        <td>
+                            <a href="view_order_details.php?id=<?= $order['order_id'] ?>" 
+                               class="btn view-btn">
+                                View
+                            </a>
+                            <?php if ($order['orders_status'] === 'Pending'): ?>
+                                <button class="btn process-btn" 
+                                        onclick="updateOrderStatus('<?= $order['order_id'] ?>', 'Processing')">
+                                    Process
+                                </button>
+                            <?php elseif ($order['orders_status'] === 'Processing'): ?>
+                                <button class="btn ship-btn" 
+                                        onclick="updateOrderStatus('<?= $order['order_id'] ?>', 'Shipped')">
+                                    Ship
+                                </button>
+                            <?php elseif ($order['orders_status'] === 'Shipped'): ?>
+                                <button class="btn deliver-btn" 
+                                        onclick="updateOrderStatus('<?= $order['order_id'] ?>', 'Delivered')">
+                                    Deliver
+                                </button>
+                            <?php endif; ?>
+                            <?php if ($order['orders_status'] !== 'Cancelled' && $order['orders_status'] !== 'Delivered'): ?>
+                                <button class="btn cancel-btn" 
+                                        onclick="updateOrderStatus('<?= $order['order_id'] ?>', 'Cancelled')">
+                                    Cancel
+                                </button>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </tbody>
     </table>
 
     <!-- Pagination -->
     <div class="pagination">
         <?php if ($page > 1): ?>
-            <a href="?page=1">&laquo; First</a>
-            <a href="?page=<?= $page - 1 ?>">Previous</a>
+            <a href="?page=1&searchTerm=<?= urlencode($searchTerm) ?>&sort=<?= $sortField ?>&dir=<?= $sortDirection ?>">&laquo; First</a>
+            <a href="?page=<?= $page - 1 ?>&searchTerm=<?= urlencode($searchTerm) ?>&sort=<?= $sortField ?>&dir=<?= $sortDirection ?>">Previous</a>
         <?php endif; ?>
 
-        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-            <a href="?page=<?= $i ?>" <?= $i == $page ? 'class="active"' : '' ?>>
+        <?php 
+        // Show pagination links with limit
+        $startPage = max(1, $page - 2);
+        $endPage = min($totalPages, $page + 2);
+        
+        for ($i = $startPage; $i <= $endPage; $i++): 
+        ?>
+            <a href="?page=<?= $i ?>&searchTerm=<?= urlencode($searchTerm) ?>&sort=<?= $sortField ?>&dir=<?= $sortDirection ?>" 
+               <?= $i == $page ? 'class="active"' : '' ?>>
                 <?= $i ?>
             </a>
         <?php endfor; ?>
 
         <?php if ($page < $totalPages): ?>
-            <a href="?page=<?= $page + 1 ?>">Next</a>
-            <a href="?page=<?= $totalPages ?>">Last &raquo;</a>
+            <a href="?page=<?= $page + 1 ?>&searchTerm=<?= urlencode($searchTerm) ?>&sort=<?= $sortField ?>&dir=<?= $sortDirection ?>">Next</a>
+            <a href="?page=<?= $totalPages ?>&searchTerm=<?= urlencode($searchTerm) ?>&sort=<?= $sortField ?>&dir=<?= $sortDirection ?>">Last &raquo;</a>
         <?php endif; ?>
     </div>
 
     <script>
-    function processOrder(orderId) {
-        if (confirm('Mark this order as processed?')) {
+    function updateOrderStatus(orderId, newStatus) {
+        if (confirm('Update this order to ' + newStatus + '?')) {
             fetch('update_order_status.php', {
                 method: 'POST',
                 headers: {
@@ -161,10 +201,21 @@ $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 },
                 body: JSON.stringify({
                     order_id: orderId,
-                    new_status: 'Processed'
+                    new_status: newStatus
                 })
             })
-            .then(() => window.location.reload());
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Error updating order: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating the order.');
+            });
         }
     }
     </script>
