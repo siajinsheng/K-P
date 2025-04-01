@@ -12,18 +12,6 @@ body {
     overflow: hidden;
 }
 
-/* Header Styles */
-.header {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.header img {
-    height: 50px;
-    width: 50px;
-}
-
 /* Button Container Styles */
 .button-container {
     display: flex;

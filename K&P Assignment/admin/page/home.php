@@ -1,255 +1,563 @@
 <?php
-include('header.php');
+$_title = 'Admin Dashboard';
+require '../../_base.php';
+auth(0, 1); // Only admin and managers can access
+require 'header.php';
 echo print_r($_SESSION);
 
+// Initialize totals
+$total_products = 0;
+$total_orders = 0;
+$total_customers = 0;
+$total_revenue = 0;
+$recent_orders = [];
+$top_products = [];
+$stock_alerts = [];
+$monthly_revenue = [];
+
 try {
-    $query1 = "SELECT * FROM events";
-    $stmt1 = $_db->query($query1);
-    $total_events = $stmt1->rowCount();
+    // Get total product count
+    $product_query = "SELECT COUNT(*) as count FROM product";
+    $stmt = $_db->prepare($product_query);
+    $stmt->execute();
+    $total_products = $stmt->fetchColumn();
 
-    $query2 = "SELECT * FROM booking";
-    $stmt2 = $_db->query($query2);
-    $total_bookings = $stmt2->rowCount();
+    // Get total order count
+    $order_query = "SELECT COUNT(*) as count FROM orders";
+    $stmt = $_db->prepare($order_query);
+    $stmt->execute();
+    $total_orders = $stmt->fetchColumn();
 
-    $query3 = "SELECT * FROM student";
-    $stmt3 = $_db->query($query3);
-    $total_students = $stmt3->rowCount();
+    // Get total customer count
+    $customer_query = "SELECT COUNT(*) as count FROM customer";
+    $stmt = $_db->prepare($customer_query);
+    $stmt->execute();
+    $total_customers = $stmt->fetchColumn();
+
+    // Get total revenue
+    $revenue_query = "SELECT SUM(total_amount) as total FROM payment WHERE payment_status = 'Completed'";
+    $stmt = $_db->prepare($revenue_query);
+    $stmt->execute();
+    $total_revenue = $stmt->fetchColumn() ?: 0;
+
+    // Get recent orders (last 5)
+    $recent_orders_query = "SELECT o.order_id, o.order_date, o.orders_status, o.order_total, c.cus_name 
+                           FROM orders o
+                           JOIN customer c ON o.cus_id = c.cus_id
+                           ORDER BY o.order_date DESC
+                           LIMIT 5";
+    $stmt = $_db->prepare($recent_orders_query);
+    $stmt->execute();
+    $recent_orders = $stmt->fetchAll();
+
+    // Get top selling products
+    $top_products_query = "SELECT p.product_id, p.product_name, p.product_pic1, 
+                          SUM(od.quantity) as total_sold, 
+                          SUM(od.unit_price * od.quantity) as revenue
+                          FROM product p
+                          JOIN order_details od ON p.product_id = od.product_id
+                          JOIN orders o ON od.order_id = o.order_id
+                          WHERE o.orders_status != 'Cancelled'
+                          GROUP BY p.product_id
+                          ORDER BY total_sold DESC
+                          LIMIT 5";
+    $stmt = $_db->prepare($top_products_query);
+    $stmt->execute();
+    $top_products = $stmt->fetchAll();
+
+    // Get low stock alerts
+    $low_stock_query = "SELECT p.product_id, p.product_name, p.product_pic1, q.size, q.product_stock
+                       FROM product p
+                       JOIN quantity q ON p.product_id = q.product_id
+                       WHERE q.product_stock <= 5 AND p.product_status = 'Available'
+                       ORDER BY q.product_stock ASC
+                       LIMIT 5";
+    $stmt = $_db->prepare($low_stock_query);
+    $stmt->execute();
+    $stock_alerts = $stmt->fetchAll();
+
+    // Get monthly revenue for the current year
+    $current_year = date('Y');
+    $monthly_revenue_query = "SELECT MONTH(payment_date) as month, SUM(total_amount) as revenue
+                             FROM payment
+                             WHERE YEAR(payment_date) = ? AND payment_status = 'Completed'
+                             GROUP BY MONTH(payment_date)
+                             ORDER BY month";
+    $stmt = $_db->prepare($monthly_revenue_query);
+    $stmt->execute([$current_year]);
+    
+    // Initialize array with all months
+    $monthly_data = array_fill(1, 12, 0);
+    
+    // Fill in actual data
+    while ($row = $stmt->fetch()) {
+        $monthly_data[$row->month] = floatval($row->revenue);
+    }
+    
+    $monthly_revenue = $monthly_data;
+
 } catch (PDOException $e) {
-    error_log("Database error: " . $e->getMessage());
-    $total_events = 0;
-    $total_bookings = 0;
-    $total_students = 0;
+    temp('error', 'Database error: ' . $e->getMessage());
 }
+
+// Calculate statistics
+$orders_pending = 0;
+$orders_processing = 0;
+$orders_completed = 0;
+
+try {
+    $orders_status_query = "SELECT orders_status, COUNT(*) as count 
+                           FROM orders 
+                           GROUP BY orders_status";
+    $stmt = $_db->prepare($orders_status_query);
+    $stmt->execute();
+    
+    while ($row = $stmt->fetch()) {
+        switch ($row->orders_status) {
+            case 'Pending':
+                $orders_pending = $row->count;
+                break;
+            case 'Processing':
+                $orders_processing = $row->count;
+                break;
+            case 'Delivered':
+                $orders_completed = $row->count;
+                break;
+        }
+    }
+} catch (PDOException $e) {
+    // Silently handle error
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
 
-<style>
-    .wrapper,
-    .wrapper2 {
-        display: inline-flex;
-        list-style: none;
-        height: 120px;
-        width: 100%;
-        padding: 5%;
-        font-family: "Poppins", sans-serif;
-        justify-content: center;
-    }
-
-    #btn-message {
-        --text-color: #000;
-        --bg-color-sup: #d2d2d2;
-        --bg-color: #f4f4f4;
-        --bg-hover-color: #ffffff;
-        --online-status: #00da00;
-        --font-size: 16px;
-        --btn-transition: all 0.2s ease-out;
-    }
-
-    .button-message {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font: 400 var(--font-size) Helvetica Neue, sans-serif;
-        box-shadow: 0 0 2.17382px rgba(0, 0, 0, .049), 0 1.75px 6.01034px rgba(0, 0, 0, .07), 0 3.63px 14.4706px rgba(0, 0, 0, .091), 0 22px 48px rgba(0, 0, 0, .14);
-        background-color: var(--bg-color);
-        border-radius: 68px;
-        cursor: pointer;
-        padding: 6px 10px 6px 6px;
-        width: fit-content;
-        height: 40px;
-        border: 0;
-        overflow: hidden;
-        position: relative;
-        transition: var(--btn-transition);
-        margin: 15px;
-    }
-
-    .button-message:hover {
-        height: 56px;
-        padding: 8px 20px 8px 8px;
-        background-color: var(--bg-hover-color);
-        transition: var(--btn-transition);
-    }
-
-    .button-message:active {
-        transform: scale(0.99);
-    }
-
-    .button-message:hover .status-user {
-        width: 10px;
-        height: 10px;
-        right: 1px;
-        bottom: 1px;
-        outline: solid 3px var(--bg-hover-color);
-    }
-
-    .notice-content {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: center;
-        padding-left: 8px;
-        text-align: initial;
-        color: var(--text-color);
-    }
-
-    .content {
-        letter-spacing: -6px;
-        height: 0;
-        opacity: 0;
-        transform: translateY(-20px);
-        transition: var(--btn-transition);
-    }
-
-    .dec {
-        font-size: 12px;
-        letter-spacing: -6px;
-        height: 0;
-        opacity: 0;
-        transform: translateY(10px);
-        transition: var(--btn-transition);
-    }
-
-    .lable-message {
-        margin-right: 30px;
-    }
-
-    .lable-message,
-    .lable-message2 {
-        display: flex;
-        align-items: center;
-        opacity: 1;
-        transform: scaleY(1);
-        transition: var(--btn-transition);
-    }
-
-    .button-message:hover .content {
-        height: auto;
-        letter-spacing: normal;
-        opacity: 1;
-        transform: translateY(0);
-        transition: var(--btn-transition);
-    }
-
-    .button-message:hover .dec {
-        height: auto;
-        letter-spacing: normal;
-        opacity: 1;
-        transform: translateY(0);
-        transition: var(--btn-transition);
-    }
-
-    .button-message:hover .lable-message {
-        height: 0;
-        transform: scaleY(0);
-        transition: var(--btn-transition);
-    }
-
-    .lable-message,
-    .lable-message2,
-    .content {
-        font-weight: 600;
-    }
-
-
-    .msg-count {
-        position: absolute;
-        top: -5px;
-        right: -28px;
-        background-color: red;
-        border-radius: 50%;
-        font-size: 0.7em;
-        color: rgb(0, 0, 0);
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        text-align: center;
-    }
-
-    /*==============================================*/
-    @keyframes active-status {
-        0% {
-            background-color: var(--online-status);
-        }
-
-        33.33% {
-            background-color: #93e200;
-        }
-
-        66.33% {
-            background-color: #93e200;
-        }
-
-        100% {
-            background-color: var(--online-status);
-        }
-    }
-</style>
-
 <head>
     <meta charset="UTF-8">
-    <script src="https://kit.fontawesome.com/yourcode.js" crossorigin="anonymous"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css" rel="stylesheet" />
-    <link type="text/css" rel="stylesheet" href="CSS/appAdmin.css" />
-    <link type="text/css" rel="stylesheet" href="CSS/event.css" />
-    <title>TARUMT Theatre Society | Admin Home</title>
+    <title><?= $_title ?></title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .dashboard-card {
+            transition: all 0.3s ease;
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .stat-icon {
+            font-size: 1.5rem;
+            padding: 1rem;
+            border-radius: 50%;
+            margin-right: 1rem;
+        }
+    </style>
 </head>
 
-<body>
-    <ul class="wrapper">
-        <a id="btn-message" class="button-message" href="viewEvent.php">
-            <div class="notice-content">
-                <div class="content">View Event Details</div>
-                <div class="lable-message">Event<span class="msg-count"><?php echo $total_events; ?></span></div>
-                <div class="dec">all the event details</div>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Welcome to the Admin Dashboard</h1>
+        
+        <!-- Date and Quick Actions -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+            <div class="text-gray-600 mb-4 md:mb-0">
+                <p class="text-lg"><i class="far fa-calendar-alt mr-2"></i> <?= date('l, F j, Y') ?></p>
             </div>
-        </a>
-        <a id="btn-message" class="button-message" href="viewBooking.php">
-            <div class="notice-content">
-                <div class="content">View Booking Details</div>
-                <div class="lable-message">Booking<span class="msg-count"><?php echo $total_bookings; ?></span></div>
-                <div class="dec">all the booking details</div>
+            <div class="flex space-x-3">
+                <a href="product.php" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center">
+                    <i class="fas fa-box mr-2"></i> Manage Products
+                </a>
+                <a href="orders.php" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg flex items-center">
+                    <i class="fas fa-shopping-cart mr-2"></i> View Orders
+                </a>
             </div>
-        </a>
-        <a id="btn-message" class="button-message" href="viewStudent.php">
-            <div class="notice-content">
-                <div class="content">View Student Details</div>
-                <div class="lable-message">Student<span class="msg-count"><?php echo $total_students; ?></span></div>
-                <div class="dec">all the student details</div>
+        </div>
+        
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Products Card -->
+            <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden border-l-4 border-indigo-500">
+                <div class="p-5 flex items-center">
+                    <div class="stat-icon bg-indigo-100 text-indigo-600">
+                        <i class="fas fa-tshirt"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Total Products</p>
+                        <p class="text-2xl font-bold"><?= number_format($total_products) ?></p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-5 py-2">
+                    <a href="product.php" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                        View all products <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
             </div>
-        </a>
-    </ul>
+            
+            <!-- Orders Card -->
+            <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden border-l-4 border-green-500">
+                <div class="p-5 flex items-center">
+                    <div class="stat-icon bg-green-100 text-green-600">
+                        <i class="fas fa-shopping-bag"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Total Orders</p>
+                        <p class="text-2xl font-bold"><?= number_format($total_orders) ?></p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-5 py-2">
+                    <a href="orders.php" class="text-green-600 hover:text-green-800 text-sm font-medium">
+                        View all orders <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Customers Card -->
+            <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden border-l-4 border-blue-500">
+                <div class="p-5 flex items-center">
+                    <div class="stat-icon bg-blue-100 text-blue-600">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Total Customers</p>
+                        <p class="text-2xl font-bold"><?= number_format($total_customers) ?></p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-5 py-2">
+                    <a href="customers.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        View all customers <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Revenue Card -->
+            <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden border-l-4 border-purple-500">
+                <div class="p-5 flex items-center">
+                    <div class="stat-icon bg-purple-100 text-purple-600">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Total Revenue</p>
+                        <p class="text-2xl font-bold">RM<?= number_format($total_revenue, 2) ?></p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-5 py-2">
+                    <a href="reports.php" class="text-purple-600 hover:text-purple-800 text-sm font-medium">
+                        View reports <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Order Status Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Pending Orders -->
+            <div class="dashboard-card bg-white rounded-lg shadow p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-700">Pending Orders</h3>
+                    <span class="p-2 rounded-full bg-yellow-100 text-yellow-700">
+                        <i class="fas fa-clock"></i>
+                    </span>
+                </div>
+                <p class="text-3xl font-bold text-yellow-600"><?= number_format($orders_pending) ?></p>
+                <p class="text-sm text-gray-500 mt-2">Awaiting processing</p>
+            </div>
+            
+            <!-- Processing Orders -->
+            <div class="dashboard-card bg-white rounded-lg shadow p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-700">Processing Orders</h3>
+                    <span class="p-2 rounded-full bg-blue-100 text-blue-700">
+                        <i class="fas fa-cog"></i>
+                    </span>
+                </div>
+                <p class="text-3xl font-bold text-blue-600"><?= number_format($orders_processing) ?></p>
+                <p class="text-sm text-gray-500 mt-2">Currently being processed</p>
+            </div>
+            
+            <!-- Completed Orders -->
+            <div class="dashboard-card bg-white rounded-lg shadow p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-700">Completed Orders</h3>
+                    <span class="p-2 rounded-full bg-green-100 text-green-700">
+                        <i class="fas fa-check"></i>
+                    </span>
+                </div>
+                <p class="text-3xl font-bold text-green-600"><?= number_format($orders_completed) ?></p>
+                <p class="text-sm text-gray-500 mt-2">Successfully delivered</p>
+            </div>
+        </div>
+        
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Monthly Revenue Chart -->
+            <div class="dashboard-card bg-white rounded-lg shadow p-5">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Monthly Revenue (<?= date('Y') ?>)</h3>
+                <div class="h-64">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Orders Status Chart -->
+            <div class="dashboard-card bg-white rounded-lg shadow p-5">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Order Status Distribution</h3>
+                <div class="h-64">
+                    <canvas id="ordersChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Orders Section -->
+        <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden mb-8">
+            <div class="flex justify-between items-center p-5 border-b border-gray-200">
+                <h3 class="text-lg font-bold text-gray-800">Recent Orders</h3>
+                <a href="orders.php" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                    View All <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <?php if (empty($recent_orders)): ?>
+                            <tr>
+                                <td colspan="6" class="px-6 py-4 text-center text-gray-500">No recent orders found</td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($recent_orders as $order): ?>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        <?= htmlspecialchars($order->order_id) ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <?= htmlspecialchars($order->cus_name) ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <?= date('M d, Y', strtotime($order->order_date)) ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                        RM<?= number_format($order->order_total, 2) ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <?php
+                                        $statusClass = match($order->orders_status) {
+                                            'Pending' => 'bg-yellow-100 text-yellow-800',
+                                            'Processing' => 'bg-blue-100 text-blue-800',
+                                            'Shipped' => 'bg-purple-100 text-purple-800',
+                                            'Delivered' => 'bg-green-100 text-green-800',
+                                            'Cancelled' => 'bg-red-100 text-red-800',
+                                            default => 'bg-gray-100 text-gray-800'
+                                        };
+                                        ?>
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?= $statusClass ?>">
+                                            <?= htmlspecialchars($order->orders_status) ?>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <a href="order_details.php?id=<?= $order->order_id ?>" class="text-indigo-600 hover:text-indigo-900">View</a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Top Products and Stock Alerts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Top Products -->
+            <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden">
+                <div class="flex justify-between items-center p-5 border-b border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-800">Best Selling Products</h3>
+                    <a href="reports.php?view=top_products" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                        View All <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+                <div class="divide-y divide-gray-200">
+                    <?php if (empty($top_products)): ?>
+                        <div class="px-5 py-4 text-center text-gray-500">No product sales data available</div>
+                    <?php else: ?>
+                        <?php foreach ($top_products as $product): ?>
+                            <div class="p-5 flex items-center">
+                                <div class="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg overflow-hidden mr-4">
+                                    <?php if ($product->product_pic1): ?>
+                                        <img src="../uploads/product_images/<?= $product->product_pic1 ?>" alt="<?= htmlspecialchars($product->product_name) ?>" class="w-full h-full object-cover">
+                                    <?php else: ?>
+                                        <div class="w-full h-full flex items-center justify-center bg-gray-200">
+                                            <i class="fas fa-tshirt text-gray-400"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="flex-grow">
+                                    <h4 class="text-sm font-medium text-gray-900"><?= htmlspecialchars($product->product_name) ?></h4>
+                                    <div class="flex items-center justify-between mt-1">
+                                        <span class="text-sm text-gray-500"><?= number_format($product->total_sold) ?> units sold</span>
+                                        <span class="text-sm font-medium text-gray-900">RM<?= number_format($product->revenue, 2) ?></span>
+                                    </div>
+                                </div>
+                                <a href="Detail_Product.php?id=<?= $product->product_id ?>" class="ml-4 text-indigo-600 hover:text-indigo-900">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <!-- Stock Alerts -->
+            <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden">
+                <div class="flex justify-between items-center p-5 border-b border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-800">Low Stock Alerts</h3>
+                    <a href="reports.php?view=low_stock" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                        View All <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+                <div class="divide-y divide-gray-200">
+                    <?php if (empty($stock_alerts)): ?>
+                        <div class="px-5 py-4 text-center text-gray-500">No low stock items</div>
+                    <?php else: ?>
+                        <?php foreach ($stock_alerts as $item): ?>
+                            <div class="p-5 flex items-center">
+                                <div class="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg overflow-hidden mr-4">
+                                    <?php if ($item->product_pic1): ?>
+                                        <img src="../uploads/product_images/<?= $item->product_pic1 ?>" alt="<?= htmlspecialchars($item->product_name) ?>" class="w-full h-full object-cover">
+                                    <?php else: ?>
+                                        <div class="w-full h-full flex items-center justify-center bg-gray-200">
+                                            <i class="fas fa-tshirt text-gray-400"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="flex-grow">
+                                    <h4 class="text-sm font-medium text-gray-900"><?= htmlspecialchars($item->product_name) ?></h4>
+                                    <div class="flex items-center justify-between mt-1">
+                                        <span class="text-sm">Size: <strong><?= htmlspecialchars($item->size) ?></strong></span>
+                                        <?php if ($item->product_stock <= 0): ?>
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                Out of Stock
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                <?= $item->product_stock ?> left
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <a href="Update_Product.php?id=<?= $item->product_id ?>" class="ml-4 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 py-1 px-3 rounded-lg text-sm">
+                                    Restock
+                                </a>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <ul class="wrapper2">
-        <a id="btn-message" class="button-message" href="addNewEvent.php">
-            <div class="notice-content">
-                <div class="lable-message2">Add Event</div>
-                <div class="dec">add the new event</div>
-            </div>
-        </a>
-        <a id="btn-message" class="button-message" href="addNewBooking.php">
-            <div class="notice-content">
-                <div class="lable-message2">Add Booking</div>
-                <div class="dec">add the new booking </div>
-            </div>
-        </a>
-        <a id="btn-message" class="button-message" href="addNewStudent.php">
-            <div class="notice-content">
-                <div class="lable-message2">Add Student</div>
-                <div class="dec">add the new student</div>
-            </div>
-        </a>
-    </ul>
-    <ul class="wrapper2"></ul>
-    <?php
-    include('footer.php');
-    ?>
-    <script src="https://kit.fontawesome.com/d317456e1b.js" crossorigin="anonymous"></script>
+    <footer class="bg-white border-t border-gray-200 py-4">
+        <div class="container mx-auto px-4">
+            <p class="text-center text-gray-500 text-sm">© <?= date('Y') ?> K&P Fashion Admin Portal. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Monthly Revenue Chart
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthlyData = <?= json_encode(array_values($monthly_revenue)) ?>;
+        
+        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+        const revenueChart = new Chart(revenueCtx, {
+            type: 'line',
+            data: {
+                labels: monthNames,
+                datasets: [{
+                    label: 'Revenue (RM)',
+                    data: monthlyData,
+                    backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                    borderColor: 'rgba(79, 70, 229, 1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointBackgroundColor: 'rgba(79, 70, 229, 1)',
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'RM' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Revenue: RM' + context.parsed.y.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Orders Status Chart
+        const ordersCtx = document.getElementById('ordersChart').getContext('2d');
+        const ordersChart = new Chart(ordersCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Pending', 'Processing', 'Delivered', 'Other'],
+                datasets: [{
+                    data: [
+                        <?= $orders_pending ?>, 
+                        <?= $orders_processing ?>, 
+                        <?= $orders_completed ?>, 
+                        <?= $total_orders - ($orders_pending + $orders_processing + $orders_completed) ?>
+                    ],
+                    backgroundColor: [
+                        'rgba(251, 191, 36, 0.8)',
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(156, 163, 175, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(251, 191, 36, 1)',
+                        'rgba(59, 130, 246, 1)',
+                        'rgba(16, 185, 129, 1)',
+                        'rgba(156, 163, 175, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 
 </html>

@@ -1,7 +1,7 @@
 <?php
 $_title = 'Payment';
 require '../../_base.php';
-//auth('Admin', 'Manager');
+auth(0,1);
 require 'header.php';
 
 // (1) Sorting fields

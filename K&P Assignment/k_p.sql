@@ -53,7 +53,9 @@ CREATE TABLE `admin` (
   `admin_update_time` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `admin_email` varchar(255) NOT NULL,
   `admin_status` varchar(255) NOT NULL,
-  `admin_profile_pic` varchar(255) DEFAULT NULL
+  `admin_profile_pic` varchar(255) DEFAULT NULL,
+  `admin_contact` varchar(14) NOT NULL,
+  `admin_role` int(1) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -137,8 +139,8 @@ CREATE TABLE `discount` (
   `Discount_id` varchar(255) NOT NULL,
   `product_id` varchar(255) NOT NULL,
   `discount_rate` decimal(10,2) NOT NULL,
-  `start_date` date NOT NULL,
-  `end_date` date NOT NULL,
+  `start_date` datetime NOT NULL,
+  `end_date` datetime NOT NULL,
   `status` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -251,11 +253,12 @@ INSERT INTO `product` (`product_id`, `category_id`, `product_name`, `product_pic
 --
 
 CREATE TABLE `quantity` (
-  `quantity_id` int(11) NOT NULL,
+  `quantity_id` int(11) NOT NULL AUTO_INCREMENT,
   `product_id` varchar(255) DEFAULT NULL,
   `size` enum('S','M','L','XL','XXL') NOT NULL,
   `product_stock` int(11) NOT NULL,
-  `product_sold` int(11) DEFAULT 0
+  `product_sold` int(11) DEFAULT 0,
+  PRIMARY KEY (`quantity_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -351,14 +354,7 @@ ALTER TABLE `payment`
 ALTER TABLE `product`
   ADD PRIMARY KEY (`product_id`),
   ADD KEY `category_id` (`category_id`);
-
---
--- Indexes for table `quantity`
---
-ALTER TABLE `quantity`
-  ADD PRIMARY KEY (`quantity_id`),
-  ADD KEY `product_id` (`product_id`);
-
+  
 --
 -- Indexes for table `voucher`
 --

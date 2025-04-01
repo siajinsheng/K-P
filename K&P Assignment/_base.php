@@ -161,26 +161,6 @@ function is_password_match($password, $confirm_password) {
     return $password === $confirm_password;
 }
 
-// Logout user
-function logout($role = null, $url = null)
-{
-    safe_session_start(); // Ensure the session is started to modify session variables
-
-    // Unset the session based on the role
-    if ($role === 'Member') {
-        unset($_SESSION['customer_user']);
-    } else {
-        unset($_SESSION['admin_user']);
-    }
-
-    // Clear the "remember me" cookie
-    setcookie('remember_me_token', '', time() - 3600, '/'); // Expire the cookie
-
-    // Redirect to the specified URL or the root if none is provided
-    $redirect_url = $url ?? '/';
-    redirect($redirect_url);
-}
-
 // Generate button
 function html_button($href, $text, $attr = '')
 {
@@ -207,91 +187,97 @@ function table_headers($fields, $sort, $dir, $href = '')
 // Authorization
 function auth(...$roles)
 {
-    // Add debug output
-    echo "Roles passed: " . print_r($roles, true) . "<br>";
-    echo "Admin user: " . print_r($_SESSION['admin_user'], true) . "<br>";
-    
-    safe_session_start(); // Start the session
+    safe_session_start(); // Ensure the session is started
     
     global $_db;
     
+    // Detailed role mapping
+    $role_map = [
+        1 => 'Manager',
+        2 => 'Supervisor',
+        3 => 'Staff'
+    ];
+
     // Check if a user is logged in
-    if (!isset($_SESSION['customer_user']) && !isset($_SESSION['admin_user'])) {
-        redirect('login.php'); // Not logged in, redirect to login
+    if (!isset($_SESSION['admin_user']) && !isset($_SESSION['current_user'])) {
+        temp('info', 'Please log in to access this page');
+        redirect('login.php');
     }
 
-    // Check if the user status is blocked
-    if (isset($_SESSION['customer_user'])) {
-        try {
-            $customer_user = $_SESSION['customer_user'];
+    // Try to get the user object
+    $user = isset($_SESSION['admin_user']) 
+        ? $_SESSION['admin_user'] 
+        : json_decode($_SESSION['current_user']);
 
-            $stm = $_db->prepare('SELECT * FROM customer WHERE cus_id = ?');
-            $stm->execute([$customer_user->cus_id]);
-            $u = $stm->fetch();
+    // Check if user status is blocked
+    try {
+        // Check admin user
+        if ($user) {
+            $stm = $_db->prepare('SELECT * FROM admin WHERE admin_id = ?');
+            $stm->execute([$user->admin_id]);
+            $db_user = $stm->fetch();
         
-            if(!$u || $u->cus_status === "blocked"){
-                temp('info','Your account has been BLOCKED');
-                logout('Member','login.php');
-            }
-        } catch (PDOException $e) {
-            // Log the error
-            error_log("Customer authentication error: " . $e->getMessage());
-            redirect('login.php');
-        }
-    }
-
-    if (isset($_SESSION['admin_user'])) {
-        try {
-            $admin_user = $_SESSION['admin_user'];
-
-            // Verify admin_user is an object and has the expected properties
-            if (!is_object($admin_user)) {
-                temp('info', 'Invalid admin session');
+            if (!$db_user || $db_user->admin_status === "Inactive") {
+                temp('info', 'Your admin account has been BLOCKED or INACTIVE');
                 logout('Admin', 'login.php');
             }
+        }
 
-            $stm = $_db->prepare('SELECT * FROM admin WHERE admin_id = ?');
-            $stm->execute([$admin_user->admin_id]);
-            $u = $stm->fetch();
-        
-            if(!$u || $u->admin_status === "blocked"){
-                temp('info','Your account has been BLOCKED');
-                logout('Admin','login.php');
+        // Prepare user roles for checking
+        $userRoles = [
+            'Admin',  // Generic admin role
+            $role_map[$user->admin_role] ?? 'Staff',  // Mapped role
+            (string)$user->admin_role,  // Numeric role
+            '1'  // Backward compatibility
+        ];
+
+        // Debug logging (optional)
+        error_log('User Roles: ' . print_r($userRoles, true));
+        error_log('Required Roles: ' . print_r($roles, true));
+
+        // Check if any of the required roles match user roles
+        $hasRequiredRole = false;
+        foreach ($roles as $role) {
+            if (in_array($role, $userRoles)) {
+                $hasRequiredRole = true;
+                break;
             }
-        } catch (PDOException $e) {
-            // Log the error
-            error_log("Admin authentication error: " . $e->getMessage());
+        }
+
+        // If no matching role is found, redirect
+        if (!$hasRequiredRole) {
+            temp('info', 'You do not have permission to access this page');
             redirect('login.php');
         }
+
+    } catch (PDOException $e) {
+        // Log the error
+        error_log("Authentication error: " . $e->getMessage());
+        temp('error', 'An authentication error occurred');
+        redirect('login.php');
     }
-
-    // Determine the user roles
-    $userRoles = []; // Initialize an array to hold roles
-
-    if (isset($_SESSION['customer_user'])) {
-        $userRoles[] = 'Member'; // Add Member role
-    }
-
-    if (isset($_SESSION['admin_user'])) {
-        $userRoles[] = 'Admin';   // Add Admin role
-
-        $admin_user = $_SESSION['admin_user'];
-
-        // Safely check role, adding a null coalescing operator
-        if (isset($admin_user->role) && $admin_user->role === 'Manager') {
-            $userRoles[] = 'Manager'; // Add Manager role
-        }
-    }
-
-    // Check if the user's role is in the allowed roles
-    foreach ($roles as $role) {
-        if (in_array($role, $userRoles)) {
-            return; // User is authenticated and has the right role
-        }
-    }
-
-    redirect('login.php'); // User does not have permission, redirect to login
 }
+
+// Logout function with improved handling
+function logout($role = null, $url = null)
+{
+    safe_session_start();
+
+    // Clear all session variables related to user
+    unset($_SESSION['admin_user']);
+    unset($_SESSION['current_user']);
+    unset($_SESSION['adminID']);
+    unset($_SESSION['admin_role']);
+
+    // Clear the "remember me" cookies
+    setcookie('admin_id', '', time() - 3600, '/');
+    setcookie('password', '', time() - 3600, '/');
+
+    // Redirect to the specified URL or the root if none is provided
+    $redirect_url = $url ?? '/';
+    redirect($redirect_url);
+}
+
 
 // Additional debug function to help identify session issues
 function debug_session_user($user) {
