@@ -1,3 +1,12 @@
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#toggleBtn').click(function() {
+            $('#sidebar').toggleClass('hidden');
+        });
+    });
+</script>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -15,8 +24,8 @@
     <div class="navbar">
         <div class="header">
             <div class="navbar">
-                <a href="#" onclick="toggleSidebar();"><i class="fa-solid fa-bars"></i></a>
-                <a href="index.html"><img src="..\image\logo.jpeg" alt=""></a>
+            <button class="toggle-btn" id="toggleBtn"><i class="fa-solid fa-bars"></i></button>
+                <a href="index.html"><img src="..\image\K&P logo.png" alt=""></a>
                 <ul>
                     <li>
                         <a href="index.php">Home</a>
@@ -30,43 +39,37 @@
                 </ul>
             </div>
         </div>
-        <div class="sidebar">
-            <div class="overlay" onclick="toggleSidebar();"></div>
-            <nav>
-                <ul>
-                    <li>
-                        <a href="index.php">Home</a>
-                    </li>
-                    <li>
-                        <a href="products.php">Product</a>
-                    </li>
-                    <li>
-                        <a href="about-us.php">About Us</a>
-                    </li>
-                    <li>
-                        <a href="membership.php">Log In</a>
-                    </li>
-                    <li>
-                        <a href="faq.php">FAQ</a>
-                    </li>
-                    <li>
-                        <a href="delivery.php">Delivery</a>
-                    </li>
-                    <li>
-                        <a href="shopping-bag.php">Shopping Bag</a>
-                    </li>
-                    <li>
-                        <a href="review.php">Review</a>
-                    </li>
-                    <li>
-                        <a href="help&support.php">Help & Support</a>
-                    </li>
-                </ul>
-            </nav>
+        <div class="sidebar" id="sidebar">
+            <ul>
+                <li>
+                    <a href="/user/page/index.php">Home</a>
+                </li>
+                <li>
+                    <a href="/user/page/products.php">Product</a>
+                </li>
+                <li>
+                    <a href="/user/page/about-us.php">About Us</a>
+                </li>
+                <li>
+                    <a href="/user/page/login.php">Log In</a>
+                </li>
+                <li>
+                    <a href="/user/page/faq.php">FAQ</a>
+                </li>
+                <li>
+                    <a href="/user/page/shopping-bag.php">Shopping Bag</a>
+                </li>
+                <li>
+                    <a href="/user/page/review.php">Review</a>
+                </li>
+                <li>
+                    <a href="/user/page/help&support.php">Help & Support</a>
+                </li>
+            </ul>
+
         </div>
     </div>
     <script src="https://kit.fontawesome.com/d317456e1b.js" crossorigin="anonymous"></script>
-    <script src="js/app.js"></script>
 </body>
 
 </html>

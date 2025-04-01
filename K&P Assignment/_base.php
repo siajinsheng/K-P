@@ -90,6 +90,53 @@ function temp($key, $value = null)
     }
 }
 
+// Obtain uploaded file --> cast to object
+function get_file($key)
+{
+    $f = $_FILES[$key] ?? null;
+
+    if ($f && $f['error'] == 0) {
+        return (object)$f;
+    }
+
+    return null;
+}
+
+// Crop, resize and save photo
+function save_photo($file, $target_dir = 'Upload_Images', $width = 200, $height = 200)
+{
+    $photo = uniqid() . '.jpg';
+    require_once 'Admin/lib/SimpleImage.php';
+    $img = new SimpleImage();
+    $img->fromFile($file['tmp_name'])
+        ->thumbnail($width, $height)
+        ->toFile("$target_dir/$photo", 'image/jpeg');
+
+    return $photo;
+}
+
+
+// Crop, resize and save photo
+function save_photo_user($f, $folder, $width = 200, $height = 200)
+{
+    $photo = uniqid() . '.jpg';
+
+    require_once 'Admin/lib/SimpleImage.php';
+    $img = new SimpleImage();
+    $img->fromFile($f->tmp_name)
+        ->thumbnail($width, $height)
+        ->toFile("$folder/$photo", 'image/jpeg');
+
+    return $photo;
+}
+
+// Is email?
+function is_email($value)
+{
+    return filter_var($value, FILTER_VALIDATE_EMAIL) !== false;
+}
+
+
 // Is unique?
 function is_unique($value, $table, $field)
 {
@@ -273,3 +320,243 @@ function html_select($key, $items, $default = '- Select One -', $attr = '')
     }
     echo '</select>';
 }
+
+
+
+// ============================================================================
+// Error Handlings
+// ============================================================================
+
+// Global error array
+$_err = [];
+
+// Generate <span class='err'>
+function err($key)
+{
+    global $_err;
+    if ($_err[$key] ?? false) {
+        echo "<span class='err'>$_err[$key]</span>";
+    } else {
+        echo '<span></span>';
+    }
+}
+
+function showError($message)
+{
+    echo "<script type='text/javascript'>alert(" . json_encode($message) . ");</script>";
+}
+
+// ============================================================================
+// Email Configuration (PHPMailer)
+// ============================================================================
+
+/**
+ * Initialize and return PHPMailer object
+ */
+function get_mail() {
+    require_once 'path/to/PHPMailer/src/PHPMailer.php';
+    require_once 'path/to/PHPMailer/src/SMTP.php';
+    require_once 'path/to/PHPMailer/src/Exception.php';
+
+    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+    
+    try {
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.siajinsheng@gmail.com'; // e.g., smtp.gmail.com
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'your-email@your-domain.com';   // SMTP username
+        $mail->Password   = 'your-email-password';          // SMTP password
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS; // Enable TLS encryption
+        $mail->Port       = 587;                            // TCP port to connect to
+        
+        // Sender info
+        $mail->setFrom('no-reply@your-domain.com', 'K&P Store');
+        $mail->CharSet = 'UTF-8';
+        
+        return $mail;
+    } catch (Exception $e) {
+        error_log("Mailer Error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Generate a secure activation token
+ */
+function generate_activation_token() {
+    return bin2hex(random_bytes(32));
+}
+
+/**
+ * Check if email is unique in customer table
+ */
+function is_email_unique($email) {
+    global $_db;
+    $stm = $_db->prepare("SELECT COUNT(*) FROM customer WHERE cus_Email = ?");
+    $stm->execute([$email]);
+    return $stm->fetchColumn() == 0;
+}
+
+/**
+ * Check if phone is unique in customer table
+ */
+function is_phone_unique($phone) {
+    global $_db;
+    $stm = $_db->prepare("SELECT COUNT(*) FROM customer WHERE cus_phone = ?");
+    $stm->execute([$phone]);
+    return $stm->fetchColumn() == 0;
+}
+
+/**
+ * Activate user account using token
+ */
+function activate_account($token) {
+    global $_db;
+    
+    // Check if token exists and not expired
+    $stm = $_db->prepare("SELECT cus_id FROM customer WHERE activation_token = ? AND activation_expiry > NOW()");
+    $stm->execute([$token]);
+    $user = $stm->fetch();
+    
+    if ($user) {
+        // Activate the account
+        $stm = $_db->prepare("UPDATE customer SET cus_status = 'Active', activation_token = NULL, activation_expiry = NULL WHERE cus_id = ?");
+        $stm->execute([$user->cus_id]);
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Send activation email using PHPMailer
+ */
+function send_activation_email($email, $name, $activationToken) {
+    try {
+        $mail = get_mail();
+        $mail->addAddress($email, $name);
+        
+        $subject = "Activate Your K&P Account";
+        $activationLink = "https://your-kp-website.com/activate.php?token=" . $activationToken;
+        
+        $message = "
+        <html>
+        <head>
+            <title>Account Activation</title>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .button { 
+                    display: inline-block; 
+                    padding: 10px 20px; 
+                    background-color: #4CAF50; 
+                    color: white; 
+                    text-decoration: none; 
+                    border-radius: 5px; 
+                    margin: 20px 0;
+                }
+                .footer { margin-top: 30px; font-size: 12px; color: #777; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <h2>Welcome to K&P, $name!</h2>
+                <p>Thank you for registering with K&P. To complete your registration, please click the button below to activate your account:</p>
+                
+                <p><a href='$activationLink' class='button'>Activate My Account</a></p>
+                
+                <p>Or copy and paste this link into your browser:<br>
+                <small>$activationLink</small></p>
+                
+                <p>This activation link will expire in 24 hours.</p>
+                
+                <div class='footer'>
+                    <p>If you didn't request this account, please ignore this email.</p>
+                    <p>&copy; " . date('Y') . " K&P. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        ";
+        
+        $mail->Subject = $subject;
+        $mail->Body = $message;
+        $mail->AltBody = "Welcome to K&P, $name!\n\nPlease click this link to activate your account: $activationLink\n\nThis link expires in 24 hours.";
+        
+        return $mail->send();
+    } catch (Exception $e) {
+        error_log("Failed to send activation email: " . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+/**
+ * Generate <input type='text'>
+ */
+function html_text($key, $attr = '') {
+    $value = encode($GLOBALS[$key] ?? '');
+    echo "<input type='text' id='$key' name='$key' value='$value' $attr>";
+}
+
+/**
+ * Generate <input type='password'>
+ */
+function html_password($key, $attr = '') {
+    $value = encode($GLOBALS[$key] ?? '');
+    echo "<input type='password' id='$key' name='$key' value='$value' $attr>";
+}
+
+/**
+ * Generate <input type='email'>
+ */
+function html_email($key, $attr = '') {
+    $value = encode($GLOBALS[$key] ?? '');
+    echo "<input type='email' id='$key' name='$key' value='$value' $attr>";
+}
+
+/**
+ * Generate <input type='tel'>
+ */
+function html_tel($key, $attr = '') {
+    $value = encode($GLOBALS[$key] ?? '');
+    echo "<input type='tel' id='$key' name='$key' value='$value' $attr>";
+}
+
+/**
+ * Generate <input type='file'>
+ */
+function html_file($key, $accept = '', $attr = '') {
+    echo "<input type='file' id='$key' name='$key' accept='$accept' $attr>";
+}
+
+/**
+ * Generate radio buttons for gender selection
+ */
+function html_gender($key, $selected = null) {
+    $genders = [
+        'Male' => 'Male',
+        'Female' => 'Female',
+        'Other' => 'Other'
+    ];
+    
+    echo '<div class="gender-options">';
+    foreach ($genders as $value => $label) {
+        $checked = ($selected === $value) ? 'checked' : '';
+        echo "
+        <div class='gender-option'>
+            <input type='radio' id='{$key}_{$value}' name='{$key}' value='{$value}' {$checked}>
+            <label for='{$key}_{$value}'>{$label}</label>
+        </div>
+        ";
+    }
+    echo '</div>';
+}
+
+// Temporary test - remove after verification
+function test_err_function() {
+    global $_err;
+    $_err['test'] = 'This is a test error message';
+    err('test');
+}
+// test_err_function(); // Uncomment to test, then comment out after
