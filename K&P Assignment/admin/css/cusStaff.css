@@ -1,178 +1,180 @@
-/* Sorting */
-.table th a {
-    color: inherit;
-    display: block;
+/* General Styling */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
 }
 
-.table th a.asc::after {
-    content: ' ▴';
-}
-
-.table th a.desc::after {
-    content: ' ▾';
-}
-
-/* General Styling for Form */
-form {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-form p {
-    font-size: 14px;
+h1 {
+    text-align: center;
     color: #333;
-    margin-bottom: 8px;
+    margin-top: 20px;
+}
+
+/* Search Form */
+form {
+    background: white;
+    padding: 15px;
+    margin: 20px auto;
+    width: 50%;
+    text-align: center;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+form p {
     font-weight: bold;
-    margin-top: auto;
+    margin-bottom: 5px;
 }
 
-/* Styling for Search Bar */
-input[type="search"] {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    width: 250px;
-    font-size: 14px;
-    margin-right: 20px;
-}
-
-input[type="search"]:focus {
-    border-color: #007BFF;
-    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-    outline: none;
-}
-
-/* Styling for Select Dropdown (Filter) */
-select {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 14px;
-    background-color: white;
-    width: 200px;
-}
-
-select:focus {
-    border-color: #007BFF;
-    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-    outline: none;
-}
-
-/* Button Styling */
 button {
-    padding: 10px 20px;
-    background-color: #007BFF;
-    border: none;
-    border-radius: 4px;
+    background-color: grey;
     color: white;
+    border: none;
+    padding: 8px 15px;
     cursor: pointer;
-    font-size: 14px;
+    border-radius: 5px;
+    transition: background 0.3s;
 }
 
 button:hover {
-    background-color: #0056b3;
+    background-color: white;
+    color: grey;
 }
 
 /* Table Styling */
 .table {
-    width: 100%;
+    width: 90%;
+    margin: 20px auto;
     border-collapse: collapse;
-    margin-top: 20px;
+    background: white;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
 }
 
-/* Table header styling */
+.table th, .table td {
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+}
+
 .table th {
-    background-color: #343a40;
+    background: gray;
     color: white;
-    padding: 10px;
-    text-align: left;
-}
-
-/* Table cell styling */
-.table td {
-    padding: 10px;
-    border-bottom: 1px solid #ccc;
-}
-
-/* Highlight the bottom line for every five records */
-.table tr:nth-child(5n) {
-    border-bottom: 2px solid #007BFF;
-}
-
-/* Optional: Change the background color on hover */
-.table tr:hover {
-    background-color: #f1f1f1;
-}
-
-/* Status Cell Highlight */
-.table td.status {
     font-weight: bold;
-    color: #fff;
+}
+.table a{
+    color: white;
+}
+
+.table tr:hover {
+    background: #f1f1f1;
+}
+.record{
     text-align: center;
 }
-
-.table td.status.active {
-    background-color: #28a745;
+/* Profile Picture Styling */
+img.popup {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ccc;
 }
 
-.table td.status.blocked {
-    background-color: #dc3545;
-}
-
-/* Status Text Colors */
-.status-blocked {
-    color: rgb(255, 0, 0);
-}
-
+/* Status Styling */
 .status-active {
-    color: rgb(23, 203, 23);
+    color: green;
+    font-weight: bold;
+}
+
+.status-blocked {
+    color: red;
+    font-weight: bold;
 }
 
 /* Action Buttons */
 .button-block {
-    background-color: red;
+    background: red;
     color: white;
+    padding: 6px 12px;
     border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
     cursor: pointer;
+    border-radius: 5px;
 }
 
 .button-block:hover {
-    background-color: darkred;
+    background: darkred;
 }
 
 .button-unblock {
-    background-color: rgb(0, 111, 180);
+    background: green;
     color: white;
+    padding: 6px 12px;
     border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
     cursor: pointer;
+    border-radius: 5px;
 }
 
 .button-unblock:hover {
-    background-color: darkgreen;
+    background: darkgreen;
 }
 
-/* Profile Photo Hover */
-.table td:has(.popup) {
-    position: relative;
+
+
+
+
+
+/* Pagination Container */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+    list-style: none;
+    padding: 0;
 }
 
-.table .popup {
-    position: absolute;
-    top: 50%;
-    left: 73%;
-    translate: 5px -50%;
-    z-index: 1;
-    border: 1px solid #333;
-    display: none;
-    max-width: 150px;
-    max-height: 150px;
+/* Pagination Links */
+.pagination a, .pagination span {
+    padding: 8px 14px;
+    margin: 4px;
+    border: 1px solid #007bff;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: bold;
+    color: #007bff;
+    transition: all 0.3s ease-in-out;
 }
 
-.table tr:hover .popup {
-    display: block;
+/* Hover Effect */
+.pagination a:hover {
+    background-color: #007bff;
+    color: white;
+}
+
+/* Active Page Styling */
+.pagination .active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+    pointer-events: none;
+}
+
+/* Disabled Previous/Next Links */
+.pagination .disabled {
+    color: #ccc;
+    border-color: #ccc;
+    pointer-events: none;
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+    .pagination a, .pagination span {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
 }

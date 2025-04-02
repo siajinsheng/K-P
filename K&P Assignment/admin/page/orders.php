@@ -1,7 +1,7 @@
 <?php
 $_title = 'Order Management';
 require '../../_base.php';
-auth(0, 1);
+auth('admin', 'staff');
 include "header.php";
 
 // Search and Sort
