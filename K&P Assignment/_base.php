@@ -50,8 +50,123 @@ $_db = new PDO('mysql:dbname=k&p;charset=utf8mb4', 'root', '', [
 ]);
 
 function safe_session_start() {
+    // Only start a new session if one isn't already active
     if (session_status() == PHP_SESSION_NONE) {
+        // Set the session cookie parameters
+        $current_domain = $_SERVER['HTTP_HOST'];
+        $is_secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+        
+        // Set session cookie parameters
+        session_set_cookie_params([
+            'lifetime' => 86400, // 24 hours (adjust as needed)
+            'path' => '/',       // Make sure cookie works across entire site
+            'domain' => $current_domain,
+            'secure' => $is_secure,
+            'httponly' => true,  // Prevent JavaScript access
+            'samesite' => 'Lax' // Relaxed CSRF protection (change to 'Strict' for more security)
+        ]);
+        
+        // Start the session
         session_start();
+        
+        // Set headers to prevent caching for pages with session data
+        header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+        header("Cache-Control: post-check=0, pre-check=0", false);
+        header("Pragma: no-cache");
+        
+        // Regenerate session ID periodically to prevent fixation
+        $session_max_lifetime = 30 * 60; // 30 minutes
+        if (!isset($_SESSION['_session_started'])) {
+            $_SESSION['_session_started'] = time();
+            $_SESSION['_last_regeneration'] = time();
+        } elseif (time() - $_SESSION['_last_regeneration'] > $session_max_lifetime) {
+            // Regenerate session ID and update timestamp
+            session_regenerate_id(true);
+            $_SESSION['_last_regeneration'] = time();
+        }
+    }
+    
+    // Always make sure user object is properly structured
+    if (isset($_SESSION['user']) && is_object($_SESSION['user'])) {
+        // Make sure critical properties are defined
+        if (!isset($_SESSION['user']->user_id) || empty($_SESSION['user']->user_id)) {
+            // Log the issue
+            error_log('Session user exists but has no user_id - session may be corrupted');
+            
+            // Reset corrupted session
+            unset($_SESSION['user']);
+        }
+    }
+}
+
+// Enhanced auth function for better session checks
+function auth(...$roles) {
+    safe_session_start(); // Ensure the session is started
+    
+    global $_db;
+    
+    // Debug the session data
+    error_log("Auth check - Session data: " . (isset($_SESSION['user']) ? 
+        "User: {$_SESSION['user']->user_name}, ID: {$_SESSION['user']->user_id}" : 
+        "No user in session"));
+    
+    // Check if a user is logged in
+    if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
+        error_log("Auth failed - No user in session or missing user_id");
+        temp('info', 'Please log in to access this page');
+        redirect('login.php');
+    }
+
+    // Get the user object from session
+    $user = $_SESSION['user'];
+    
+    // Check if user exists and is active
+    try {
+        $stm = $_db->prepare('SELECT * FROM user WHERE user_id = ?');
+        $stm->execute([$user->user_id]);
+        $db_user = $stm->fetch();
+        
+        if (!$db_user) {
+            error_log("Auth failed - User ID {$user->user_id} not found in database");
+            temp('info', 'Your account could not be found');
+            logout('login.php');
+        }
+        
+        if ($db_user->status !== "Active") {
+            error_log("Auth failed - User ID {$user->user_id} has non-active status: {$db_user->status}");
+            temp('info', 'Your account has been blocked or is inactive');
+            logout('login.php');
+        }
+        
+        // Update session with latest user data
+        $_SESSION['user'] = $db_user;
+        
+        // If no specific roles are required (empty roles array), any authenticated user is allowed
+        if (empty($roles)) {
+            return; // User is authenticated, no specific role required
+        }
+        
+        // Check if user has one of the required roles
+        $hasRequiredRole = false;
+        foreach ($roles as $role) {
+            if ($db_user->role == $role) {
+                $hasRequiredRole = true;
+                break;
+            }
+        }
+        
+        // If no matching role is found, redirect
+        if (!$hasRequiredRole) {
+            error_log("Auth failed - User ID {$user->user_id} role {$db_user->role} does not match required roles");
+            temp('info', 'You do not have permission to access this page');
+            redirect('login.php');
+        }
+
+    } catch (PDOException $e) {
+        // Log the error
+        error_log("Authentication error: " . $e->getMessage());
+        temp('error', 'An authentication error occurred');
+        redirect('login.php');
     }
 }
 
@@ -270,60 +385,6 @@ function html_password_input($key, $attr = '') {
     echo "<input type='password' id='$key' name='$key' placeholder='Example: P@ssw0rd' $attr>";
 }
 
-// Authorization
-function auth(...$roles)
-{
-    safe_session_start(); // Ensure the session is started
-    
-    global $_db;
-    
-    // Check if a user is logged in
-    if (!isset($_SESSION['user'])) {
-        temp('info', 'Please log in to access this page');
-        redirect('login.php');
-    }
-
-    // Get the user object from session
-    $user = $_SESSION['user'];
-    
-    // Check if user exists and is active
-    try {
-        $stm = $_db->prepare('SELECT * FROM user WHERE user_id = ?');
-        $stm->execute([$user->user_id]);
-        $db_user = $stm->fetch();
-        
-        if (!$db_user || $db_user->status !== "Active") {
-            temp('info', 'Your account has been blocked or is inactive');
-            logout('user', 'login.php');
-        }
-        
-        // If no specific roles are required (empty roles array), any authenticated user is allowed
-        if (empty($roles)) {
-            return; // User is authenticated, no specific role required
-        }
-        
-        // Check if user has one of the required roles
-        $hasRequiredRole = false;
-        foreach ($roles as $role) {
-            if ($db_user->role == $role) {
-                $hasRequiredRole = true;
-                break;
-            }
-        }
-        
-        // If no matching role is found, redirect
-        if (!$hasRequiredRole) {
-            temp('info', 'You do not have permission to access this page');
-            redirect('login.php');
-        }
-
-    } catch (PDOException $e) {
-        // Log the error
-        error_log("Authentication error: " . $e->getMessage());
-        temp('error', 'An authentication error occurred');
-        redirect('login.php');
-    }
-}
 
 // Logout function (updated for new schema)
 function logout($url = null)

@@ -10,7 +10,13 @@ $debug = [
     'session_status' => session_status(),
     'session_data' => isset($_SESSION) ? array_keys($_SESSION) : 'No session data',
     'user_key_exists' => isset($_SESSION['user']),
-    'timestamp' => date('Y-m-d H:i:s')
+    'user_data' => isset($_SESSION['user']) ? [
+        'user_id' => $_SESSION['user']->user_id ?? 'not set',
+        'user_name' => $_SESSION['user']->user_name ?? 'not set',
+        'role' => $_SESSION['user']->role ?? 'not set'
+    ] : 'No user data',
+    'timestamp' => date('Y-m-d H:i:s'),
+    'php_version' => PHP_VERSION
 ];
 
 // Check if user is logged in
@@ -20,6 +26,11 @@ $response = [
     'username' => isset($_SESSION['user']) ? $_SESSION['user']->user_name : null,
     'debug' => $debug
 ];
+
+// Log detailed information about the authentication check
+error_log("Authentication check result: " . ($response['authenticated'] ? 'Authenticated' : 'Not authenticated') . 
+          " | User: " . ($response['username'] ?? 'None') . 
+          " | Session ID: " . session_id());
 
 // Return JSON response
 header('Content-Type: application/json');

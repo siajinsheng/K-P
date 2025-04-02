@@ -1,14 +1,25 @@
 <?php
 require_once '../../_base.php';
 
-// Require authentication
-if (!isset($_SESSION['user'])) {
+// Start session explicitly
+safe_session_start();
+
+// Log the session status for debugging
+error_log("Shopping bag - Session ID: " . session_id());
+error_log("Shopping bag - User in session: " . (isset($_SESSION['user']) ? "Yes ({$_SESSION['user']->user_name})" : "No"));
+
+// Improved authentication check
+if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
+    error_log("Shopping bag - Auth failed: " . (isset($_SESSION['user']) ? "User object exists but no user_id" : "No user in session"));
     temp('info', 'Please log in to view your shopping bag');
     redirect('login.php?redirect=' . urlencode($_SERVER['REQUEST_URI']));
 }
 
+// Authentication successful - proceed with the rest of the code
 $user_id = $_SESSION['user']->user_id;
 $username = $_SESSION['user']->user_name;
+
+error_log("Shopping bag - User authenticated: $username (ID: $user_id)");
 
 // Handle remove item action
 if (isset($_GET['remove']) && is_get()) {
@@ -31,7 +42,7 @@ if (isset($_GET['remove']) && is_get()) {
             $stm->execute([$cart_id, $user_id]);
             
             // Log the removal
-            error_log("[" . date('Y-m-d H:i:s') . "] User $username ($user_id) removed product {$item_to_remove->product_id} ({$item_to_remove->product_name}, size: {$item_to_remove->size}, qty: {$item_to_remove->quantity}) from cart");
+            error_log("[" . date('Y-m-d H:i:s') . "] User $username ($user_id) removed product {$item_to_remove->product_id} ({$item_to_remove->product_name}, size: {$item_to_remove->size}, qty: {$item_to_remove->quantity})");
             
             temp('success', 'Item removed from your shopping bag');
         }
