@@ -1,7 +1,7 @@
 <?php
 $_title = 'Admin Dashboard';
 require '../../_base.php';
-auth('admin', 'Manager'); // Only admins and managers can access
+auth('admin', 'staff');
 require 'header.php';
 
 // Initialize totals

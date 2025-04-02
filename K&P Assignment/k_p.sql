@@ -589,3 +589,60 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+-- First, let's insert address data
+INSERT INTO `address` (`address_id`, `user_id`, `street`, `city`, `state`, `post_code`, `country`) VALUES
+('ADDR001', 'MB001', 123, 123, 'Selangor', '2025-01-15', 'Malaysia'),
+('ADDR002', 'MB001', 456, 456, 'Kuala Lumpur', '2025-01-20', 'Malaysia'),
+('ADDR003', 'ST001', 789, 789, 'Penang', '2025-02-10', 'Malaysia'),
+('ADDR004', 'AD001', 321, 321, 'Johor', '2025-02-15', 'Malaysia');
+
+-- Insert delivery data
+INSERT INTO `delivery` (`delivery_id`, `address_id`, `delivery_fee`, `delivery_status`, `estimated_date`, `delivered_date`) VALUES
+('DEL001', 'ADDR001', 10, 'Delivered', '2025-03-05', '2025-03-07'),
+('DEL002', 'ADDR001', 10, 'Delivered', '2025-03-10', '2025-03-12'),
+('DEL003', 'ADDR002', 15, 'Out for Delivery', '2025-03-25', NULL),
+('DEL004', 'ADDR003', 10, 'Processing', '2025-04-05', NULL),
+('DEL005', 'ADDR004', 10, 'Delivered', '2025-03-18', '2025-03-20');
+
+-- Insert orders data
+INSERT INTO `orders` (`order_id`, `user_id`, `delivery_id`, `order_date`, `orders_status`, `order_subtotal`, `order_total`) VALUES
+('ORD001', 'MB001', 'DEL001', '2025-03-01 14:30:00', 'Delivered', 229.70, 239.70),
+('ORD002', 'MB001', 'DEL002', '2025-03-08 10:15:00', 'Delivered', 199.80, 209.80),
+('ORD003', 'MB001', 'DEL003', '2025-03-20 16:45:00', 'Shipped', 269.80, 284.80),
+('ORD004', 'ST001', 'DEL004', '2025-04-01 09:20:00', 'Processing', 299.70, 309.70),
+('ORD005', 'AD001', 'DEL005', '2025-03-15 11:30:00', 'Delivered', 279.80, 289.80);
+
+-- Insert order details data
+INSERT INTO `order_details` (`order_id`, `product_id`, `quantity`, `unit_price`) VALUES
+-- Order 1
+('ORD001', 'P001', 2, 49.90),
+('ORD001', 'P013', 3, 39.90),
+('ORD001', 'P025', 1, 149.90),
+
+-- Order 2
+('ORD002', 'P004', 1, 79.90),
+('ORD002', 'P015', 2, 49.90),
+('ORD002', 'P028', 1, 149.90),
+
+-- Order 3
+('ORD003', 'P007', 3, 39.90),
+('ORD003', 'P016', 2, 39.90),
+('ORD003', 'P031', 1, 149.90),
+
+-- Order 4
+('ORD004', 'P002', 2, 49.90),
+('ORD004', 'P017', 3, 59.90),
+('ORD004', 'P032', 1, 129.90),
+
+-- Order 5
+('ORD005', 'P006', 1, 59.90),
+('ORD005', 'P019', 2, 79.90),
+('ORD005', 'P029', 1, 149.90);
+
+-- Insert payment data
+INSERT INTO `payment` (`payment_id`, `order_id`, `tax`, `total_amount`, `payment_method`, `payment_status`, `payment_date`, `discount`) VALUES
+('PAY001', 'ORD001', 10.00, 239.70, 'Credit Card', 'Completed', '2025-03-01 14:35:00', 0.00),
+('PAY002', 'ORD002', 10.00, 209.80, 'PayPal', 'Completed', '2025-03-08 10:20:00', 0.00),
+('PAY003', 'ORD003', 15.00, 284.80, 'Credit Card', 'Completed', '2025-03-20 16:50:00', 0.00),
+('PAY004', 'ORD004', 10.00, 309.70, 'Bank Transfer', 'Pending', '2025-04-01 09:25:00', 0.00),
+('PAY005', 'ORD005', 10.00, 289.80, 'Credit Card', 'Completed', '2025-03-15 11:35:00', 0.00);
