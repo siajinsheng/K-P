@@ -423,7 +423,7 @@ try {
                             <div class="p-5 flex items-center">
                                 <div class="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg overflow-hidden mr-4">
                                     <?php if ($item->product_pic1): ?>
-                                        <img src="../../img/products/<?= $item->product_pic1 ?>" alt="<?= htmlspecialchars($item->product_name) ?>" class="w-full h-full object-cover">
+                                        <img src="../../img/<?= $item->product_pic1 ?>" alt="<?= htmlspecialchars($item->product_name) ?>" class="w-full h-full object-cover">
                                     <?php else: ?>
                                         <div class="w-full h-full flex items-center justify-center bg-gray-200">
                                             <i class="fas fa-tshirt text-gray-400"></i>

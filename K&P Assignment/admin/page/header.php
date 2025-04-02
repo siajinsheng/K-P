@@ -101,7 +101,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <div class="mobile-menu md:hidden" id="mobile-nav">
         <div class="flex justify-between items-center mb-6">
             <a href="home.php" class="flex items-center">
-                <img src="../pic/logo.jpg" alt="K&P Fashion Logo" class="h-10">
+                <img src="../../img/K&P logo.png" alt="K&P Fashion Logo" class="h-10">
                 <span class="text-lg font-bold text-gray-800 ml-2">K&P Admin</span>
             </a>
             <button id="close-mobile-menu" class="text-gray-700 focus:outline-none">
