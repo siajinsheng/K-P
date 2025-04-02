@@ -328,24 +328,55 @@ function showError($message)
  * Initialize and return PHPMailer object
  */
 function get_mail() {
-    require_once 'path/to/PHPMailer/src/PHPMailer.php';
-    require_once 'path/to/PHPMailer/src/SMTP.php';
-    require_once 'path/to/PHPMailer/src/Exception.php';
+    // Check if PHPMailer is already available
+    if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
+        // If you have Composer autoloader, use this:
+        if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+            require_once __DIR__ . '/vendor/autoload.php';
+        } else {
+            // Direct include for the PHPMailer files
+            $phpmailer_dir = __DIR__ . '/vendor/phpmailer/phpmailer/src/';
+            if (!file_exists($phpmailer_dir . 'PHPMailer.php')) {
+                // If PHPMailer is not found, create a directory for it
+                if (!file_exists(__DIR__ . '/vendor')) {
+                    mkdir(__DIR__ . '/vendor', 0777, true);
+                }
+                if (!file_exists(__DIR__ . '/vendor/phpmailer')) {
+                    mkdir(__DIR__ . '/vendor/phpmailer', 0777, true);
+                }
+                if (!file_exists(__DIR__ . '/vendor/phpmailer/phpmailer')) {
+                    mkdir(__DIR__ . '/vendor/phpmailer/phpmailer', 0777, true);
+                }
+                if (!file_exists(__DIR__ . '/vendor/phpmailer/phpmailer/src')) {
+                    mkdir(__DIR__ . '/vendor/phpmailer/phpmailer/src', 0777, true);
+                }
+                
+                // Return false, as PHPMailer is not available
+                error_log("PHPMailer files not found. Please install PHPMailer.");
+                return false;
+            }
+            
+            require_once $phpmailer_dir . 'PHPMailer.php';
+            require_once $phpmailer_dir . 'SMTP.php';
+            require_once $phpmailer_dir . 'Exception.php';
+        }
+    }
+
 
     $mail = new PHPMailer\PHPMailer\PHPMailer(true);
     
     try {
         // Server settings
         $mail->isSMTP();
-        $mail->Host       = 'smtp.siajinsheng@gmail.com'; // e.g., smtp.gmail.com
+        $mail->Host       = 'smtp.gmail.com'; // Use Gmail's SMTP server
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'your-email@your-domain.com';   // SMTP username
-        $mail->Password   = 'your-email-password';          // SMTP password
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS; // Enable TLS encryption
-        $mail->Port       = 587;                            // TCP port to connect to
+        $mail->Username   = 'siajinsheng@gmail.com'; // Your Gmail address
+        $mail->Password   = '20040419'; // Your Gmail app password
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
         
         // Sender info
-        $mail->setFrom('no-reply@your-domain.com', 'K&P Store');
+        $mail->setFrom('your-email@gmail.com', 'K&P Store');
         $mail->CharSet = 'UTF-8';
         
         return $mail;
@@ -353,6 +384,16 @@ function get_mail() {
         error_log("Mailer Error: " . $e->getMessage());
         return false;
     }
+}
+
+/**
+ * Development helper to bypass email sending when in development environment
+ */
+function is_development() {
+    $dev_hosts = ['localhost', '127.0.0.1'];
+    return in_array($_SERVER['SERVER_NAME'], $dev_hosts) || 
+           substr($_SERVER['SERVER_NAME'], 0, 4) === 'test' ||
+           substr($_SERVER['SERVER_NAME'], 0, 3) === 'dev';
 }
 
 /**
