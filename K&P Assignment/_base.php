@@ -184,6 +184,92 @@ function table_headers($fields, $sort, $dir, $href = '')
 }
 
 
+/**
+ * Validate and format Malaysian phone number
+ * - Validates that the phone number is 9-10 digits (without country code)
+ * - Automatically adds the Malaysian country code (60) if not present
+ * - Returns formatted phone number or false if invalid
+ */
+function validate_malaysian_phone($phone) {
+    // Remove any non-digit characters
+    $phone = preg_replace('/[^0-9]/', '', $phone);
+    
+    // Check if phone already has country code
+    if (strpos($phone, '60') === 0) {
+        // Already has country code, check total length (11-12 digits)
+        if (strlen($phone) < 11 || strlen($phone) > 12) {
+            return false;
+        }
+        return $phone;
+    } else {
+        // Check if it's a valid Malaysian number (9-10 digits)
+        if (strlen($phone) < 9 || strlen($phone) > 10) {
+            return false;
+        }
+        
+        // Check if first digit is 1 (as per Malaysian format)
+        if (substr($phone, 0, 1) !== '1') {
+            return false;
+        }
+        
+        // Add country code and return
+        return '60' . $phone;
+    }
+}
+
+/**
+ * Enhanced password validation
+ * - Requires at least one uppercase letter
+ * - Requires at least one lowercase letter
+ * - Requires at least one number
+ * - Requires at least one special character
+ * - Requires at least 8 characters in length
+ */
+function validate_password($password) {
+    $uppercase = preg_match('/[A-Z]/', $password);
+    $lowercase = preg_match('/[a-z]/', $password);
+    $number    = preg_match('/[0-9]/', $password);
+    $special   = preg_match('/[^a-zA-Z0-9]/', $password);
+    $length    = strlen($password) >= 8;
+    
+    if (!$uppercase) {
+        return 'Password must contain at least one uppercase letter';
+    }
+    
+    if (!$lowercase) {
+        return 'Password must contain at least one lowercase letter';
+    }
+    
+    if (!$number) {
+        return 'Password must contain at least one number';
+    }
+    
+    if (!$special) {
+        return 'Password must contain at least one special character';
+    }
+    
+    if (!$length) {
+        return 'Password must be at least 8 characters long';
+    }
+    
+    return true;
+}
+
+/**
+ * Generate phone input field with placeholder for Malaysian format
+ */
+function html_phone_input($key, $attr = '') {
+    $value = encode($GLOBALS[$key] ?? '');
+    echo "<input type='tel' id='$key' name='$key' value='$value' placeholder='Example: 182259156' $attr>";
+}
+
+/**
+ * Generate password input with format hint
+ */
+function html_password_input($key, $attr = '') {
+    echo "<input type='password' id='$key' name='$key' placeholder='Example: P@ssw0rd' $attr>";
+}
+
 // Authorization
 function auth(...$roles)
 {
@@ -243,7 +329,7 @@ function auth(...$roles)
 function logout($url = null)
 {
     safe_session_start();
-
+    
     // Clear all session variables related to user
     unset($_SESSION['user']);
     
@@ -260,8 +346,7 @@ function logout($url = null)
     // Clear the "remember me" cookies
     setcookie('user_id', '', time() - 3600, '/');
     setcookie('remember_token', '', time() - 3600, '/');
-    setcookie('password', '', time() - 3600, '/');  // For backward compatibility
-
+    
     // Redirect to the specified URL or the login page if none is provided
     $redirect_url = $url ?? 'login.php';
     redirect($redirect_url);
@@ -360,109 +445,6 @@ function is_development() {
  */
 function generate_activation_token() {
     return bin2hex(random_bytes(32));
-}
-
-/**
- * Check if email is unique in customer table
- */
-function is_email_unique($email) {
-    global $_db;
-    $stm = $_db->prepare("SELECT COUNT(*) FROM customer WHERE cus_Email = ?");
-    $stm->execute([$email]);
-    return $stm->fetchColumn() == 0;
-}
-
-/**
- * Check if phone is unique in customer table
- */
-function is_phone_unique($phone) {
-    global $_db;
-    $stm = $_db->prepare("SELECT COUNT(*) FROM customer WHERE cus_phone = ?");
-    $stm->execute([$phone]);
-    return $stm->fetchColumn() == 0;
-}
-
-/**
- * Activate user account using token
- */
-function activate_account($token) {
-    global $_db;
-    
-    // Check if token exists and not expired
-    $stm = $_db->prepare("SELECT cus_id FROM customer WHERE activation_token = ? AND activation_expiry > NOW()");
-    $stm->execute([$token]);
-    $user = $stm->fetch();
-    
-    if ($user) {
-        // Activate the account
-        $stm = $_db->prepare("UPDATE customer SET cus_status = 'Active', activation_token = NULL, activation_expiry = NULL WHERE cus_id = ?");
-        $stm->execute([$user->cus_id]);
-        return true;
-    }
-    
-    return false;
-}
-
-/**
- * Send activation email using PHPMailer
- */
-function send_activation_email($email, $name, $activationToken) {
-    try {
-        $mail = get_mail();
-        $mail->addAddress($email, $name);
-        
-        $subject = "Activate Your K&P Account";
-        $activationLink = "https://your-kp-website.com/activate.php?token=" . $activationToken;
-        
-        $message = "
-        <html>
-        <head>
-            <title>Account Activation</title>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .button { 
-                    display: inline-block; 
-                    padding: 10px 20px; 
-                    background-color: #4CAF50; 
-                    color: white; 
-                    text-decoration: none; 
-                    border-radius: 5px; 
-                    margin: 20px 0;
-                }
-                .footer { margin-top: 30px; font-size: 12px; color: #777; }
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <h2>Welcome to K&P, $name!</h2>
-                <p>Thank you for registering with K&P. To complete your registration, please click the button below to activate your account:</p>
-                
-                <p><a href='$activationLink' class='button'>Activate My Account</a></p>
-                
-                <p>Or copy and paste this link into your browser:<br>
-                <small>$activationLink</small></p>
-                
-                <p>This activation link will expire in 24 hours.</p>
-                
-                <div class='footer'>
-                    <p>If you didn't request this account, please ignore this email.</p>
-                    <p>&copy; " . date('Y') . " K&P. All rights reserved.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        ";
-        
-        $mail->Subject = $subject;
-        $mail->Body = $message;
-        $mail->AltBody = "Welcome to K&P, $name!\n\nPlease click this link to activate your account: $activationLink\n\nThis link expires in 24 hours.";
-        
-        return $mail->send();
-    } catch (Exception $e) {
-        error_log("Failed to send activation email: " . $mail->ErrorInfo);
-        return false;
-    }
 }
 
 /**

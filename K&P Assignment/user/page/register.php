@@ -27,12 +27,19 @@ if (is_post()) {
         $_err['email'] = 'Email already registered';
     }
 
+    // Phone validation with new function
     if (empty($phone)) {
         $_err['phone'] = 'Phone number is required';
-    } elseif (!preg_match('/^[0-9]{10,15}$/', $phone)) {
-        $_err['phone'] = 'Invalid phone number';
-    } elseif (!is_unique($phone, 'user', 'user_phone')) {
-        $_err['phone'] = 'Phone number already registered';
+    } else {
+        $formattedPhone = validate_malaysian_phone($phone);
+        if ($formattedPhone === false) {
+            $_err['phone'] = 'Invalid phone number format. Must be 9-10 digits starting with 1';
+        } elseif (!is_unique($formattedPhone, 'user', 'user_phone')) {
+            $_err['phone'] = 'Phone number already registered';
+        } else {
+            // Update phone with formatted version (with country code)
+            $phone = $formattedPhone;
+        }
     }
 
     if (empty($gender)) {
@@ -41,12 +48,14 @@ if (is_post()) {
         $_err['gender'] = 'Invalid gender selection';
     }
 
+    // Enhanced password validation
     if (empty($password)) {
         $_err['password'] = 'Password is required';
-    } elseif (strlen($password) < 8) {
-        $_err['password'] = 'Password must be at least 8 characters';
-    } elseif (!preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || !preg_match('/[0-9]/', $password)) {
-        $_err['password'] = 'Password must contain uppercase, lowercase and numbers';
+    } else {
+        $passwordValidation = validate_password($password);
+        if ($passwordValidation !== true) {
+            $_err['password'] = $passwordValidation;
+        }
     }
 
     if ($password !== $confirm) {
@@ -96,7 +105,7 @@ if (is_post()) {
                 ) VALUES (
                     ?, ?, ?, ?, 
                     ?, ?, ?, 'Active', 
-                    'Member'
+                    'member'
                 )
             ");
             
@@ -164,8 +173,10 @@ if (is_post()) {
                 
                 <div class="form-group">
                     <label for="phone">Phone Number</label>
-                    <input type="tel" id="phone" name="phone" class="form-control" value="<?= htmlspecialchars($phone ?? '') ?>" required>
+                    <!-- Using custom function for phone input -->
+                    <?php html_phone_input('phone', 'class="form-control" required'); ?>
                     <?= err('phone') ?>
+                    <small class="text-muted">Enter 9-10 digits starting with 1 (e.g., 182259156). Country code 60 will be added automatically.</small>
                 </div>
                 
                 <div class="form-group">
@@ -189,9 +200,10 @@ if (is_post()) {
                 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" class="form-control" required>
+                    <!-- Using custom function for password input -->
+                    <?php html_password_input('password', 'class="form-control" required'); ?>
                     <?= err('password') ?>
-                    <small class="text-muted">Must be at least 8 characters with uppercase, lowercase and numbers</small>
+                    <small class="text-muted">Must contain at least 8 characters with one uppercase letter, one lowercase letter, one number, and one special character (e.g., P@ssw0rd)</small>
                 </div>
                 
                 <div class="form-group">
