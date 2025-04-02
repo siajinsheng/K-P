@@ -1,7 +1,7 @@
 <?php
 $_title = 'Product';
 require '../../_base.php';
-auth(0, 1);
+auth('admin'); // Only admin users can access this page
 require 'header.php';
 
 // (1) Sorting

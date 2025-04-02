@@ -191,59 +191,40 @@ function auth(...$roles)
     
     global $_db;
     
-    // Detailed role mapping
-    $role_map = [
-        1 => 'Manager',
-        2 => 'Supervisor',
-        3 => 'Staff'
-    ];
-
     // Check if a user is logged in
-    if (!isset($_SESSION['admin_user']) && !isset($_SESSION['current_user'])) {
+    if (!isset($_SESSION['user'])) {
         temp('info', 'Please log in to access this page');
         redirect('login.php');
     }
 
-    // Try to get the user object
-    $user = isset($_SESSION['admin_user']) 
-        ? $_SESSION['admin_user'] 
-        : json_decode($_SESSION['current_user']);
-
-    // Check if user status is blocked
+    // Get the user object from session
+    $user = $_SESSION['user'];
+    
+    // Check if user exists and is active
     try {
-        // Check admin user
-        if ($user) {
-            $stm = $_db->prepare('SELECT * FROM admin WHERE admin_id = ?');
-            $stm->execute([$user->admin_id]);
-            $db_user = $stm->fetch();
+        $stm = $_db->prepare('SELECT * FROM user WHERE user_id = ?');
+        $stm->execute([$user->user_id]);
+        $db_user = $stm->fetch();
         
-            if (!$db_user || $db_user->admin_status === "Inactive") {
-                temp('info', 'Your admin account has been BLOCKED or INACTIVE');
-                logout('Admin', 'login.php');
-            }
+        if (!$db_user || $db_user->status !== "Active") {
+            temp('info', 'Your account has been blocked or is inactive');
+            logout('user', 'login.php');
         }
-
-        // Prepare user roles for checking
-        $userRoles = [
-            'Admin',  // Generic admin role
-            $role_map[$user->admin_role] ?? 'Staff',  // Mapped role
-            (string)$user->admin_role,  // Numeric role
-            '1'  // Backward compatibility
-        ];
-
-        // Debug logging (optional)
-        error_log('User Roles: ' . print_r($userRoles, true));
-        error_log('Required Roles: ' . print_r($roles, true));
-
-        // Check if any of the required roles match user roles
+        
+        // If no specific roles are required (empty roles array), any authenticated user is allowed
+        if (empty($roles)) {
+            return; // User is authenticated, no specific role required
+        }
+        
+        // Check if user has one of the required roles
         $hasRequiredRole = false;
         foreach ($roles as $role) {
-            if (in_array($role, $userRoles)) {
+            if ($db_user->role == $role) {
                 $hasRequiredRole = true;
                 break;
             }
         }
-
+        
         // If no matching role is found, redirect
         if (!$hasRequiredRole) {
             temp('info', 'You do not have permission to access this page');
@@ -258,26 +239,33 @@ function auth(...$roles)
     }
 }
 
-// Logout function with improved handling
-function logout($role = null, $url = null)
+// Logout function (updated for new schema)
+function logout($url = null)
 {
     safe_session_start();
 
     // Clear all session variables related to user
+    unset($_SESSION['user']);
+    
+    // Additional session cleanup (for backward compatibility)
     unset($_SESSION['admin_user']);
     unset($_SESSION['current_user']);
-    unset($_SESSION['adminID']);
-    unset($_SESSION['admin_role']);
+    unset($_SESSION['user_id']);
+    unset($_SESSION['user_role']);
+    
+    // Destroy the session completely
+    session_unset();
+    session_destroy();
 
     // Clear the "remember me" cookies
-    setcookie('admin_id', '', time() - 3600, '/');
-    setcookie('password', '', time() - 3600, '/');
+    setcookie('user_id', '', time() - 3600, '/');
+    setcookie('remember_token', '', time() - 3600, '/');
+    setcookie('password', '', time() - 3600, '/');  // For backward compatibility
 
-    // Redirect to the specified URL or the root if none is provided
-    $redirect_url = $url ?? '/';
+    // Redirect to the specified URL or the login page if none is provided
+    $redirect_url = $url ?? 'login.php';
     redirect($redirect_url);
 }
-
 
 // Additional debug function to help identify session issues
 function debug_session_user($user) {

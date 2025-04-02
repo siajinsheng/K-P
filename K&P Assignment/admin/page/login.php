@@ -1,21 +1,21 @@
 <?php
 session_start();
-$_title = 'Admin - Login';
+$_title = 'K&P - Login';
 require '../../_base.php';
 
-$admin_idErr = $passwordErr = "";
+$user_EmailErr = $passwordErr = "";
 
 // Check if cookies are set and pre-fill the fields
-if (isset($_COOKIE['admin_id']) && isset($_COOKIE['password'])) {
-    $saved_admin_id = $_COOKIE['admin_id'];
+if (isset($_COOKIE['user_Email']) && isset($_COOKIE['password'])) {
+    $saved_user_Email = $_COOKIE['user_Email'];
     $saved_password = $_COOKIE['password'];
 } else {
-    $saved_admin_id = "";
+    $saved_user_Email = "";
     $saved_password = "";
 }
 
 // Redirect to home if already logged in
-if (!empty($_SESSION['admin_user'])) {
+if (!empty($_SESSION['user'])) {
     header("location:home.php");
     exit;
 }
@@ -40,36 +40,27 @@ if ($_SESSION['login_attempts'] >= 2 && (time() - $_SESSION['last_attempt_time']
 }
 
 if (isset($_POST['submit'])) {
-    $admin_id = $_REQUEST['admin_id'];
+    $user_Email = $_REQUEST['user_Email'];
     
-    // Validate admin ID
-    if ($admin_id == null) {
-        $admin_idErr = 'Please Enter Your Admin ID.';
-    } else if (!preg_match("/^[A-Z]{1,2}\d{3}$/", $admin_id)) {
-        $admin_idErr = 'Please Enter Correct Format ( Axxx or AAxxx )';
+    // Validate email
+    if ($user_Email == null) {
+        $user_EmailErr = 'Please enter your email address.';
+    } else if (!is_email($user_Email)) {
+        $user_EmailErr = 'Please enter a valid email address.';
     }
 
     $password = $_REQUEST['password'];
     
     // Password validation
-    $uppercase = preg_match('@[A-Z]@', $password);
-    $lowercase = preg_match('@[a-z]@', $password);
-    $number = preg_match('@[0-9]@', $password);
-    $specialChars = preg_match('@[^\w]@', $password);
-
     if ($password == null) {
-        $passwordErr = 'Please Enter Your Password.';
-    } else if (!$uppercase || !$lowercase || !$number || !$specialChars || strlen($password) < 8) {
-        $_SESSION['login_attempts']++;
-        $_SESSION['last_attempt_time'] = time();
-        $passwordErr = 'The Password That You Have Entered Is Incorrect.';
+        $passwordErr = 'Please enter your password.';
     }
 
     // If no validation errors, proceed with login
-    if (empty($admin_idErr) && empty($passwordErr)) {
-        $sql = "SELECT * FROM admin WHERE admin_id = :admin_id AND admin_password = :password";
+    if (empty($user_EmailErr) && empty($passwordErr)) {
+        $sql = "SELECT * FROM user WHERE user_Email = :user_Email AND user_password = :password AND status = 'Active'";
         $stmt = $_db->prepare($sql);
-        $stmt->bindParam(':admin_id', $admin_id);
+        $stmt->bindParam(':user_Email', $user_Email);
         $stmt->bindParam(':password', $password);
         $stmt->execute();
         $row = $stmt->fetch();
@@ -77,30 +68,23 @@ if (isset($_POST['submit'])) {
 
         if ($count == 1) {
             // Set multiple session variables for robust authentication
-            $_SESSION['adminID'] = $row->admin_id;
-            $_SESSION['admin_user'] = $row; // Full admin object
+            $_SESSION['userID'] = $row->user_id;
+            $_SESSION['user'] = $row; // Full user object
             $_SESSION['current_user'] = json_encode($row);
-
-            // Determine role based on admin_role
-            $role_map = [
-                1 => 'Manager',
-                2 => 'Supervisor',
-                3 => 'Staff'
-            ];
-            $_SESSION['admin_role'] = $role_map[$row->admin_role] ?? 'Staff';
+            $_SESSION['user_role'] = $row->role;
 
             // Remember Me functionality
             if (isset($_POST['remember_me'])) {
-                setcookie('admin_id', $admin_id, time() + (86400 * 30), "/"); 
+                setcookie('user_Email', $user_Email, time() + (86400 * 30), "/"); 
                 setcookie('password', $password, time() + (86400 * 30), "/"); 
             } else {
                 // Clear cookies if Remember Me is not checked
-                setcookie('admin_id', '', time() - 3600, "/");
+                setcookie('user_Email', '', time() - 3600, "/");
                 setcookie('password', '', time() - 3600, "/");
             }
 
             echo "<script>
-            alert('Login Successfully !');
+            alert('Login Successfully!');
             window.location.href = 'home.php';
             </script>";
             exit;
@@ -109,13 +93,11 @@ if (isset($_POST['submit'])) {
             $_SESSION['last_attempt_time'] = time();
             echo '<script>
                     window.location.href = "login.php";
-                    alert("Login Failed. Invalid ID or Password!!!")
+                    alert("Login Failed. Invalid Email or Password or Account is Inactive!")
                 </script>';
         }
     }
 }
-echo print_r($_SESSION);
-
 ?>
 
 <!DOCTYPE html>
@@ -124,7 +106,7 @@ echo print_r($_SESSION);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TARUMT Theatre Society | Admin Login</title>
+    <title>K&P Store | Login</title>
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css" rel="stylesheet" />
     <link type="text/css" rel="stylesheet" href="../css/login.css" />
 </head>
@@ -133,17 +115,17 @@ echo print_r($_SESSION);
     <div class="login_form">
         <div class="container">
             <form action="" method="POST">
-                <h2>ADMIN LOGIN</h2>
+                <h2>K&P STORE LOGIN</h2>
 
                 <div class="inside-box">
                     <span class="icon">
-                        <ion-icon name="person"></ion-icon>
+                        <ion-icon name="mail"></ion-icon>
                     </span>
-                    <label>Admin ID</label>
-                    <input type="text" name="admin_id"
-                        value="<?php echo isset($_POST['admin_id']) ? $_POST['admin_id'] : $saved_admin_id; ?>">
+                    <label>Email</label>
+                    <input type="email" name="user_Email"
+                        value="<?php echo isset($_POST['user_Email']) ? $_POST['user_Email'] : $saved_user_Email; ?>">
                     <div class="error">
-                        <?php echo $admin_idErr; ?>
+                        <?php echo $user_EmailErr; ?>
                     </div>
                 </div>
 
@@ -151,7 +133,7 @@ echo print_r($_SESSION);
                     <span class="icon">
                         <ion-icon name="lock-closed"></ion-icon>
                     </span>
-                    <label>Admin Password</label>
+                    <label>Password</label>
                     <input type="password" name="password"
                         value="<?php echo isset($_POST['password']) ? $_POST['password'] : $saved_password; ?>">
                     <div class="error">
@@ -159,11 +141,15 @@ echo print_r($_SESSION);
                     </div>
                 </div>
                 <div class="remember-forgot">
-                    <label><input type="checkbox" name="remember_me" <?php if (isset($_COOKIE['admin_id'])) echo 'checked'; ?>>Remember Me</label>
+                    <label><input type="checkbox" name="remember_me" <?php if (isset($_COOKIE['user_Email'])) echo 'checked'; ?>>Remember Me</label>
+                    <a href="forgot_password.php">Forgot Password?</a>
                 </div>
 
                 <button type="submit" name="submit" class="login-btn">LOGIN</button>
-
+                
+                <div class="register-link">
+                    <p>Don't have an account? <a href="register.php">Register Now</a></p>
+                </div>
             </form>
         </div>
     </div>

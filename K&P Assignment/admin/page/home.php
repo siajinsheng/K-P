@@ -1,14 +1,13 @@
 <?php
 $_title = 'Admin Dashboard';
 require '../../_base.php';
-auth(0, 1); // Only admin and managers can access
+auth('admin', 'Manager'); // Only admins and managers can access
 require 'header.php';
-echo print_r($_SESSION);
 
 // Initialize totals
 $total_products = 0;
 $total_orders = 0;
-$total_customers = 0;
+$total_users = 0;
 $total_revenue = 0;
 $recent_orders = [];
 $top_products = [];
@@ -28,11 +27,11 @@ try {
     $stmt->execute();
     $total_orders = $stmt->fetchColumn();
 
-    // Get total customer count
-    $customer_query = "SELECT COUNT(*) as count FROM customer";
+    // Get total user count (only regular customers, not admin)
+    $customer_query = "SELECT COUNT(*) as count FROM user WHERE role != 'admin'";
     $stmt = $_db->prepare($customer_query);
     $stmt->execute();
-    $total_customers = $stmt->fetchColumn();
+    $total_users = $stmt->fetchColumn();
 
     // Get total revenue
     $revenue_query = "SELECT SUM(total_amount) as total FROM payment WHERE payment_status = 'Completed'";
@@ -41,9 +40,9 @@ try {
     $total_revenue = $stmt->fetchColumn() ?: 0;
 
     // Get recent orders (last 5)
-    $recent_orders_query = "SELECT o.order_id, o.order_date, o.orders_status, o.order_total, c.cus_name 
+    $recent_orders_query = "SELECT o.order_id, o.order_date, o.orders_status, o.order_total, u.user_name 
                            FROM orders o
-                           JOIN customer c ON o.cus_id = c.cus_id
+                           JOIN user u ON o.user_id = u.user_id
                            ORDER BY o.order_date DESC
                            LIMIT 5";
     $stmt = $_db->prepare($recent_orders_query);
@@ -100,7 +99,7 @@ try {
     temp('error', 'Database error: ' . $e->getMessage());
 }
 
-// Calculate statistics
+// Calculate order statistics
 $orders_pending = 0;
 $orders_processing = 0;
 $orders_completed = 0;
@@ -216,20 +215,20 @@ try {
                 </div>
             </div>
             
-            <!-- Customers Card -->
+            <!-- Users Card (previously Customers) -->
             <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden border-l-4 border-blue-500">
                 <div class="p-5 flex items-center">
                     <div class="stat-icon bg-blue-100 text-blue-600">
                         <i class="fas fa-users"></i>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-600 mb-1">Total Customers</p>
-                        <p class="text-2xl font-bold"><?= number_format($total_customers) ?></p>
+                        <p class="text-sm text-gray-600 mb-1">Total Users</p>
+                        <p class="text-2xl font-bold"><?= number_format($total_users) ?></p>
                     </div>
                 </div>
                 <div class="bg-gray-50 px-5 py-2">
-                    <a href="customers.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                        View all customers <i class="fas fa-arrow-right ml-1"></i>
+                    <a href="users.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        View all users <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>
             </div>
@@ -324,7 +323,7 @@ try {
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -343,7 +342,7 @@ try {
                                         <?= htmlspecialchars($order->order_id) ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <?= htmlspecialchars($order->cus_name) ?>
+                                        <?= htmlspecialchars($order->user_name) ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         <?= date('M d, Y', strtotime($order->order_date)) ?>
