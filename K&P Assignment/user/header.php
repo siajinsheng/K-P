@@ -4,33 +4,21 @@ if (!isset($_SESSION) && session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-// Establish database connection if not already connected
-if (!isset($_db) && class_exists('PDO')) {
-    try {
-        $_db = new PDO('mysql:dbname=k&p;charset=utf8mb4', 'root', '', [
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-        ]);
-    } catch (PDOException $e) {
-        error_log("Database connection error in header: " . $e->getMessage());
-    }
-}
-
 // Get cart count if user is logged in
 $cartCount = 0;
 if (isset($_SESSION['user']) && isset($_db)) {
     try {
         $stm = $_db->prepare("SELECT SUM(quantity) as total FROM cart WHERE user_id = ?");
         $stm->execute([$_SESSION['user']->user_id]);
-        $cartCount = (int)$stm->fetchColumn() ?: 0;
+        $cartCount = (int)$stm->fetchColumn();
     } catch (Exception $e) {
         error_log("Error getting cart count: " . $e->getMessage());
     }
 }
 
-// Debug info - current user and time
-$currentUser = isset($_SESSION['user']) ? $_SESSION['user']->user_name : 'Guest';
-$currentTime = date('Y-m-d H:i:s');
+// Current time for display
+$current_time = date('Y-m-d H:i:s');
+$current_user = isset($_SESSION['user']) ? $_SESSION['user']->user_name : 'Guest';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -44,13 +32,6 @@ $currentTime = date('Y-m-d H:i:s');
     <script src="https://kit.fontawesome.com/d317456e1b.js" crossorigin="anonymous"></script>
 </head>
 <body>
-    <!-- Debug info (hidden in production) -->
-    <!-- 
-    <div style="display: none;">
-        Current Time: <?= $currentTime ?>, User: <?= htmlspecialchars($currentUser) ?>, Cart Items: <?= $cartCount ?>
-    </div>
-    -->
-    
     <div class="navbar">
         <div class="header-left">
             <button class="toggle-btn" id="toggleBtn">
@@ -63,7 +44,7 @@ $currentTime = date('Y-m-d H:i:s');
 
         <div class="header-right">
             <ul>
-                <li><a href="/user/page/index.php">Home</a></li>
+                <li><a href="/index.php">Home</a></li>
                 <li><a href="/user/page/products.php">Product</a></li>
                 <li>
                     <a href="/user/page/shopping-bag.php" class="cart-icon-container">
@@ -111,7 +92,7 @@ $currentTime = date('Y-m-d H:i:s');
 
     <div class="sidebar" id="sidebar">
         <ul>
-            <li><a href="/user/page/index.php">Home</a></li>
+            <li><a href="/index.php">Home</a></li>
             <li><a href="/user/page/products.php">Product</a></li>
             <li><a href="/user/page/about-us.php">About Us</a></li>
             <?php if (!isset($_SESSION['user'])): ?>
@@ -133,6 +114,16 @@ $currentTime = date('Y-m-d H:i:s');
     </div>
 
     <div class="overlay" id="overlay"></div>
+
+    <!-- Current user and time info -->
+    <?php if ($_SESSION['user'] && $_SESSION['user']->role === 'admin'): ?>
+    <div class="system-info">
+        <div class="system-info-content">
+            <span class="system-time"><?= $current_time ?></span>
+            <span class="system-user"><?= $current_user ?></span>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <script src="/user/js/header.js"></script>
 </body>
