@@ -23,15 +23,15 @@ html, body {
 }
 
 #section1 {
-  background-image: url('../pic/H.jpg'); /* Replace with your image */
+  background-image: url('../img/H.jpg'); /* Replace with your image */
 }
 
 #section2 {
-  background-image: url('../pic/H1.jpg'); /* Replace with your image */
+  background-image: url('../img/H1.jpg'); /* Replace with your image */
 }
 
 #section3 {
-  background-image: url('../pic/H2(jeans).jpg'); /* Replace with your image */
+  background-image: url('../img/H2(jeans).jpg'); /* Replace with your image */
 }
 
 .clickable-section {

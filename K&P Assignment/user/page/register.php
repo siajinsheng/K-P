@@ -1,7 +1,7 @@
 <?php
 $_title = 'K&P - Register';
 require '../../_base.php';
-require_once 'email_functions.php';
+// Removed: require_once 'email_functions.php';
 
 if (is_post()) {
     $name = req('name');
@@ -84,46 +84,34 @@ if (is_post()) {
                 $profilePicPath = 'default-profile.jpg'; // Default profile image
             }
             
-            // Generate activation token
-            $activationToken = bin2hex(random_bytes(32));
-            $activationExpiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
-            
             // Begin transaction
             $_db->beginTransaction();
             
-            // Insert into database - note: Role is initially null and status is 'Inactive'
+            // Insert into database - note: Set status to Active directly
             $stm = $_db->prepare("
                 INSERT INTO user (
                     user_id, user_name, user_Email, user_password, 
                     user_gender, user_phone, user_profile_pic, status, 
-                    role, activation_token, activation_expiry
+                    role
                 ) VALUES (
                     ?, ?, ?, ?, 
-                    ?, ?, ?, 'Inactive', 
-                    '', ?, ?
+                    ?, ?, ?, 'Active', 
+                    'Member'
                 )
             ");
             
             $stm->execute([
                 $user_id, $name, $email, $hashedPassword,
-                $gender, $phone, $profilePicPath,
-                $activationToken, $activationExpiry
+                $gender, $phone, $profilePicPath
             ]);
             
-            // Send verification email
-            $emailSent = send_verification_email($email, $name, $activationToken);
+            // Commit the transaction
+            $_db->commit();
             
-            if ($emailSent) {
-                // Commit the transaction
-                $_db->commit();
-                
-                temp('success', 'Registration successful! Please check your email to activate your account.');
-                redirect('login.php');
-            } else {
-                // Rollback if email sending fails
-                $_db->rollBack();
-                $_err['email'] = 'Failed to send verification email. Please try again later.';
-            }
+            // Set success message and redirect to login
+            temp('success', 'Registration successful! You can now log in with your credentials.');
+            redirect('login.php');
+            
         } catch (PDOException $e) {
             // Rollback transaction on error
             $_db->rollBack();
