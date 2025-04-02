@@ -1,7 +1,7 @@
 <?php
 $_title = 'Update Product';
 require '../../_base.php';
-auth(0, 1); // Only admin and managers can access
+auth('admin', 'staff');
 require 'header.php';
 
 // Get product ID from URL parameter
@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Generate a unique filename
                 $file_extension = pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION);
                 $new_filename = $product_id . '_' . $field . '_' . time() . '.' . $file_extension;
-                $upload_path = '../uploads/product_images/' . $new_filename;
+                $upload_path = '../../img/' . $new_filename;
 
                 // Check if file is an actual image
                 $check = getimagesize($_FILES[$field]['tmp_name']);
@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     // Delete the old image if it exists
                     if (!empty($old_filename)) {
-                        $old_file_path = '../uploads/product_images/' . $old_filename;
+                        $old_file_path = '../../img/' . $old_filename;
                         if (file_exists($old_file_path)) {
                             unlink($old_file_path);
                         }
@@ -940,7 +940,7 @@ try {
                             $image_labels = ['Main Image', 'Image 2', 'Image 3', 'Image 4', 'Image 5', 'Image 6'];
 
                             foreach ($image_fields as $index => $field):
-                                $image_url = !empty($product->$field) ? '../uploads/product_images/' . $product->$field : '';
+                                $image_url = !empty($product->$field) ? '../../img/' . $product->$field : '';
                             ?>
                                 <div class="form-group">
                                     <label for="<?= $field ?>" class="<?= $index === 0 ? 'required-field' : '' ?>"><?= $image_labels[$index] ?></label>
