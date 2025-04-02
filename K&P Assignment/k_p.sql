@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 02, 2025 at 11:25 AM
+-- Generation Time: Apr 02, 2025 at 06:41 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -49,6 +49,7 @@ CREATE TABLE `cart` (
   `cart_id` varchar(255) NOT NULL,
   `user_id` varchar(255) NOT NULL,
   `product_id` varchar(255) NOT NULL,
+  `size` enum('S','M','L','XL','XXL') DEFAULT NULL,
   `quantity` int(11) NOT NULL,
   `added_time` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -414,6 +415,7 @@ CREATE TABLE `user` (
 INSERT INTO `user` (`user_id`, `user_name`, `user_Email`, `user_password`, `user_gender`, `user_phone`, `user_profile_pic`, `user_update_time`, `status`, `role`, `activation_token`, `activation_expiry`) VALUES
 ('AD001', 'Admin', 'admin@gmail.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq6PH.6U1JXzJYy7Dd7GFUj7z/s1G.', 'Male', '0159856479', 'admin.jpg', '2025-04-02 06:52:12', 'Active', 'admin', NULL, NULL),
 ('MB001', 'John Customer', 'kachun.customer@gmail.com', '$2a$10$3mXq7k.T9Uo5Z5J8r7vZUeW5v5X5J8r7vZUeW5v5X5J8r7vZUeW5v', 'Male', '0125946687', 'kachun.jpg', '2025-04-02 06:52:12', 'Active', 'member', NULL, NULL),
+('MB825', 'js', 'js@gmail.com', '$2y$10$8XlUTcnh7uxMdr.vySWbDufzxVWGcM/njiuu9BE/ETpQGa193Erk2', 'Male', '60182259156', '67ed4c45ab7b2.jpg', '2025-04-02 16:38:15', 'Active', 'member', NULL, NULL),
 ('ST001', 'Staff', 'staff@gmail.com', '$2a$10$VE0tR5c5QlUgDZQZP1YrE.7ZJQ9Xz3JjZr3Jk6d1JvQmY9Jh5r1XO', 'Female', '0165897533', 'staff.jpg', '2025-04-02 06:52:12', 'Active', 'staff', NULL, NULL);
 
 -- --------------------------------------------------------
@@ -589,60 +591,3 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
--- First, let's insert address data
-INSERT INTO `address` (`address_id`, `user_id`, `street`, `city`, `state`, `post_code`, `country`) VALUES
-('A001', 'MB001', 123, 123, 'Selangor', '2025-01-15', 'Malaysia'),
-('A002', 'MB001', 456, 456, 'Kuala Lumpur', '2025-01-20', 'Malaysia'),
-('A003', 'ST001', 789, 789, 'Penang', '2025-02-10', 'Malaysia'),
-('A004', 'AD001', 321, 321, 'Johor', '2025-02-15', 'Malaysia');
-
--- Insert delivery data
-INSERT INTO `delivery` (`delivery_id`, `address_id`, `delivery_fee`, `delivery_status`, `estimated_date`, `delivered_date`) VALUES
-('D001', 'A001', 10, 'Delivered', '2025-03-05', '2025-03-07'),
-('D002', 'A001', 10, 'Delivered', '2025-03-10', '2025-03-12'),
-('D003', 'A002', 15, 'Out for Delivery', '2025-03-25', NULL),
-('D004', 'A003', 10, 'Processing', '2025-04-05', NULL),
-('D005', 'A004', 10, 'Delivered', '2025-03-18', '2025-03-20');
-
--- Insert orders data
-INSERT INTO `orders` (`order_id`, `user_id`, `delivery_id`, `order_date`, `orders_status`, `order_subtotal`, `order_total`) VALUES
-('O001', 'MB001', 'D001', '2025-03-01 14:30:00', 'Delivered', 229.70, 239.70),
-('O002', 'MB001', 'D002', '2025-03-08 10:15:00', 'Delivered', 199.80, 209.80),
-('O003', 'MB001', 'D003', '2025-03-20 16:45:00', 'Shipped', 269.80, 284.80),
-('O004', 'ST001', 'D004', '2025-04-01 09:20:00', 'Processing', 299.70, 309.70),
-('O005', 'AD001', 'D005', '2025-03-15 11:30:00', 'Delivered', 279.80, 289.80);
-
--- Insert order details data
-INSERT INTO `order_details` (`order_id`, `product_id`, `quantity`, `unit_price`) VALUES
--- Order 1
-('O001', 'P001', 2, 49.90),
-('O001', 'P013', 3, 39.90),
-('O001', 'P025', 1, 149.90),
-
--- Order 2
-('O002', 'P004', 1, 79.90),
-('O002', 'P015', 2, 49.90),
-('O002', 'P028', 1, 149.90),
-
--- Order 3
-('O003', 'P007', 3, 39.90),
-('O003', 'P016', 2, 39.90),
-('O003', 'P031', 1, 149.90),
-
--- Order 4
-('O004', 'P002', 2, 49.90),
-('O004', 'P017', 3, 59.90),
-('O004', 'P032', 1, 129.90),
-
--- Order 5
-('O005', 'P006', 1, 59.90),
-('O005', 'P019', 2, 79.90),
-('O005', 'P029', 1, 149.90);
-
--- Insert payment data
-INSERT INTO `payment` (`payment_id`, `order_id`, `tax`, `total_amount`, `payment_method`, `payment_status`, `payment_date`, `discount`) VALUES
-('PAY001', 'O001', 10.00, 239.70, 'Credit Card', 'Completed', '2025-03-01 14:35:00', 0.00),
-('PAY002', 'O002', 10.00, 209.80, 'PayPal', 'Completed', '2025-03-08 10:20:00', 0.00),
-('PAY003', 'O003', 15.00, 284.80, 'Credit Card', 'Completed', '2025-03-20 16:50:00', 0.00),
-('PAY004', 'O004', 10.00, 309.70, 'Bank Transfer', 'Pending', '2025-04-01 09:25:00', 0.00),
-('PAY005', 'O005', 10.00, 289.80, 'Credit Card', 'Completed', '2025-03-15 11:35:00', 0.00);
