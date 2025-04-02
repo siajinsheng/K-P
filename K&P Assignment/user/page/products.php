@@ -88,7 +88,7 @@ $categories = $cat_stm->fetchAll();
                 <?php foreach ($products as $product): ?>
                     <div class="product-card">
                         <div class="product-image">
-                            <img src="/user/image/products/<?= $product->product_pic1 ?>" alt="<?= $product->product_name ?>">
+                            <img src="../../img/<?= $product->product_pic1 ?>" alt="<?= $product->product_name ?>">
                             <div class="product-overlay">
                                 <a href="product-details.php?id=<?= $product->product_id ?>" class="view-details">
                                     <i class="fas fa-eye"></i> View Details
