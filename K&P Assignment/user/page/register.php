@@ -1,6 +1,7 @@
 <?php
 $_title = 'K&P - Register';
 require '../../_base.php';
+require_once 'email_functions.php';
 
 if (is_post()) {
     $name = req('name');
@@ -22,7 +23,7 @@ if (is_post()) {
         $_err['email'] = 'Email is required';
     } elseif (!is_email($email)) {
         $_err['email'] = 'Invalid email format';
-    } elseif (!is_email_unique($email)) {
+    } elseif (!is_unique($email, 'user', 'user_Email')) {
         $_err['email'] = 'Email already registered';
     }
 
@@ -30,7 +31,7 @@ if (is_post()) {
         $_err['phone'] = 'Phone number is required';
     } elseif (!preg_match('/^[0-9]{10,15}$/', $phone)) {
         $_err['phone'] = 'Invalid phone number';
-    } elseif (!is_phone_unique($phone)) {
+    } elseif (!is_unique($phone, 'user', 'user_phone')) {
         $_err['phone'] = 'Phone number already registered';
     }
 
@@ -60,52 +61,73 @@ if (is_post()) {
 
     // Process if no errors
     if (empty($_err)) {
-        // Generate customer ID
-        $cus_id = 'CUS_' . uniqid();
-        
-        // Hash password
-        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        
-        // Save profile picture
-        $profilePicPath = null;
-        if ($profilePic) {
-            $profilePicPath = save_photo_user($profilePic, '../../uploads/profiles');
-        }
-        
-        // Generate activation token
-        $activationToken = generate_activation_token();
-        $activationExpiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
-        
-        // Insert into database
-        $stm = $_db->prepare("
-            INSERT INTO customer (
-                cus_id, cus_name, cus_Email, cus_password, con_cus_password, 
-                cus_gender, cus_phone, cus_profile_pic, cus_status, 
-                role, activation_token, activation_expiry
-            ) VALUES (
-                ?, ?, ?, ?, ?, 
-                ?, ?, ?, 'Inactive', 
-                'customer', ?, ?
-            )
-        ");
-        
-        $success = $stm->execute([
-            $cus_id, $name, $email, $hashedPassword, $hashedPassword,
-            $gender, $phone, $profilePicPath,
-            $activationToken, $activationExpiry
-        ]);
-        
-        if ($success) {
-            // Send activation email
-            if (send_activation_email($email, $name, $activationToken)) {
+        try {
+            // Generate user ID
+            $user_id = 'MB' . sprintf('%03d', rand(100, 999));
+            
+            // Check if user ID already exists, generate a new one if it does
+            $stm = $_db->prepare("SELECT COUNT(*) FROM user WHERE user_id = ?");
+            $stm->execute([$user_id]);
+            while ($stm->fetchColumn() > 0) {
+                $user_id = 'MB' . sprintf('%03d', rand(100, 999));
+                $stm->execute([$user_id]);
+            }
+            
+            // Hash password
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            
+            // Save profile picture
+            $profilePicPath = null;
+            if ($profilePic) {
+                $profilePicPath = save_photo_user($profilePic, '../../admin/Uploaded_profile', 300, 300);
+            } else {
+                $profilePicPath = 'default-profile.jpg'; // Default profile image
+            }
+            
+            // Generate activation token
+            $activationToken = bin2hex(random_bytes(32));
+            $activationExpiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
+            
+            // Begin transaction
+            $_db->beginTransaction();
+            
+            // Insert into database - note: Role is initially null and status is 'Inactive'
+            $stm = $_db->prepare("
+                INSERT INTO user (
+                    user_id, user_name, user_Email, user_password, 
+                    user_gender, user_phone, user_profile_pic, status, 
+                    role, activation_token, activation_expiry
+                ) VALUES (
+                    ?, ?, ?, ?, 
+                    ?, ?, ?, 'Inactive', 
+                    '', ?, ?
+                )
+            ");
+            
+            $stm->execute([
+                $user_id, $name, $email, $hashedPassword,
+                $gender, $phone, $profilePicPath,
+                $activationToken, $activationExpiry
+            ]);
+            
+            // Send verification email
+            $emailSent = send_verification_email($email, $name, $activationToken);
+            
+            if ($emailSent) {
+                // Commit the transaction
+                $_db->commit();
+                
                 temp('success', 'Registration successful! Please check your email to activate your account.');
                 redirect('login.php');
             } else {
-                // If email fails, delete the user record
-                $_db->prepare("DELETE FROM customer WHERE cus_id = ?")->execute([$cus_id]);
-                $_err['email'] = 'Failed to send activation email. Please try again later.';
+                // Rollback if email sending fails
+                $_db->rollBack();
+                $_err['email'] = 'Failed to send verification email. Please try again later.';
             }
-        } else {
+        } catch (PDOException $e) {
+            // Rollback transaction on error
+            $_db->rollBack();
+            error_log("Registration error: " . $e->getMessage());
             $_err['database'] = 'Registration failed. Please try again.';
         }
     }
@@ -119,6 +141,7 @@ if (is_post()) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $_title ?></title>
     <link rel="stylesheet" href="../css/register.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <?php include '../header.php'; ?>
@@ -136,7 +159,7 @@ if (is_post()) {
                     <label for="profile_pic">Profile Picture</label>
                     <input type="file" id="profile_pic" name="profile_pic" class="form-control" accept="image/*">
                     <?= err('profile_pic') ?>
-                    <img id="profilePreview" class="profile-pic-preview" src="/images/default-profile.jpg" alt="Profile Preview">
+                    <img id="profilePreview" class="profile-pic-preview" src="../../admin/Uploaded_profile/default-profile.jpg" alt="Profile Preview">
                 </div>
                 
                 <div class="form-group">
@@ -193,7 +216,7 @@ if (is_post()) {
                     <button type="submit" class="btn">Register</button>
                 </div>
                 
-                <p>Already have an account? <a href="login.php">Login here</a></p>
+                <p class="login-link">Already have an account? <a href="login.php">Login here</a></p>
             </form>
         </div>
     </main>

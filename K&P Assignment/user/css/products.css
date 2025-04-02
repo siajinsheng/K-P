@@ -1,6 +1,3 @@
-/* products.css */
-
-/* Main Container */
 .container {
     max-width: 1200px;
     margin: 0 auto;
@@ -9,18 +6,17 @@
     gap: 30px;
 }
 
-/* Hero Section */
 .product-hero {
     width: 100%;
-    height: 300px;
+    height: 350px;
     background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('/user/image/background.jpg');
     background-size: cover;
     background-position: center;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 40px;
-    margin-top: 70px; /* Allow space for the fixed header */
+    margin-bottom: 50px;
+    margin-top: 70px;
 }
 
 .hero-content {
@@ -29,13 +25,13 @@
 }
 
 .hero-content h1 {
-    font-size: 2.5rem;
-    margin-bottom: 10px;
+    font-size: 3rem;
+    margin-bottom: 15px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .hero-content p {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
 }
 
@@ -118,7 +114,6 @@
     color: white;
 }
 
-/* Product Grid */
 .product-grid {
     flex-grow: 1;
     display: grid;
@@ -126,7 +121,6 @@
     gap: 25px;
 }
 
-/* Product Card */
 .product-card {
     background-color: #fff;
     border-radius: 8px;
@@ -142,7 +136,7 @@
 
 .product-image {
     position: relative;
-    height: 200px;
+    height: 220px;
     overflow: hidden;
 }
 
@@ -190,17 +184,17 @@
     background-color: #e0e0e0;
 }
 
-/* Product Info */
 .product-info {
     padding: 15px;
+    text-align: center;
 }
 
 .product-name {
-    margin: 0 0 10px;
-    font-size: 1rem;
+    margin: 10px 0;
+    font-size: 1.1rem;
     font-weight: 600;
     color: #333;
-    height: 40px;
+    height: 43px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -210,7 +204,7 @@
 .product-price {
     color: #4a6fa5;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     margin-bottom: 15px;
 }
 
@@ -244,7 +238,6 @@
     font-size: 1.1rem;
 }
 
-/* Responsive Design */
 @media (max-width: 992px) {
     .container {
         flex-direction: column;
@@ -265,7 +258,7 @@
 
 @media (max-width: 768px) {
     .product-hero {
-        height: 200px;
+        height: 250px;
     }
     
     .hero-content h1 {

@@ -106,7 +106,7 @@ function get_file($key)
 function save_photo($file, $target_dir = 'Upload_Images', $width = 200, $height = 200)
 {
     $photo = uniqid() . '.jpg';
-    require_once 'Admin/lib/SimpleImage.php';
+    require_once 'admin/lib/SimpleImage.php';
     $img = new SimpleImage();
     $img->fromFile($file['tmp_name'])
         ->thumbnail($width, $height)
@@ -121,7 +121,7 @@ function save_photo_user($f, $folder, $width = 200, $height = 200)
 {
     $photo = uniqid() . '.jpg';
 
-    require_once 'Admin/lib/SimpleImage.php';
+    require_once 'admin/lib/SimpleImage.php';
     $img = new SimpleImage();
     $img->fromFile($f->tmp_name)
         ->thumbnail($width, $height)
