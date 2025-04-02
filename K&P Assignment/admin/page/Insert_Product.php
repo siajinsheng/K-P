@@ -1,7 +1,7 @@
 <?php
 $_title = 'Insert Product';
 require '../../_base.php';
-auth(0, 1); // Only admin and managers can access
+auth('admin', 'staff');
 require 'header.php';
 
 if (!isset($_SESSION['form_token'])) {

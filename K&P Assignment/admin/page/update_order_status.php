@@ -1,6 +1,6 @@
 <?php
 require '../../_base.php';
-auth(0,1);
+auth('admin', 'staff');
 
 // Only allow POST requests
 if (!is_post()) {

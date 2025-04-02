@@ -1,7 +1,7 @@
 <?php
 $_title = 'Product Details';
 require '../../_base.php';
-auth(0, 1); // Only admin and managers can access
+auth('admin', 'staff');
 require 'header.php';
 
 // Get product ID from URL parameter
@@ -318,7 +318,7 @@ if ($discount) {
                     <div class="md:w-1/2 pr-0 md:pr-8">
                         <!-- Main Image Display -->
                         <div class="img-container mb-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <img id="mainImage" src="../uploads/product_images/<?= $product->product_pic1 ? $product->product_pic1 : 'placeholder.jpg' ?>" alt="<?= htmlspecialchars($product->product_name) ?>" class="rounded-lg">
+                            <img id="mainImage" src="../../img/<?= $product->product_pic1 ? $product->product_pic1 : 'placeholder.jpg' ?>" alt="<?= htmlspecialchars($product->product_name) ?>" class="rounded-lg">
                         </div>
 
                         <!-- Thumbnails -->
@@ -327,7 +327,7 @@ if ($discount) {
                             $image_fields = ['product_pic1', 'product_pic2', 'product_pic3', 'product_pic4', 'product_pic5', 'product_pic6'];
                             foreach ($image_fields as $field) {
                                 if (!empty($product->$field)) {
-                                    echo '<img src="../uploads/product_images/' . $product->$field . '" class="thumbnail rounded-md shadow-sm" alt="Product thumbnail">';
+                                    echo '<img src="../../img/' . $product->$field . '" class="thumbnail rounded-md shadow-sm" alt="Product thumbnail">';
                                 }
                             }
                             ?>

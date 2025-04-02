@@ -18,7 +18,7 @@ $offset = ($page - 1) * $limit;
 $validSortFields = [
     'order_id',
     'order_date',
-    'cus_name',
+    'user_name',
     'order_total',
     'orders_status',
     'payment_status'
@@ -29,10 +29,10 @@ $sortField = in_array($sortField, $validSortFields) ? $sortField : 'order_date';
 // Count total orders
 $countQuery = "SELECT COUNT(DISTINCT o.order_id) 
                FROM orders o
-               JOIN customer c ON o.cus_id = c.cus_id
+               JOIN user u ON o.user_id = u.user_id
                JOIN payment p ON o.order_id = p.order_id
                WHERE o.order_id LIKE ?
-                  OR c.cus_name LIKE ?
+                  OR u.user_name LIKE ?
                   OR o.order_date LIKE ?
                   OR o.order_total LIKE ?
                   OR o.orders_status LIKE ?
@@ -47,14 +47,14 @@ $totalPages = ceil($totalOrders / $limit);
 // Main query
 $query = "SELECT o.order_id, o.order_date, 
                  SUM(od.quantity) as total_quantity,
-                 o.orders_status, c.cus_name, c.cus_Email,
+                 o.orders_status, u.user_name, u.user_Email,
                  p.total_amount, p.payment_status, p.payment_date
           FROM orders o
-          JOIN customer c ON o.cus_id = c.cus_id
+          JOIN user u ON o.user_id = u.user_id
           JOIN payment p ON o.order_id = p.order_id
           JOIN order_details od ON o.order_id = od.order_id
           WHERE o.order_id LIKE :search
-             OR c.cus_name LIKE :search
+             OR u.user_name LIKE :search
              OR o.order_date LIKE :search
              OR o.order_total LIKE :search
              OR o.orders_status LIKE :search
@@ -89,7 +89,7 @@ $statusCounts = $statusStmt->fetch(PDO::FETCH_ASSOC);
     <title><?= $_title ?></title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="orders.css">
+    <link rel="stylesheet" href="../css/orders.css">
 </head>
 <body>
     <div class="container mx-auto px-4 py-8 max-w-7xl">
@@ -217,8 +217,8 @@ $statusCounts = $statusStmt->fetch(PDO::FETCH_ASSOC);
                                     <td class="px-4 py-3"><?= date('M d, Y H:i', strtotime($order['order_date'])) ?></td>
                                     <td class="px-4 py-3">
                                         <div class="flex flex-col">
-                                            <span><?= htmlspecialchars($order['cus_name']) ?></span>
-                                            <span class="text-sm text-gray-500"><?= htmlspecialchars($order['cus_Email']) ?></span>
+                                            <span><?= htmlspecialchars($order['user_name']) ?></span>
+                                            <span class="text-sm text-gray-500"><?= htmlspecialchars($order['user_Email']) ?></span>
                                         </div>
                                     </td>
                                     <td class="px-4 py-3"><?= htmlspecialchars($order['total_quantity']) ?></td>
