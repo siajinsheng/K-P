@@ -17,7 +17,7 @@
                 <i class="fas fa-bars"></i>
             </button>
             <div class="logo">
-                <a href="../../index.php"><img src="/user/image/K&P logo.png" alt="K&P Logo"></a>
+                <a href="../../index.php"><img src="/img/K&P logo.png" alt="K&P Logo"></a>
             </div>
         </div>
 
