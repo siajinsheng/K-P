@@ -71,7 +71,7 @@ $user = $_SESSION['user'];   // User object updated in the auth() function
         }
         img {
             display: block;
-            margin-top: 10px;
+            margin-top: 10px;   
         }
     </style>
 </head>
