@@ -146,3 +146,22 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <!-- Main Content Wrapper - adds padding for fixed header -->
     <div class="pt-20">
         <!-- Main content goes here -->
+
+        <script>
+    function toggleDropdown(event) {
+        event.preventDefault();
+        const dropdown = event.currentTarget.parentElement;
+        dropdown.classList.toggle('show');
+    }
+
+    // Close dropdown if clicked outside
+    window.addEventListener('click', function(event) {
+        if (!event.target.closest('.profile-dropdown')) {
+            const dropdowns = document.querySelectorAll('.profile-dropdown');
+            dropdowns.forEach(dropdown => {
+                dropdown.classList.remove('show');
+            });
+        }
+    });
+</script>
+    
