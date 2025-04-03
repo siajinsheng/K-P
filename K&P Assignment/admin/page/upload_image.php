@@ -3,7 +3,7 @@ require '../../_base.php';
 auth(0, 1); // Only admin and managers can access
 
 // Define upload directory
-$upload_dir = '../uploads/product_images/';
+$upload_dir = '../../img/';
 
 // Ensure upload directory exists
 if (!file_exists($upload_dir)) {

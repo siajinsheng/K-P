@@ -15,11 +15,11 @@ if (isset($data['filename'])) {
         exit;
     }
     
-    $filePath = '../uploads/product_images/' . $filename;
+    $filePath = '../../img/' . $filename;
 
     // Verify the file is within the allowed directory
     $realPath = realpath($filePath);
-    $uploadDir = realpath('../uploads/product_images/');
+    $uploadDir = realpath('../../img/');
     
     if ($realPath === false || strpos($realPath, $uploadDir) !== 0) {
         echo json_encode(['success' => false, 'message' => 'Invalid file path']);
