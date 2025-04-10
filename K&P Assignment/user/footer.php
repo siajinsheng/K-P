@@ -27,7 +27,7 @@
                 <a href="https://youtu.be/QqccaHauSKQ?t=48"><i class="fa-brands fa-youtube"></i></a>
             </li>
         </ul>
-        <p>The content of this site is copyright-protected and is the property of Rose Fit Clothing. Rose Fit Clothing's
+        <p>The content of this site is copyright-protected and is the property of K & P. K & P
             business concept is to offer fashion and quality at the best price in a sustainable way.</p>
     </div>
     <script src="https://kit.fontawesome.com/d317456e1b.js" crossorigin="anonymous"></script>

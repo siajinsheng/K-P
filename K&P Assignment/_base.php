@@ -484,7 +484,7 @@ function get_mail()
     $m->Host = 'smtp.gmail.com';
     $m->Port = 587;
     $m->Username = 'siajs-wm22@student.tarc.edu.my';
-    $m->Password = '20040419Sjs.';
+    $m->Password = 'pigi dsyn bfhb xhtm';
     $m->CharSet = 'utf-8';
     $m->setFrom($m->Username, 'K&P Store');
 

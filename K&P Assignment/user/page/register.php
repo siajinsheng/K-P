@@ -200,7 +200,6 @@ if (is_post()) {
                 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <!-- Using custom function for password input -->
                     <?php html_password_input('password', 'class="form-control" required'); ?>
                     <?= err('password') ?>
                     <small class="text-muted">Must contain at least 8 characters with one uppercase letter, one lowercase letter, one number, and one special character (e.g., P@ssw0rd)</small>
