@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Image upload handling
     $image_filenames = [];
-    $upload_dir = '../uploads/product_images/';
+    $upload_dir = '../../img/';
 
     // Ensure upload directory exists
     if (!file_exists($upload_dir)) {

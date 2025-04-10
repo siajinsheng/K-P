@@ -77,7 +77,7 @@ $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </head>
 
 <body>
-  <div class="container">
+  <div class="container1">
     <h1>Payment Transactions Management</h1>
 
     <!-- Search Form -->
@@ -94,7 +94,7 @@ $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
                class="form-input"
                value="<?= htmlspecialchars($searchOrderId ?? '') ?>">
       </div>
-      <div class="form-group">
+      <div class="form-group3">
         <select name="searchPaymentStatus" class="form-select">
           <option value="">All Statuses</option>
           <option value="completed" <?= $searchPaymentStatus == 'completed' ? 'selected' : '' ?>>Completed</option>
