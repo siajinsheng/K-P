@@ -2,7 +2,7 @@
 $_title = 'Admin Dashboard';
 require '../../_base.php';
 auth('admin', 'staff');
-require 'header.php';
+require '../headFooter/header.php';
 
 // Initialize totals
 $total_products = 0;
@@ -138,7 +138,7 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="../css/home.css" rel="stylesheet">
+    <link href="home.css" rel="stylesheet">
 </head>
 
 <body class="bg-gray-50">
@@ -456,7 +456,7 @@ try {
         </div>
     </div>
 
-    <?php require 'footer.php'; ?>
+    <?php require '../headFooter/footer.php'; ?>
 
     <script src="../js/home.js"></script>
 </body>
