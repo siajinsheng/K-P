@@ -4,53 +4,10 @@ require '../../_base.php';
 
 // Check if user is already logged in
 if (isset($_SESSION['user'])) {
-    redirect('/index.php'); // Redirect to homepage or dashboard if already logged in
+    redirect('index.php'); // Redirect to homepage or dashboard if already logged in
 }
 
-// Handle resend verification email
-if (isset($_POST['resend_verification'])) {
-    $email = $_POST['email'];
-    
-    try {
-        // Find user with this email that has Pending status
-        $stm = $_db->prepare("SELECT user_id, user_name, user_Email, status FROM user WHERE user_Email = ?");
-        $stm->execute([$email]);
-        $user = $stm->fetch();
-        
-        if ($user && $user->status === 'Pending') {
-            // Generate new token
-            $token = generate_activation_token();
-            $expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
-            
-            // Update token in database
-            $stm = $_db->prepare("
-                UPDATE user 
-                SET activation_token = ?, activation_expiry = ? 
-                WHERE user_id = ?
-            ");
-            $stm->execute([$token, $expiry, $user->user_id]);
-            
-            // Send verification email
-            $result = send_verification_email($email, $user->user_name, $token);
-            
-            if ($result) {
-                temp('success', 'A new verification email has been sent. Please check your inbox.');
-            } else {
-                temp('error', 'Failed to send verification email. Please try again later.');
-            }
-        } else {
-            temp('error', 'No pending account found with this email address.');
-        }
-        
-        redirect('login.php');
-    } catch (Exception $e) {
-        error_log("Resend verification error: " . $e->getMessage());
-        temp('error', 'An error occurred while processing your request.');
-        redirect('login.php');
-    }
-}
-
-if (is_post() && isset($_POST['login'])) {
+if (is_post()) {
     $email = req('email');
     $password = req('password');
     $remember = req('remember') ? true : false;
@@ -77,10 +34,7 @@ if (is_post() && isset($_POST['login'])) {
             // Check if user exists and password is correct
             if ($user && password_verify($password, $user->user_password)) {
                 // Check account status
-                if ($user->status === 'Pending') {
-                    $_err['login'] = 'Your email address has not been verified. Please check your inbox for the verification email or request a new one below.';
-                    $show_verification_form = true;
-                } else if ($user->status !== 'Active') {
+                if ($user->status !== 'Active') {
                     $_err['login'] = 'Your account is inactive or has been suspended. Please contact support.';
                 } else {
                     // Start session and store user data
@@ -108,7 +62,7 @@ if (is_post() && isset($_POST['login'])) {
                     } elseif ($user->role === 'staff') {
                         redirect('../../admin/index.php');
                     } else {
-                        redirect('/index.php'); // Regular user/member
+                        redirect('../index.php'); // Regular user/member
                     }
                 }
             } else {
@@ -151,7 +105,7 @@ if (!isset($_SESSION['user']) && isset($_COOKIE['user_id']) && isset($_COOKIE['r
                 } elseif ($user->role === 'staff') {
                     redirect('../../admin/index.php');
                 } else {
-                    redirect('/index.php'); // Regular user/member
+                    redirect('../index.php'); // Regular user/member
                 }
             }
         }
@@ -172,7 +126,6 @@ if (!isset($_SESSION['user']) && isset($_COOKIE['user_id']) && isset($_COOKIE['r
 // Check for messages from other pages (like successful registration)
 $success_message = temp('success');
 $info_message = temp('info');
-$error_message = temp('error');
 ?>
 
 <!DOCTYPE html>
@@ -197,10 +150,6 @@ $error_message = temp('error');
             
             <?php if ($info_message): ?>
                 <div class="alert alert-info"><?= $info_message ?></div>
-            <?php endif; ?>
-            
-            <?php if ($error_message): ?>
-                <div class="alert alert-danger"><?= $error_message ?></div>
             <?php endif; ?>
             
             <?php if (isset($_err['login']) || isset($_err['database'])): ?>
@@ -235,7 +184,7 @@ $error_message = temp('error');
                 </div>
                 
                 <div class="form-group">
-                    <button type="submit" name="login" class="btn">
+                    <button type="submit" class="btn">
                         <i class="fas fa-sign-in-alt"></i> Login
                     </button>
                 </div>
@@ -245,20 +194,6 @@ $error_message = temp('error');
                     <p>Don't have an account? <a href="register.php"><i class="fas fa-user-plus"></i> Register here</a></p>
                 </div>
             </form>
-            
-            <?php if (isset($show_verification_form) && $show_verification_form): ?>
-                <div class="verification-form">
-                    <h3>Resend Verification Email</h3>
-                    <p>If you haven't received the verification email, you can request a new one.</p>
-                    
-                    <form method="post">
-                        <input type="hidden" name="email" value="<?= htmlspecialchars($email) ?>">
-                        <button type="submit" name="resend_verification" class="btn secondary-btn">
-                            <i class="fas fa-envelope"></i> Resend Verification Email
-                        </button>
-                    </form>
-                </div>
-            <?php endif; ?>
         </div>
     </main>
 

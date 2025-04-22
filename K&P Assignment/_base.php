@@ -221,7 +221,7 @@ function get_file($key)
 function save_photo($file, $target_dir = 'Upload_Images', $width = 200, $height = 200)
 {
     $photo = uniqid() . '.jpg';
-    require_once 'admin/lib/SimpleImage.php';
+    require_once 'lib/SimpleImage.php';
     $img = new SimpleImage();
     $img->fromFile($file['tmp_name'])
         ->thumbnail($width, $height)
@@ -236,7 +236,7 @@ function save_photo_user($f, $folder, $width = 200, $height = 200)
 {
     $photo = uniqid() . '.jpg';
 
-    require_once 'user/lib/SimpleImage.php';
+    require_once 'lib/SimpleImage.php';
     $img = new SimpleImage();
     $img->fromFile($f->tmp_name)
         ->thumbnail($width, $height)
@@ -475,8 +475,18 @@ function showError($message)
  */
 function get_mail()
 {
-    require_once 'user/lib/PHPMailer.php';
-    require_once 'user/lib/SMTP.php';
+    if (file_exists('user/lib/PHPMailer.php')) {
+        require_once 'user/lib/PHPMailer.php';
+        require_once 'user/lib/SMTP.php';
+    } else if (file_exists('../lib/PHPMailer.php')) {
+        require_once '../lib/PHPMailer.php';
+        require_once '../lib/SMTP.php';
+    } else if (file_exists('../../user/lib/PHPMailer.php')) {
+        require_once '../../user/lib/PHPMailer.php';
+        require_once '../../user/lib/SMTP.php';
+    } else {
+        throw new Exception("PHPMailer libraries not found");
+    }
 
     $m = new PHPMailer(true);
     $m->isSMTP();
@@ -484,9 +494,15 @@ function get_mail()
     $m->Host = 'smtp.gmail.com';
     $m->Port = 587;
     $m->Username = 'siajs-wm22@student.tarc.edu.my';
-    $m->Password = 'pigi dsyn bfhb xhtm';
+    $m->Password = 'wwhg dpgh abas xqzu';
     $m->CharSet = 'utf-8';
     $m->setFrom($m->Username, 'K&P Store');
+
+    // Enable SMTP debugging (comment out in production)
+    // $m->SMTPDebug = 2;
+    
+    // Enable secure connection
+    $m->SMTPSecure = 'tls';
 
     return $m;
 }
@@ -505,14 +521,23 @@ function send_verification_email($email, $name, $token) {
         $mail->addAddress($email, $name);
         $mail->Subject = 'Verify Your K&P Account Email';
 
-        // Create verification link
-        $verification_link = "http://{$_SERVER['HTTP_HOST']}/K&P%20Assignment/user/page/verify_email.php?token=$token";
+        // Create verification link using absolute URLs
+        // This is a more reliable approach for emails
+        $server_name = $_SERVER['SERVER_NAME'];
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+        $port = $_SERVER['SERVER_PORT'] != '80' && $_SERVER['SERVER_PORT'] != '443' ? ":{$_SERVER['SERVER_PORT']}" : "";
+        
+        // Construct base URL
+        $base_url = $protocol . $server_name . $port;
+        
+        // Hard-coded path to verification page
+        $verification_link = $base_url . "/K&P Assignment/user/page/verify_email.php?token=" . urlencode($token);
         
         // Email body with responsive design
         $mail_body = "
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;'>
             <div style='text-align: center; margin-bottom: 20px;'>
-                <img src='http://{$_SERVER['HTTP_HOST']}/K&P%20Assignment/user/img/logo.png' alt='K&P Logo' style='max-width: 150px;'>
+                <img src='{$base_url}/K&P Assignment/user/img/logo.png' alt='K&P Logo' style='max-width: 150px;'>
             </div>
             <h2 style='color: #4a6fa5; text-align: center;'>Verify Your Email Address</h2>
             <p>Hello $name,</p>
@@ -534,6 +559,9 @@ function send_verification_email($email, $name, $token) {
         $mail->Body = $mail_body;
         $mail->AltBody = strip_tags(str_replace('<br>', "\r\n", $mail_body));
         
+        // For debugging, log the verification link
+        error_log("Verification link generated: " . $verification_link);
+        
         // Send the email
         if (is_development()) {
             // In development environment, log instead of sending
@@ -553,10 +581,16 @@ function send_verification_email($email, $name, $token) {
  * Development helper to bypass email sending when in development environment
  */
 function is_development() {
+    // Return false to force email sending for testing
+    return false;
+    
+    // Original code (uncomment when done testing)
+    /*
     $dev_hosts = ['localhost', '127.0.0.1'];
     return in_array($_SERVER['SERVER_NAME'], $dev_hosts) || 
            substr($_SERVER['SERVER_NAME'], 0, 4) === 'test' ||
            substr($_SERVER['SERVER_NAME'], 0, 3) === 'dev';
+    */
 }
 
 /**

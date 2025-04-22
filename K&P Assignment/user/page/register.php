@@ -117,11 +117,11 @@ if (is_post()) {
                 $gender, $phone, $profilePicPath, $activation_token, $activation_expiry
             ]);
             
-            // Send verification email
-            $email_sent = send_verification_email($email, $name, $activation_token);
-            
             // Commit the transaction
             $_db->commit();
+            
+            // Send verification email
+            $email_sent = send_verification_email($email, $name, $activation_token);
             
             // Set success message and redirect to login with appropriate message
             if ($email_sent) {
@@ -133,7 +133,9 @@ if (is_post()) {
             
         } catch (PDOException $e) {
             // Rollback transaction on error
-            $_db->rollBack();
+            if ($_db->inTransaction()) {
+                $_db->rollBack();
+            }
             error_log("Registration error: " . $e->getMessage());
             $_err['database'] = 'Registration failed. Please try again.';
         }
