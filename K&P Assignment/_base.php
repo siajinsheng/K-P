@@ -236,7 +236,7 @@ function save_photo_user($f, $folder, $width = 200, $height = 200)
 {
     $photo = uniqid() . '.jpg';
 
-    require_once 'admin/lib/SimpleImage.php';
+    require_once 'user/lib/SimpleImage.php';
     $img = new SimpleImage();
     $img->fromFile($f->tmp_name)
         ->thumbnail($width, $height)
@@ -475,8 +475,8 @@ function showError($message)
  */
 function get_mail()
 {
-    require_once 'User/lib/PHPMailer.php';
-    require_once 'User/lib/SMTP.php';
+    require_once 'user/lib/PHPMailer.php';
+    require_once 'user/lib/SMTP.php';
 
     $m = new PHPMailer(true);
     $m->isSMTP();
@@ -489,6 +489,64 @@ function get_mail()
     $m->setFrom($m->Username, 'K&P Store');
 
     return $m;
+}
+
+/**
+ * Send verification email to user
+ * 
+ * @param string $email The recipient's email address
+ * @param string $name The recipient's name
+ * @param string $token The verification token
+ * @return bool True if email sent successfully, false otherwise
+ */
+function send_verification_email($email, $name, $token) {
+    try {
+        $mail = get_mail();
+        $mail->addAddress($email, $name);
+        $mail->Subject = 'Verify Your K&P Account Email';
+
+        // Create verification link
+        $verification_link = "http://{$_SERVER['HTTP_HOST']}/K&P%20Assignment/user/page/verify_email.php?token=$token";
+        
+        // Email body with responsive design
+        $mail_body = "
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;'>
+            <div style='text-align: center; margin-bottom: 20px;'>
+                <img src='http://{$_SERVER['HTTP_HOST']}/K&P%20Assignment/user/img/logo.png' alt='K&P Logo' style='max-width: 150px;'>
+            </div>
+            <h2 style='color: #4a6fa5; text-align: center;'>Verify Your Email Address</h2>
+            <p>Hello $name,</p>
+            <p>Thank you for registering with K&P. To activate your account, please verify your email address by clicking the button below:</p>
+            <div style='text-align: center; margin: 30px 0;'>
+                <a href='$verification_link' style='background-color: #4a6fa5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; font-weight: bold;'>Verify Email Address</a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste the link below into your browser:</p>
+            <p style='background-color: #f5f5f5; padding: 10px; word-break: break-all;'>$verification_link</p>
+            <p>This verification link will expire in 24 hours.</p>
+            <p>If you didn't create an account with us, please ignore this email.</p>
+            <div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 12px; color: #888;'>
+                <p>This is an automated message, please do not reply to this email.</p>
+                <p>&copy; " . date('Y') . " K&P Fashion. All rights reserved.</p>
+            </div>
+        </div>";
+
+        $mail->isHTML(true);
+        $mail->Body = $mail_body;
+        $mail->AltBody = strip_tags(str_replace('<br>', "\r\n", $mail_body));
+        
+        // Send the email
+        if (is_development()) {
+            // In development environment, log instead of sending
+            error_log("Development mode: Email would be sent to $email with subject '{$mail->Subject}'");
+            return true;
+        } else {
+            $mail->send();
+            return true;
+        }
+    } catch (Exception $e) {
+        error_log("Failed to send verification email to $email: " . $e->getMessage());
+        return false;
+    }
 }
 
 /**
