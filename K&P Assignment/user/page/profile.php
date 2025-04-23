@@ -38,7 +38,7 @@ try {
     $stm = $_db->prepare("
         SELECT * FROM address
         WHERE user_id = ?
-        ORDER BY address_id ASC
+        ORDER BY is_default DESC, created_at DESC
     ");
     $stm->execute([$user_id]);
     $addresses = $stm->fetchAll();
@@ -121,7 +121,7 @@ if (is_post() && isset($_POST['update_profile'])) {
             $_db->beginTransaction();
             
             // Handle profile photo upload if present
-            $photo = $user->profile_pic; // Default to current photo
+            $photo = $user->user_profile_pic; // Default to current photo
             if (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === 0) {
                 $file = $_FILES['profile_photo'];
                 
@@ -132,11 +132,11 @@ if (is_post() && isset($_POST['update_profile'])) {
                 }
                 
                 // Save the photo
-                $photo = save_photo_user((object)$file, 'user/uploads', 250, 250);
+                $photo = save_photo_user((object)$file, '../../admin/Uploaded_profile', 300, 300);
                 
                 // Delete old photo if it exists and isn't the default
-                if ($user->profile_pic && $user->profile_pic !== 'default.jpg' && file_exists('user/uploads/' . $user->profile_pic)) {
-                    unlink('user/uploads/' . $user->profile_pic);
+                if ($user->user_profile_pic && $user->user_profile_pic !== 'default-profile.jpg' && file_exists('../../admin/Uploaded_profile/' . $user->user_profile_pic)) {
+                    unlink('../../admin/Uploaded_profile/' . $user->user_profile_pic);
                 }
             }
             
@@ -145,14 +145,14 @@ if (is_post() && isset($_POST['update_profile'])) {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
                 $stm = $_db->prepare("
                     UPDATE user 
-                    SET user_name = ?, user_Email = ?, phone = ?, user_password = ?, profile_pic = ?, user_update_time = NOW()
+                    SET user_name = ?, user_Email = ?, user_phone = ?, user_password = ?, user_profile_pic = ?, user_update_time = NOW()
                     WHERE user_id = ?
                 ");
                 $stm->execute([$name, $email, $phone, $hashed_password, $photo, $user_id]);
             } else {
                 $stm = $_db->prepare("
                     UPDATE user 
-                    SET user_name = ?, user_Email = ?, phone = ?, profile_pic = ?, user_update_time = NOW()
+                    SET user_name = ?, user_Email = ?, user_phone = ?, user_profile_pic = ?, user_update_time = NOW()
                     WHERE user_id = ?
                 ");
                 $stm->execute([$name, $email, $phone, $photo, $user_id]);
@@ -234,7 +234,7 @@ if (is_post() && isset($_POST['update_profile'])) {
             <div class="profile-sidebar">
                 <div class="profile-sidebar-header">
                     <div class="profile-photo">
-                        <img src="<?= isset($user->profile_pic) && $user->profile_pic ? '/admin/Uploaded_profile/' . $user->profile_pic : '../img/default_avatar.png' ?>" alt="Profile Photo">
+                        <img src="<?= isset($user->user_profile_pic) && $user->user_profile_pic ? '../../admin/Uploaded_profile/' . $user->user_profile_pic : '../img/default_avatar.png' ?>" alt="Profile Photo">
                     </div>
                     <h2><?= htmlspecialchars($user->user_name) ?></h2>
                     <p class="text-muted">Member since <?= date('M d, Y', strtotime($user->user_update_time)) ?></p>
@@ -280,50 +280,33 @@ if (is_post() && isset($_POST['update_profile'])) {
                         <p>Manage your personal details and contact information</p>
                     </div>
                     
-                    <form method="post" enctype="multipart/form-data" class="profile-form">
-                        <div class="form-group">
-                            <label for="profile_photo">Profile Photo</label>
-                            <div class="profile-photo-upload">
-                                <div class="current-photo">
-                                    <img src="<?= isset($user->profile_pic) && $user->profile_pic ? '/admin/Uploaded_profile/' . $user->profile_pic : '../img/default_avatar.png' ?>" alt="Current Profile Photo" id="preview-photo">
-                                </div>
-                                <div class="upload-controls">
-                                    <input type="file" id="profile_photo" name="profile_photo" accept="image/*" class="file-input">
-                                    <label for="profile_photo" class="file-label">Choose New Photo</label>
-                                    <p class="text-muted">Max size: 2MB. Supported formats: JPEG, PNG, GIF</p>
-                                </div>
-                            </div>
+                    <div class="personal-info-summary">
+                        <div class="info-row">
+                            <div class="info-label">Full Name</div>
+                            <div class="info-value"><?= htmlspecialchars($user->user_name) ?></div>
                         </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="name">Full Name</label>
-                                <input type="text" id="name" name="name" value="<?= htmlspecialchars($user->user_name) ?>" required>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="email">Email Address</label>
-                                <input type="email" id="email" name="email" value="<?= htmlspecialchars($user->user_Email) ?>" required>
-                            </div>
+                        <div class="info-row">
+                            <div class="info-label">Email Address</div>
+                            <div class="info-value"><?= htmlspecialchars($user->user_Email) ?></div>
                         </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="phone">Phone Number</label>
-                                <input type="tel" id="phone" name="phone" value="<?= htmlspecialchars($user->phone ?? '') ?>" placeholder="e.g., 60123456789">
-                                <p class="form-hint">Enter your Malaysian phone number</p>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Account Type</label>
-                                <input type="text" value="<?= htmlspecialchars(ucfirst($user->role)) ?>" readonly class="readonly-field">
-                            </div>
+                        <div class="info-row">
+                            <div class="info-label">Phone Number</div>
+                            <div class="info-value"><?= !empty($user->user_phone) ? htmlspecialchars($user->user_phone) : '<span class="text-muted">Not provided</span>' ?></div>
                         </div>
-                        
-                        <div class="form-actions">
-                            <button type="submit" name="update_profile" class="btn primary-btn">Save Changes</button>
+                        <div class="info-row">
+                            <div class="info-label">Gender</div>
+                            <div class="info-value"><?= !empty($user->user_gender) ? htmlspecialchars($user->user_gender) : '<span class="text-muted">Not specified</span>' ?></div>
                         </div>
-                    </form>
+                        <div class="info-row">
+                            <div class="info-label">Account Type</div>
+                            <div class="info-value"><?= htmlspecialchars(ucfirst($user->role)) ?></div>
+                        </div>
+                        <div class="form-actions mt-20">
+                            <a href="profile_edit.php" class="btn secondary-btn">
+                                <i class="fas fa-edit"></i> Edit Profile
+                            </a>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Addresses Section -->
@@ -354,13 +337,14 @@ if (is_post() && isset($_POST['update_profile'])) {
                                         <p><?= htmlspecialchars($address->phone) ?></p>
                                         <p>
                                             <?= htmlspecialchars($address->address_line1) ?>
-                                            <?= $address->address_line2 ? ', ' . htmlspecialchars($address->address_line2) : '' ?>
+                                            <?= !empty($address->address_line2) ? ', ' . htmlspecialchars($address->address_line2) : '' ?>
                                         </p>
                                         <p>
                                             <?= htmlspecialchars($address->city) ?>, 
                                             <?= htmlspecialchars($address->state) ?>, 
-                                            <?= htmlspecialchars($address->postal_code) ?>
+                                            <?= htmlspecialchars($address->post_code) ?>
                                         </p>
+                                        <p><?= htmlspecialchars($address->country) ?></p>
                                     </div>
                                     
                                     <div class="address-actions">
@@ -368,11 +352,11 @@ if (is_post() && isset($_POST['update_profile'])) {
                                             <i class="fas fa-edit"></i> Edit
                                         </a>
                                         <?php if (!$address->is_default): ?>
-                                            <a href="set-default-address.php?id=<?= $address->address_id ?>" class="btn outline-btn sm">
+                                            <a href="set_default_address.php?id=<?= $address->address_id ?>" class="btn outline-btn sm">
                                                 Set as Default
                                             </a>
                                         <?php endif; ?>
-                                        <a href="delete-address.php?id=<?= $address->address_id ?>" class="btn danger-btn sm" onclick="return confirm('Are you sure you want to delete this address?')">
+                                        <a href="delete_address.php?id=<?= $address->address_id ?>" class="btn danger-btn sm" onclick="return confirm('Are you sure you want to delete this address?')">
                                             <i class="fas fa-trash"></i> Delete
                                         </a>
                                     </div>
@@ -438,7 +422,7 @@ if (is_post() && isset($_POST['update_profile'])) {
                                             </span>
                                         </div>
                                         <div class="order-col order-action">
-                                            <a href="order-details.php?id=<?= $order->order_id ?>" class="btn outline-btn sm">View Details</a>
+                                            <a href="order_details.php?id=<?= $order->order_id ?>" class="btn outline-btn sm">View Details</a>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

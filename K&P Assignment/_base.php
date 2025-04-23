@@ -661,6 +661,69 @@ function send_verification_email($email, $name, $token) {
 }
 
 /**
+ * Send password reset email to user
+ * 
+ * @param string $email The recipient's email address
+ * @param string $name The recipient's name
+ * @param string $token The reset token
+ * @return bool True if email sent successfully, false otherwise
+ */
+function send_reset_email($email, $name, $token) {
+    try {
+        $mail = get_mail();
+        $mail->addAddress($email, $name);
+        $mail->Subject = 'Reset Your K&P Account Password';
+
+        // Create reset link using absolute URLs
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https://" : "http://";
+        $server_name = $_SERVER['HTTP_HOST'];
+        
+        $reset_link = $protocol . $server_name . "/user/page/reset_password.php?token=" . urlencode($token);
+        
+        // For debugging
+        error_log("Password reset link generated: " . $reset_link);
+        
+        // Email body with responsive design
+        $mail_body = "
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;'>
+            <div style='text-align: center; margin-bottom: 20px;'>
+                <img src='{$protocol}{$server_name}/user/img/logo.png' alt='K&P Logo' style='max-width: 150px;'>
+            </div>
+            <h2 style='color: #4a6fa5; text-align: center;'>Reset Your Password</h2>
+            <p>Hello $name,</p>
+            <p>We received a request to reset your K&P account password. To reset your password, please click the button below:</p>
+            <div style='text-align: center; margin: 30px 0;'>
+                <a href='$reset_link' style='background-color: #4a6fa5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; font-weight: bold;'>Reset Password</a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste the link below into your browser:</p>
+            <p style='background-color: #f5f5f5; padding: 10px; word-break: break-all;'>$reset_link</p>
+            <p>This password reset link will expire in 1 hour for security reasons.</p>
+            <p>If you didn't request a password reset, you can ignore this email. Your account is safe.</p>
+            <div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 12px; color: #888;'>
+                <p>This is an automated message, please do not reply to this email.</p>
+                <p>&copy; " . date('Y') . " K&P Fashion. All rights reserved.</p>
+            </div>
+        </div>";
+
+        $mail->isHTML(true);
+        $mail->Body = $mail_body;
+        $mail->AltBody = strip_tags(str_replace('<br>', "\r\n", $mail_body));
+        
+        // Send the email
+        if (is_development()) {
+            error_log("Development mode: Password reset email would be sent to $email with subject '{$mail->Subject}'");
+            return true;
+        } else {
+            $mail->send();
+            return true;
+        }
+    } catch (Exception $e) {
+        error_log("Failed to send password reset email to $email: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
  * HTML input for password with toggle visibility
  * @param string $name Input name attribute
  * @param string $attributes Additional HTML attributes

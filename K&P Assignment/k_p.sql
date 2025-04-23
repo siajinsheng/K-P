@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 23, 2025 at 07:55 AM
+-- Generation Time: Apr 23, 2025 at 04:39 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -32,12 +32,26 @@ USE `k&p`;
 CREATE TABLE `address` (
   `address_id` varchar(255) NOT NULL,
   `user_id` varchar(255) NOT NULL,
-  `street` decimal(10,0) NOT NULL,
-  `city` decimal(10,0) NOT NULL,
-  `state` varchar(255) NOT NULL,
-  `post_code` date NOT NULL,
-  `country` varchar(255) NOT NULL
+  `address_name` varchar(100) NOT NULL,
+  `recipient_name` varchar(255) NOT NULL,
+  `phone` varchar(20) NOT NULL,
+  `address_line1` varchar(255) NOT NULL,
+  `address_line2` varchar(255) DEFAULT NULL,
+  `city` varchar(100) NOT NULL,
+  `state` varchar(100) NOT NULL,
+  `post_code` varchar(10) NOT NULL,
+  `country` varchar(100) NOT NULL DEFAULT 'Malaysia',
+  `is_default` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `address`
+--
+
+INSERT INTO `address` (`address_id`, `user_id`, `address_name`, `recipient_name`, `phone`, `address_line1`, `address_line2`, `city`, `state`, `post_code`, `country`, `is_default`, `created_at`, `updated_at`) VALUES
+('ADDR_20250423222846_105d5609', 'MB247', 'Home', 'js', '60182250100', 'A-02-13, Mizumi Metro kepong', '', 'kepong', 'Kuala Lumpur', '52100', 'Malaysia', 1, '2025-04-23 14:28:46', '2025-04-23 14:28:46');
 
 -- --------------------------------------------------------
 
@@ -412,6 +426,13 @@ CREATE TABLE `tokens` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `tokens`
+--
+
+INSERT INTO `tokens` (`id`, `user_id`, `token`, `type`, `expires_at`, `created_at`) VALUES
+(7, 'MB247', 'c65ebc866921054406c0d4a04b42dfff33ac74935c8b401005210c70a5cead5c', 'password_reset', '2025-04-23 23:35:52', '2025-04-23 14:35:52');
+
 -- --------------------------------------------------------
 
 --
@@ -438,7 +459,7 @@ CREATE TABLE `user` (
 INSERT INTO `user` (`user_id`, `user_name`, `user_Email`, `user_password`, `user_gender`, `user_phone`, `user_profile_pic`, `user_update_time`, `status`, `role`) VALUES
 ('AD001', 'Admin', 'admin@gmail.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq6PH.6U1JXzJYy7Dd7GFUj7z/s1G.', 'Male', '0159856479', 'admin.jpg', '2025-04-02 06:52:12', 'Active', 'admin'),
 ('MB001', 'John Customer', 'kachun.customer@gmail.com', '$2a$10$3mXq7k.T9Uo5Z5J8r7vZUeW5v5X5J8r7vZUeW5v5X5J8r7vZUeW5v', 'Male', '0125946687', 'kachun.jpg', '2025-04-02 06:52:12', 'Active', 'member'),
-('MB408', 'wei hong', 'siajinsheng@gmail.com', '$2y$10$aPzZy/tYOw4R1azbQEtGsug/cJg9d2UdJYpRzVMQoIpXLtfmHUA2y', 'Male', '60182259000', '68087ce0c90af.jpg', '2025-04-23 05:42:41', 'Active', 'member'),
+('MB247', 'wei hong', 'siajinsheng@gmail.com', '$2y$10$fmeUYMCv.FsAx66IAmZo6eD7lRk/xE6tweRx68ieavj7cKEUfEcsO', 'Male', '60182259000', '6808ed336587a.jpg', '2025-04-23 14:38:32', 'Active', 'member'),
 ('MB825', 'js', 'js@gmail.com', '$2y$10$8XlUTcnh7uxMdr.vySWbDufzxVWGcM/njiuu9BE/ETpQGa193Erk2', 'Male', '60182259156', '67ed4c45ab7b2.jpg', '2025-04-23 05:46:31', 'Active', 'admin'),
 ('ST001', 'Staff', 'staff@gmail.com', '$2a$10$VE0tR5c5QlUgDZQZP1YrE.7ZJQ9Xz3JjZr3Jk6d1JvQmY9Jh5r1XO', 'Female', '0165897533', 'staff.jpg', '2025-04-02 06:52:12', 'Active', 'staff');
 
@@ -560,7 +581,7 @@ ALTER TABLE `voucher`
 -- AUTO_INCREMENT for table `tokens`
 --
 ALTER TABLE `tokens`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- Constraints for dumped tables
