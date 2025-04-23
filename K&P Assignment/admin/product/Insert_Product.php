@@ -1,7 +1,11 @@
 <?php
+// Start output buffering at the very beginning
+ob_start();
+
 $_title = 'Insert Product';
 require '../../_base.php';
 auth('admin', 'staff');
+require '../headFooter/header.php';
 
 if (!isset($_SESSION['form_token'])) {
     $_SESSION['form_token'] = bin2hex(random_bytes(32));
@@ -22,6 +26,14 @@ function generateProductId($db)
     }
 }
 
+// Function to get the next available quantity_id
+function getNextQuantityId($db)
+{
+    $query = $db->query("SELECT MAX(quantity_id) FROM quantity");
+    $maxId = $query->fetch(PDO::FETCH_COLUMN);
+    return ($maxId) ? $maxId + 1 : 1;
+}
+
 // Function to check if product name already exists
 function isProductNameExists($db, $product_name)
 {
@@ -34,10 +46,6 @@ function isProductNameExists($db, $product_name)
 $categoryQuery = $_db->query('SELECT category_id, category_name FROM category');
 $categories = $categoryQuery->fetchAll(PDO::FETCH_ASSOC);
 
-// Initialize variables
-$errors = [];
-$redirect = false;
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Generate a new unique product ID
     $product_id = generateProductId($_db);
@@ -47,7 +55,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $product_description = trim($_POST['product_description'] ?? '');
     $product_price = $_POST['product_price'] ?? '';
     $category_id = $_POST['category_id'] ?? '';
-    $product_type = $_POST['product_type'] ?? ''; 
+    $product_type = $_POST['product_type'] ?? ''; // Added product_type field
+
+    // Initialize error array
+    $errors = [];
 
     // Validation
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['form_token']) {
@@ -152,18 +163,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $image_slots[2],
                 $product_description,
                 $product_price,
-                $product_type,
+                $product_type, // Include product_type in the SQL insert
                 'Available' // Default status
             ]);
+
+            // Get the next available quantity_id
+            $next_quantity_id = getNextQuantityId($_db);
 
             // Insert quantity for each size
             foreach ($sizes as $size) {
                 if ($size_quantities[$size] > 0) {
                     $quantity_stmt = $_db->prepare("INSERT INTO quantity (
-                        product_id, size, product_stock, product_sold
-                    ) VALUES (?, ?, ?, ?)");
+                        quantity_id, product_id, size, product_stock, product_sold
+                    ) VALUES (?, ?, ?, ?, ?)");
 
                     $quantity_stmt->execute([
+                        $next_quantity_id++,  // Auto-increment the quantity_id for each insertion
                         $product_id,
                         $size,
                         $size_quantities[$size],
@@ -178,8 +193,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Set success message in session
             $_SESSION['success_message'] = "Product '$product_name' added successfully!";
             
-            // Set redirect flag (instead of redirecting immediately)
-            $redirect = "product.php";
+            // Redirect to product list page
+            header("Location: product.php");
+            exit();
         } catch (PDOException $e) {
             // Rollback transaction
             $_db->rollBack();
@@ -194,14 +210,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors['database'] = 'Failed to insert product. Please try again. Error: ' . $e->getMessage();
         }
     }
-}
-
-// Now include the header (after all header modifications)
-require '../headFooter/header.php';
-
-// If we have a redirect pending, do it after header is included
-if ($redirect) {
-    echo "<script>window.location.href = '$redirect';</script>";
 }
 ?>
 
@@ -894,3 +902,7 @@ if ($redirect) {
 </body>
 
 </html>
+<?php
+// Flush the output buffer at the end of the script
+ob_end_flush();
+?>

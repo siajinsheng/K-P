@@ -2,7 +2,7 @@
 $_title = 'Order Management';
 require '../../_base.php';
 auth('admin', 'staff');
-include "header.php";
+require '../headFooter/header.php';
 
 // Search and Sort
 $searchTerm = req('searchTerm', '');
@@ -328,4 +328,6 @@ function sortable_header($title, $field) {
     
     return "<a href='$url' class='sortable-header'>$title $arrow</a>";
 }
+
+require '../headFooter/footer.php';
 ?>

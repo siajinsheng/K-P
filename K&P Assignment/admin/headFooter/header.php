@@ -1,4 +1,7 @@
 <?php
+// Start output buffering at the very beginning
+ob_start();
+
 require_once '../../_base.php';
 safe_session_start();
 
@@ -153,21 +156,20 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <div class="pt-20">
         <!-- Main content goes here -->
 
-        <script>
-    function toggleDropdown(event) {
-        event.preventDefault();
-        const dropdown = event.currentTarget.parentElement;
-        dropdown.classList.toggle('show');
-    }
+<script>
+function toggleDropdown(event) {
+    event.preventDefault();
+    const dropdown = event.currentTarget.parentElement;
+    dropdown.classList.toggle('show');
+}
 
-    // Close dropdown if clicked outside
-    window.addEventListener('click', function(event) {
-        if (!event.target.closest('.profile-dropdown')) {
-            const dropdowns = document.querySelectorAll('.profile-dropdown');
-            dropdowns.forEach(dropdown => {
-                dropdown.classList.remove('show');
-            });
-        }
-    });
+// Close dropdown if clicked outside
+window.addEventListener('click', function(event) {
+    if (!event.target.closest('.profile-dropdown')) {
+        const dropdowns = document.querySelectorAll('.profile-dropdown');
+        dropdowns.forEach(dropdown => {
+            dropdown.classList.remove('show');
+        });
+    }
+});
 </script>
-    

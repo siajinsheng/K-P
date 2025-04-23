@@ -2,7 +2,7 @@
 $_title = 'Order Details';
 require '../../_base.php';
 auth('admin', 'staff'); // Only admins and staff can access this page
-include "header.php";
+require '../headFooter/header.php';
 
 // Get order ID from URL
 $order_id = req('id');
