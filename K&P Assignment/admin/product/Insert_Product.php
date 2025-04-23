@@ -17,9 +17,9 @@ function generateProductId($db)
 
     if ($lastId) {
         $num = (int)substr($lastId, 2) + 1;
-        return 'PD' . str_pad($num, 4, '0', STR_PAD_LEFT);
+        return 'P' . str_pad($num, 3, '0', STR_PAD_LEFT);
     } else {
-        return 'PD0001';
+        return 'P001';
     }
 }
 
@@ -118,20 +118,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Start transaction
             $_db->beginTransaction();
 
-            // Prepare image filename storage for up to 6 images (based on your schema)
-            $image_slots = array_pad($image_filenames, 6, null);
+            // Prepare image filename storage for up to 3 images (based on your schema)
+            $image_slots = array_pad($image_filenames, 3, null);
 
             // Insert product
             $stmt = $_db->prepare("INSERT INTO product (
                 product_id, 
                 category_id,
                 product_name, 
-                product_pic1, product_pic2, product_pic3, 
-                product_pic4, product_pic5, product_pic6,
+                product_pic1, product_pic2, product_pic3,
                 product_description, product_price, 
                 product_status
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?
             )");
 
             $stmt->execute([
@@ -141,9 +140,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $image_slots[0],
                 $image_slots[1],
                 $image_slots[2],
-                $image_slots[3],
-                $image_slots[4],
-                $image_slots[5],
                 $product_description,
                 $product_price,
                 'Available' // Default status
@@ -170,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Redirect with success message
             $_SESSION['message'] = 'Product added successfully';
-            header("Location: product.php");
+            
             exit();
         } catch (PDOException $e) {
             // Rollback transaction
@@ -445,7 +441,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="bg-blue-50 p-4 rounded-lg">
                     <h2 class="text-lg font-semibold text-blue-800 mb-2">Product Images</h2>
-                    <p class="text-sm text-gray-600 mb-4">Upload up to 6 high-quality images of your product</p>
+                    <p class="text-sm text-gray-600 mb-4">Upload up to 3 high-quality images of your product</p>
 
                     <div id="dropZone" class="drop-zone">
                         <div class="drop-zone-icon">
@@ -457,7 +453,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <input type="file" id="fileInput" multiple accept="image/*" class="hidden" />
                         <p class="text-xs text-gray-500 mt-4">
-                            <i class="fas fa-exclamation-circle mr-1"></i> Maximum 6 images, JPEG or PNG format recommended
+                            <i class="fas fa-exclamation-circle mr-1"></i> Maximum 3 images, JPEG or PNG format recommended
                         </p>
                     </div>
                     <div id="dropZonePreviews" class="drop-zone-previews"></div>
@@ -547,9 +543,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             function handleFiles(files) {
-                // Limit to 6 files based on database schema
-                if (uploadedFiles.length + files.length > 6) {
-                    alert('Maximum 6 images allowed');
+                // Limit to 3 files based on database schema
+                if (uploadedFiles.length + files.length > 3) {
+                    alert('Maximum 3 images allowed');
                     return;
                 }
 
