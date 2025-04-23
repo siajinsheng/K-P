@@ -81,7 +81,7 @@ $user = $_SESSION['user'];   // User object updated in the auth() function
                     <?php if (!empty($user->user_profile_pic)): ?>
                         <img src="../pic/<?php echo htmlspecialchars($user->user_profile_pic); ?>" alt="Profile Picture">
                     <?php else: ?>
-                        No Picture Available    
+                        No Picture Available                                                                                                                                                                                                            
                     <?php endif; ?>
                 </td>
             </tr>
