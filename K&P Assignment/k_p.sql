@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 02, 2025 at 06:41 PM
+-- Generation Time: Apr 23, 2025 at 07:55 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -53,6 +53,16 @@ CREATE TABLE `cart` (
   `quantity` int(11) NOT NULL,
   `added_time` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `cart`
+--
+
+INSERT INTO `cart` (`cart_id`, `user_id`, `product_id`, `size`, `quantity`, `added_time`) VALUES
+('CART_20250403005216_b40bb903', 'MB825', 'P015', 'M', 1, '2025-04-02 16:52:16'),
+('CART_20250403005557_c1dacbf4', 'MB825', 'P013', 'M', 4, '2025-04-10 01:20:01'),
+('CART_20250403080228_0143bf4e', 'MB825', 'P020', 'M', 1, '2025-04-03 00:02:28'),
+('CART_20250403080229_015f33ca', 'MB825', 'P021', 'M', 2, '2025-04-10 01:20:05');
 
 -- --------------------------------------------------------
 
@@ -390,6 +400,21 @@ INSERT INTO `quantity` (`quantity_id`, `product_id`, `size`, `product_stock`, `p
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `tokens`
+--
+
+CREATE TABLE `tokens` (
+  `id` int(11) NOT NULL,
+  `user_id` varchar(50) NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `type` enum('email_verification','password_reset') NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `user`
 --
 
@@ -403,20 +428,19 @@ CREATE TABLE `user` (
   `user_profile_pic` varchar(255) DEFAULT NULL,
   `user_update_time` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `status` enum('Active','Inactive','Banned') NOT NULL DEFAULT 'Active',
-  `role` varchar(10) NOT NULL,
-  `activation_token` varchar(64) DEFAULT NULL,
-  `activation_expiry` datetime DEFAULT NULL
+  `role` varchar(10) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `user`
 --
 
-INSERT INTO `user` (`user_id`, `user_name`, `user_Email`, `user_password`, `user_gender`, `user_phone`, `user_profile_pic`, `user_update_time`, `status`, `role`, `activation_token`, `activation_expiry`) VALUES
-('AD001', 'Admin', 'admin@gmail.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq6PH.6U1JXzJYy7Dd7GFUj7z/s1G.', 'Male', '0159856479', 'admin.jpg', '2025-04-02 06:52:12', 'Active', 'admin', NULL, NULL),
-('MB001', 'John Customer', 'kachun.customer@gmail.com', '$2a$10$3mXq7k.T9Uo5Z5J8r7vZUeW5v5X5J8r7vZUeW5v5X5J8r7vZUeW5v', 'Male', '0125946687', 'kachun.jpg', '2025-04-02 06:52:12', 'Active', 'member', NULL, NULL),
-('MB825', 'js', 'js@gmail.com', '$2y$10$8XlUTcnh7uxMdr.vySWbDufzxVWGcM/njiuu9BE/ETpQGa193Erk2', 'Male', '60182259156', '67ed4c45ab7b2.jpg', '2025-04-02 16:38:15', 'Active', 'member', NULL, NULL),
-('ST001', 'Staff', 'staff@gmail.com', '$2a$10$VE0tR5c5QlUgDZQZP1YrE.7ZJQ9Xz3JjZr3Jk6d1JvQmY9Jh5r1XO', 'Female', '0165897533', 'staff.jpg', '2025-04-02 06:52:12', 'Active', 'staff', NULL, NULL);
+INSERT INTO `user` (`user_id`, `user_name`, `user_Email`, `user_password`, `user_gender`, `user_phone`, `user_profile_pic`, `user_update_time`, `status`, `role`) VALUES
+('AD001', 'Admin', 'admin@gmail.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq6PH.6U1JXzJYy7Dd7GFUj7z/s1G.', 'Male', '0159856479', 'admin.jpg', '2025-04-02 06:52:12', 'Active', 'admin'),
+('MB001', 'John Customer', 'kachun.customer@gmail.com', '$2a$10$3mXq7k.T9Uo5Z5J8r7vZUeW5v5X5J8r7vZUeW5v5X5J8r7vZUeW5v', 'Male', '0125946687', 'kachun.jpg', '2025-04-02 06:52:12', 'Active', 'member'),
+('MB408', 'wei hong', 'siajinsheng@gmail.com', '$2y$10$aPzZy/tYOw4R1azbQEtGsug/cJg9d2UdJYpRzVMQoIpXLtfmHUA2y', 'Male', '60182259000', '68087ce0c90af.jpg', '2025-04-23 05:42:41', 'Active', 'member'),
+('MB825', 'js', 'js@gmail.com', '$2y$10$8XlUTcnh7uxMdr.vySWbDufzxVWGcM/njiuu9BE/ETpQGa193Erk2', 'Male', '60182259156', '67ed4c45ab7b2.jpg', '2025-04-23 05:46:31', 'Active', 'admin'),
+('ST001', 'Staff', 'staff@gmail.com', '$2a$10$VE0tR5c5QlUgDZQZP1YrE.7ZJQ9Xz3JjZr3Jk6d1JvQmY9Jh5r1XO', 'Female', '0165897533', 'staff.jpg', '2025-04-02 06:52:12', 'Active', 'staff');
 
 -- --------------------------------------------------------
 
@@ -508,6 +532,14 @@ ALTER TABLE `quantity`
   ADD KEY `product_id` (`product_id`);
 
 --
+-- Indexes for table `tokens`
+--
+ALTER TABLE `tokens`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `token` (`token`),
+  ADD KEY `user_id` (`user_id`);
+
+--
 -- Indexes for table `user`
 --
 ALTER TABLE `user`
@@ -519,6 +551,16 @@ ALTER TABLE `user`
 ALTER TABLE `voucher`
   ADD PRIMARY KEY (`voucher_code`),
   ADD KEY `user_id` (`user_id`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `tokens`
+--
+ALTER TABLE `tokens`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- Constraints for dumped tables
@@ -580,6 +622,12 @@ ALTER TABLE `product`
 --
 ALTER TABLE `quantity`
   ADD CONSTRAINT `quantity_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`);
+
+--
+-- Constraints for table `tokens`
+--
+ALTER TABLE `tokens`
+  ADD CONSTRAINT `fk_tokens_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `voucher`

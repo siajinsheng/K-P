@@ -4,10 +4,51 @@ require '../../_base.php';
 
 // Check if user is already logged in
 if (isset($_SESSION['user'])) {
-    redirect('index.php'); // Redirect to homepage or dashboard if already logged in
+    redirect('../index.php'); // Redirect to homepage or dashboard if already logged in
 }
 
-if (is_post()) {
+// Handle resend verification email
+if (isset($_POST['resend_verification'])) {
+    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+    
+    if (empty($email)) {
+        temp('error', 'Please provide your email address.');
+        redirect('login.php');
+    }
+    
+    try {
+        // Find user with this email that has Pending status
+        $stm = $_db->prepare("SELECT user_id, user_name, user_Email, status FROM user WHERE user_Email = ?");
+        $stm->execute([$email]);
+        $user = $stm->fetch();
+        
+        if ($user && $user->status === 'Pending') {
+            // Create a new verification token
+            $token = create_token($user->user_id, 'email_verification', 24);
+            
+            // Send verification email
+            $result = send_verification_email($email, $user->user_name, $token);
+            
+            if ($result) {
+                temp('success', 'A new verification email has been sent to ' . $email . '. Please check your inbox and spam folder.');
+            } else {
+                temp('error', 'Failed to send verification email. Please try again later.');
+            }
+        } else if ($user && $user->status === 'Active') {
+            temp('info', 'Your account is already active. You can login now.');
+        } else {
+            temp('error', 'No account found with this email address or the account is not pending verification.');
+        }
+        
+        redirect('login.php');
+    } catch (Exception $e) {
+        error_log("Resend verification error: " . $e->getMessage());
+        temp('error', 'An error occurred while processing your request.');
+        redirect('login.php');
+    }
+}
+
+if (is_post() && isset($_POST['login'])) {
     $email = req('email');
     $password = req('password');
     $remember = req('remember') ? true : false;
@@ -34,7 +75,11 @@ if (is_post()) {
             // Check if user exists and password is correct
             if ($user && password_verify($password, $user->user_password)) {
                 // Check account status
-                if ($user->status !== 'Active') {
+                if ($user->status === 'Pending') {
+                    $_err['login'] = 'Your email address has not been verified. Please check your inbox for the verification email or request a new one below.';
+                    $show_verification_form = true;
+                    $pending_email = $email; // Store the email to use in the resend form
+                } else if ($user->status !== 'Active') {
                     $_err['login'] = 'Your account is inactive or has been suspended. Please contact support.';
                 } else {
                     // Start session and store user data
@@ -105,7 +150,7 @@ if (!isset($_SESSION['user']) && isset($_COOKIE['user_id']) && isset($_COOKIE['r
                 } elseif ($user->role === 'staff') {
                     redirect('../../admin/index.php');
                 } else {
-                    redirect('../index.php'); // Regular user/member
+                    redirect('../../index.php');
                 }
             }
         }
@@ -126,6 +171,7 @@ if (!isset($_SESSION['user']) && isset($_COOKIE['user_id']) && isset($_COOKIE['r
 // Check for messages from other pages (like successful registration)
 $success_message = temp('success');
 $info_message = temp('info');
+$error_message = temp('error');
 ?>
 
 <!DOCTYPE html>
@@ -136,6 +182,7 @@ $info_message = temp('info');
     <title><?= $_title ?></title>
     <link rel="stylesheet" href="../css/login.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
 </head>
 <body>
     <?php include '../header.php'; ?>
@@ -145,15 +192,27 @@ $info_message = temp('info');
             <h1>Login to Your K&P Account</h1>
             
             <?php if ($success_message): ?>
-                <div class="alert alert-success"><?= $success_message ?></div>
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> <?= $success_message ?>
+                </div>
             <?php endif; ?>
             
             <?php if ($info_message): ?>
-                <div class="alert alert-info"><?= $info_message ?></div>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> <?= $info_message ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if ($error_message): ?>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i> <?= $error_message ?>
+                </div>
             <?php endif; ?>
             
             <?php if (isset($_err['login']) || isset($_err['database'])): ?>
-                <div class="alert alert-danger"><?= $_err['login'] ?? $_err['database'] ?></div>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i> <?= $_err['login'] ?? $_err['database'] ?>
+                </div>
             <?php endif; ?>
             
             <form method="post">
@@ -171,7 +230,7 @@ $info_message = temp('info');
                     <div class="input-with-icon">
                         <i class="fas fa-lock"></i>
                         <input type="password" id="password" name="password" class="form-control" required>
-                        <i class="fas fa-eye toggle-password"></i>
+                        <i class="fas fa-eye-slash toggle-password"></i>
                     </div>
                     <?= err('password') ?>
                 </div>
@@ -179,21 +238,59 @@ $info_message = temp('info');
                 <div class="form-group remember-me">
                     <div class="checkbox-wrapper">
                         <input type="checkbox" id="remember" name="remember" value="1">
-                        <label for="remember">Remember me for 30 days</label>
+                        <label for="remember">Remember me</label>
                     </div>
+                    <a href="forgot_password.php" class="forgot-password">Forgot Password?</a>
                 </div>
                 
                 <div class="form-group">
-                    <button type="submit" class="btn">
+                    <button type="submit" name="login" class="btn">
                         <i class="fas fa-sign-in-alt"></i> Login
                     </button>
                 </div>
                 
-                <div class="login-links">
-                    <p><a href="forgot_password.php"><i class="fas fa-key"></i> Forgot Password?</a></p>
-                    <p>Don't have an account? <a href="register.php"><i class="fas fa-user-plus"></i> Register here</a></p>
+                <div class="register-link">
+                    <p>Don't have an account? <a href="register.php">Register here</a></p>
                 </div>
             </form>
+            
+            <?php if (isset($show_verification_form) && $show_verification_form): ?>
+                <div class="verification-form">
+                    <h3><i class="fas fa-envelope"></i> Email Verification Required</h3>
+                    <p>Your account needs to be verified. We've sent a verification email to <strong><?= htmlspecialchars($pending_email) ?></strong>.</p>
+                    <p>Haven't received it? Check your spam folder or request a new verification email.</p>
+                    
+                    <form method="post">
+                        <input type="hidden" name="email" value="<?= htmlspecialchars($pending_email) ?>">
+                        <button type="submit" name="resend_verification" class="secondary-btn">
+                            <i class="fas fa-paper-plane"></i> Resend Verification Email
+                        </button>
+                    </form>
+                </div>
+            <?php else: ?>
+                <div class="login-links">
+                    <a href="#" id="show-verify-form"><i class="fas fa-envelope"></i> Need to verify your email?</a>
+                </div>
+                
+                <div id="verify-email-form" style="display: none;">
+                    <h3>Resend Verification Email</h3>
+                    <p>If you've registered but haven't verified your email, enter your email address below to receive a new verification link.</p>
+                    
+                    <form method="post">
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <i class="fas fa-envelope"></i>
+                                <input type="email" name="email" placeholder="Enter your email address" required class="form-control">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" name="resend_verification" class="secondary-btn">
+                                <i class="fas fa-paper-plane"></i> Send Verification Email
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            <?php endif; ?>
         </div>
     </main>
 
@@ -210,6 +307,16 @@ $info_message = temp('info');
             this.classList.toggle('fa-eye');
             this.classList.toggle('fa-eye-slash');
         });
+        
+        // Show verification form when needed
+        const showVerifyLink = document.getElementById('show-verify-form');
+        if (showVerifyLink) {
+            showVerifyLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                const verifyForm = document.getElementById('verify-email-form');
+                verifyForm.style.display = verifyForm.style.display === 'none' ? 'block' : 'none';
+            });
+        }
     </script>
 </body>
 </html>

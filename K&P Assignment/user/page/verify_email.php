@@ -7,55 +7,38 @@ $token = isset($_GET['token']) ? $_GET['token'] : '';
 $status = 'error'; // default status
 $message = '';
 
+// For debugging
+error_log("Verification page accessed with token: " . $token);
+
 if (empty($token)) {
     $message = 'Verification link is invalid. No token was provided.';
 } else {
     try {
-        // Query the database for this token
-        $stm = $_db->prepare("
-            SELECT user_id, user_name, user_Email, activation_expiry
-            FROM user
-            WHERE activation_token = ? AND status = 'Pending'
-        ");
-        $stm->execute([$token]);
-        $user = $stm->fetch();
+        // Verify token
+        $user = verify_token($token, 'email_verification');
+        
+        // Log result for debugging
+        error_log("Verification results: " . ($user ? "User found: " . $user->user_id : "No valid token found"));
         
         if (!$user) {
-            $message = 'Verification link is invalid or has already been used.';
+            $message = 'Verification link is invalid, has expired, or has already been used.';
         } else {
-            // Check if token has expired
-            $now = new DateTime();
+            // Activate the user account
+            $stm = $_db->prepare("
+                UPDATE user
+                SET status = 'Active'
+                WHERE user_id = ?
+            ");
+            $stm->execute([$user->user_id]);
             
-            if ($user->activation_expiry) {
-                $expiry = new DateTime($user->activation_expiry);
-                
-                if ($now > $expiry) {
-                    $status = 'expired';
-                    $message = 'This verification link has expired. Please request a new one.';
-                } else {
-                    // Activate the user account
-                    $stm = $_db->prepare("
-                        UPDATE user
-                        SET status = 'Active', activation_token = NULL, activation_expiry = NULL
-                        WHERE user_id = ?
-                    ");
-                    $stm->execute([$user->user_id]);
-                    
-                    $status = 'success';
-                    $message = 'Your email has been successfully verified! Your account is now active.';
-                }
-            } else {
-                // No expiry set, just activate
-                $stm = $_db->prepare("
-                    UPDATE user
-                    SET status = 'Active', activation_token = NULL, activation_expiry = NULL
-                    WHERE user_id = ?
-                ");
-                $stm->execute([$user->user_id]);
-                
-                $status = 'success';
-                $message = 'Your email has been successfully verified! Your account is now active.';
-            }
+            // Delete the token
+            delete_token($token, 'email_verification');
+            
+            // Log for debugging
+            error_log("User account activated: " . $user->user_id);
+            
+            $status = 'success';
+            $message = 'Your email has been successfully verified! Your account is now active.';
         }
     } catch (Exception $e) {
         error_log("Error during email verification: " . $e->getMessage());
@@ -70,21 +53,22 @@ if (empty($token)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $_title ?></title>
-    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/verify.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        /* Fallback styles in case the CSS file isn't loaded */
         .container {
             max-width: 600px;
             margin: 50px auto;
             padding: 30px;
             background-color: white;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
             text-align: center;
         }
         
         .icon {
-            font-size: 64px;
+            font-size: 72px;
             margin-bottom: 20px;
         }
         
@@ -92,7 +76,7 @@ if (empty($token)) {
             color: #28a745;
         }
         
-        .error .icon, .expired .icon {
+        .error .icon {
             color: #dc3545;
         }
         
@@ -133,13 +117,6 @@ if (empty($token)) {
             <h1>Email Verified!</h1>
             <p class="message"><?= $message ?></p>
             <a href="login.php" class="btn">Log In Now</a>
-        <?php elseif ($status === 'expired'): ?>
-            <div class="icon">
-                <i class="fas fa-exclamation-circle"></i>
-            </div>
-            <h1>Link Expired</h1>
-            <p class="message"><?= $message ?></p>
-            <a href="login.php" class="btn">Log In to Request New Link</a>
         <?php else: ?>
             <div class="icon">
                 <i class="fas fa-times-circle"></i>

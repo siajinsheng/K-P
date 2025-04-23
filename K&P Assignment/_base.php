@@ -49,13 +49,14 @@ $_db = new PDO('mysql:dbname=k&p;charset=utf8mb4', 'root', '', [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
 ]);
 
-function safe_session_start() {
+function safe_session_start()
+{
     // Only start a new session if one isn't already active
     if (session_status() == PHP_SESSION_NONE) {
         // Set the session cookie parameters
         $current_domain = $_SERVER['HTTP_HOST'];
         $is_secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
-        
+
         // Set session cookie parameters
         session_set_cookie_params([
             'lifetime' => 86400, // 24 hours (adjust as needed)
@@ -65,15 +66,15 @@ function safe_session_start() {
             'httponly' => true,  // Prevent JavaScript access
             'samesite' => 'Lax' // Relaxed CSRF protection (change to 'Strict' for more security)
         ]);
-        
+
         // Start the session
         session_start();
-        
+
         // Set headers to prevent caching for pages with session data
         header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
         header("Cache-Control: post-check=0, pre-check=0", false);
         header("Pragma: no-cache");
-        
+
         // Regenerate session ID periodically to prevent fixation
         $session_max_lifetime = 30 * 60; // 30 minutes
         if (!isset($_SESSION['_session_started'])) {
@@ -85,14 +86,14 @@ function safe_session_start() {
             $_SESSION['_last_regeneration'] = time();
         }
     }
-    
+
     // Always make sure user object is properly structured
     if (isset($_SESSION['user']) && is_object($_SESSION['user'])) {
         // Make sure critical properties are defined
         if (!isset($_SESSION['user']->user_id) || empty($_SESSION['user']->user_id)) {
             // Log the issue
             error_log('Session user exists but has no user_id - session may be corrupted');
-            
+
             // Reset corrupted session
             unset($_SESSION['user']);
         }
@@ -100,16 +101,17 @@ function safe_session_start() {
 }
 
 // Enhanced auth function for better session checks
-function auth(...$roles) {
+function auth(...$roles)
+{
     safe_session_start(); // Ensure the session is started
-    
+
     global $_db;
-    
+
     // Debug the session data
-    error_log("Auth check - Session data: " . (isset($_SESSION['user']) ? 
-        "User: {$_SESSION['user']->user_name}, ID: {$_SESSION['user']->user_id}" : 
+    error_log("Auth check - Session data: " . (isset($_SESSION['user']) ?
+        "User: {$_SESSION['user']->user_name}, ID: {$_SESSION['user']->user_id}" :
         "No user in session"));
-    
+
     // Check if a user is logged in
     if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
         error_log("Auth failed - No user in session or missing user_id");
@@ -119,33 +121,33 @@ function auth(...$roles) {
 
     // Get the user object from session
     $user = $_SESSION['user'];
-    
+
     // Check if user exists and is active
     try {
         $stm = $_db->prepare('SELECT * FROM user WHERE user_id = ?');
         $stm->execute([$user->user_id]);
         $db_user = $stm->fetch();
-        
+
         if (!$db_user) {
             error_log("Auth failed - User ID {$user->user_id} not found in database");
             temp('info', 'Your account could not be found');
             logout('login.php');
         }
-        
+
         if ($db_user->status !== "Active") {
             error_log("Auth failed - User ID {$user->user_id} has non-active status: {$db_user->status}");
             temp('info', 'Your account has been blocked or is inactive');
             logout('login.php');
         }
-        
+
         // Update session with latest user data
         $_SESSION['user'] = $db_user;
-        
+
         // If no specific roles are required (empty roles array), any authenticated user is allowed
         if (empty($roles)) {
             return; // User is authenticated, no specific role required
         }
-        
+
         // Check if user has one of the required roles
         $hasRequiredRole = false;
         foreach ($roles as $role) {
@@ -154,14 +156,13 @@ function auth(...$roles) {
                 break;
             }
         }
-        
+
         // If no matching role is found, redirect
         if (!$hasRequiredRole) {
             error_log("Auth failed - User ID {$user->user_id} role {$db_user->role} does not match required roles");
             temp('info', 'You do not have permission to access this page');
             redirect('login.php');
         }
-
     } catch (PDOException $e) {
         // Log the error
         error_log("Authentication error: " . $e->getMessage());
@@ -195,7 +196,7 @@ function redirect($url = null)
 function temp($key, $value = null)
 {
     safe_session_start(); // Ensure session is started
-    
+
     if ($value !== null) {
         $_SESSION["temp_$key"] = $value;
     } else {
@@ -262,17 +263,19 @@ function is_unique($value, $table, $field)
 }
 
 // Check password strength
-function is_strong_password($password) {
+function is_strong_password($password)
+{
     $uppercase = preg_match('@[A-Z]@', $password);
     $lowercase = preg_match('@[a-z]@', $password);
     $number    = preg_match('@[0-9]@', $password);
     $special   = preg_match('@[^\w]@', $password);
-    
+
     return $uppercase && $lowercase && $number && $special && strlen($password) >= 8;
 }
 
 // Verify password matches confirmation
-function is_password_match($password, $confirm_password) {
+function is_password_match($password, $confirm_password)
+{
     return $password === $confirm_password;
 }
 
@@ -305,10 +308,11 @@ function table_headers($fields, $sort, $dir, $href = '')
  * - Automatically adds the Malaysian country code (60) if not present
  * - Returns formatted phone number or false if invalid
  */
-function validate_malaysian_phone($phone) {
+function validate_malaysian_phone($phone)
+{
     // Remove any non-digit characters
     $phone = preg_replace('/[^0-9]/', '', $phone);
-    
+
     // Check if phone already has country code
     if (strpos($phone, '60') === 0) {
         // Already has country code, check total length (11-12 digits)
@@ -321,12 +325,12 @@ function validate_malaysian_phone($phone) {
         if (strlen($phone) < 9 || strlen($phone) > 10) {
             return false;
         }
-        
+
         // Check if first digit is 1 (as per Malaysian format)
         if (substr($phone, 0, 1) !== '1') {
             return false;
         }
-        
+
         // Add country code and return
         return '60' . $phone;
     }
@@ -340,49 +344,35 @@ function validate_malaysian_phone($phone) {
  * - Requires at least one special character
  * - Requires at least 8 characters in length
  */
-function validate_password($password) {
+function validate_password($password)
+{
     $uppercase = preg_match('/[A-Z]/', $password);
     $lowercase = preg_match('/[a-z]/', $password);
     $number    = preg_match('/[0-9]/', $password);
     $special   = preg_match('/[^a-zA-Z0-9]/', $password);
     $length    = strlen($password) >= 8;
-    
+
     if (!$uppercase) {
         return 'Password must contain at least one uppercase letter';
     }
-    
+
     if (!$lowercase) {
         return 'Password must contain at least one lowercase letter';
     }
-    
+
     if (!$number) {
         return 'Password must contain at least one number';
     }
-    
+
     if (!$special) {
         return 'Password must contain at least one special character';
     }
-    
+
     if (!$length) {
         return 'Password must be at least 8 characters long';
     }
-    
+
     return true;
-}
-
-/**
- * Generate phone input field with placeholder for Malaysian format
- */
-function html_phone_input($key, $attr = '') {
-    $value = encode($GLOBALS[$key] ?? '');
-    echo "<input type='tel' id='$key' name='$key' value='$value' placeholder='Example: 182259156' $attr>";
-}
-
-/**
- * Generate password input with format hint
- */
-function html_password_input($key, $attr = '') {
-    echo "<input type='password' id='$key' name='$key' placeholder='Example: P@ssw0rd' $attr>";
 }
 
 
@@ -390,16 +380,16 @@ function html_password_input($key, $attr = '') {
 function logout($url = null)
 {
     safe_session_start();
-    
+
     // Clear all session variables related to user
     unset($_SESSION['user']);
-    
+
     // Additional session cleanup (for backward compatibility)
     unset($_SESSION['admin_user']);
     unset($_SESSION['current_user']);
     unset($_SESSION['user_id']);
     unset($_SESSION['user_role']);
-    
+
     // Destroy the session completely
     session_unset();
     session_destroy();
@@ -407,14 +397,15 @@ function logout($url = null)
     // Clear the "remember me" cookies
     setcookie('user_id', '', time() - 3600, '/');
     setcookie('remember_token', '', time() - 3600, '/');
-    
+
     // Redirect to the specified URL or the login page if none is provided
     $redirect_url = $url ?? 'login.php';
     redirect($redirect_url);
 }
 
 // Additional debug function to help identify session issues
-function debug_session_user($user) {
+function debug_session_user($user)
+{
     if (!is_object($user)) {
         echo "User is not an object. Type: " . gettype($user) . "<br>";
         return;
@@ -441,7 +432,21 @@ function html_select($key, $items, $default = '- Select One -', $attr = '')
     echo '</select>';
 }
 
-
+/**
+ * Development helper to bypass email sending when in development environment
+ * 
+ * @return bool True if in development environment, false otherwise
+ */
+function is_development() {
+    // TEMPORARY OVERRIDE - Force emails to be sent even in development
+    return false;
+    
+    // Original implementation
+    // $dev_hosts = ['localhost', '127.0.0.1'];
+    // return in_array($_SERVER['SERVER_NAME'], $dev_hosts) || 
+    //     substr($_SERVER['SERVER_NAME'], 0, 4) === 'test' ||
+    //     substr($_SERVER['SERVER_NAME'], 0, 3) === 'dev';
+}
 
 // ============================================================================
 // Error Handlings
@@ -475,18 +480,8 @@ function showError($message)
  */
 function get_mail()
 {
-    if (file_exists('user/lib/PHPMailer.php')) {
-        require_once 'user/lib/PHPMailer.php';
-        require_once 'user/lib/SMTP.php';
-    } else if (file_exists('../lib/PHPMailer.php')) {
-        require_once '../lib/PHPMailer.php';
-        require_once '../lib/SMTP.php';
-    } else if (file_exists('../../user/lib/PHPMailer.php')) {
-        require_once '../../user/lib/PHPMailer.php';
-        require_once '../../user/lib/SMTP.php';
-    } else {
-        throw new Exception("PHPMailer libraries not found");
-    }
+    require_once 'user/lib/PHPMailer.php';
+    require_once 'user/lib/SMTP.php';
 
     $m = new PHPMailer(true);
     $m->isSMTP();
@@ -498,13 +493,102 @@ function get_mail()
     $m->CharSet = 'utf-8';
     $m->setFrom($m->Username, 'K&P Store');
 
-    // Enable SMTP debugging (comment out in production)
-    // $m->SMTPDebug = 2;
-    
-    // Enable secure connection
-    $m->SMTPSecure = 'tls';
-
     return $m;
+}
+
+/**
+ * Generate a secure token
+ * 
+ * @param int $length Length of the token
+ * @return string The generated token
+ */
+function generate_token($length = 32)
+{
+    return bin2hex(random_bytes($length));
+}
+
+/**
+ * Create a new token in the database
+ * 
+ * @param string $user_id User ID
+ * @param string $type Token type ('email_verification' or 'password_reset')
+ * @param int $expiry_hours Hours until token expires
+ * @return string The generated token
+ */
+function create_token($user_id, $type = 'email_verification', $expiry_hours = 24)
+{
+    global $_db;
+
+    // Generate token
+    $token = generate_token();
+
+    // Set expiry
+    $expires_at = date('Y-m-d H:i:s', strtotime("+{$expiry_hours} hours"));
+
+    // Delete any existing tokens of the same type for this user
+    $stm = $_db->prepare("DELETE FROM tokens WHERE user_id = ? AND type = ?");
+    $stm->execute([$user_id, $type]);
+
+    // Insert new token
+    $stm = $_db->prepare("INSERT INTO tokens (user_id, token, type, expires_at) VALUES (?, ?, ?, ?)");
+    $stm->execute([$user_id, $token, $type, $expires_at]);
+
+    return $token;
+}
+
+/**
+ * Verify a token from the database
+ * 
+ * @param string $token Token to verify
+ * @param string $type Token type ('email_verification' or 'password_reset')
+ * @return object|false Returns user object if valid, false otherwise
+ */
+function verify_token($token, $type = 'email_verification')
+{
+    global $_db;
+
+    try {
+        // Query token and join with user
+        $stm = $_db->prepare("
+            SELECT u.*, t.expires_at, t.id as token_id 
+            FROM tokens t
+            JOIN user u ON t.user_id = u.user_id
+            WHERE t.token = ? AND t.type = ?
+        ");
+        $stm->execute([$token, $type]);
+        $result = $stm->fetch();
+
+        // If no result or expired token
+        if (!$result || strtotime($result->expires_at) < time()) {
+            return false;
+        }
+
+        return $result;
+    } catch (Exception $e) {
+        error_log("Token verification error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Delete a token from the database
+ * 
+ * @param string $token Token to delete
+ * @param string $type Token type
+ * @return bool True if deleted, false otherwise
+ */
+function delete_token($token, $type = 'email_verification')
+{
+    global $_db;
+
+    try {
+        $stm = $_db->prepare("DELETE FROM tokens WHERE token = ? AND type = ?");
+        $stm->execute([$token, $type]);
+        return $stm->rowCount() > 0;
+    } catch (Exception $e) {
+        error_log("Token deletion error: " . $e->getMessage());
+        return false;
+    }
 }
 
 /**
@@ -522,22 +606,25 @@ function send_verification_email($email, $name, $token) {
         $mail->Subject = 'Verify Your K&P Account Email';
 
         // Create verification link using absolute URLs
-        // This is a more reliable approach for emails
-        $server_name = $_SERVER['SERVER_NAME'];
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-        $port = $_SERVER['SERVER_PORT'] != '80' && $_SERVER['SERVER_PORT'] != '443' ? ":{$_SERVER['SERVER_PORT']}" : "";
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https://" : "http://";
+        $server_name = $_SERVER['HTTP_HOST'];
         
-        // Construct base URL
-        $base_url = $protocol . $server_name . $port;
+        // Adjust this path to match your server structure
+        // Try removing K&P%20Assignment if it's part of your DOCUMENT_ROOT
+        $verification_link = $protocol . $server_name . "/user/page/verify_email.php?token=" . urlencode($token);
         
-        // Hard-coded path to verification page
-        $verification_link = $base_url . "/K&P Assignment/user/page/verify_email.php?token=" . urlencode($token);
+        // Alternative options if the above doesn't work:
+        // $verification_link = $protocol . $server_name . "/verify_email.php?token=" . urlencode($token);
+        // $verification_link = $protocol . $server_name . "/K-P/K&P%20Assignment/user/page/verify_email.php?token=" . urlencode($token);
+        
+        // For debugging
+        error_log("Verification link generated: " . $verification_link);
         
         // Email body with responsive design
         $mail_body = "
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;'>
             <div style='text-align: center; margin-bottom: 20px;'>
-                <img src='{$base_url}/K&P Assignment/user/img/logo.png' alt='K&P Logo' style='max-width: 150px;'>
+                <img src='{$protocol}{$server_name}/user/img/logo.png' alt='K&P Logo' style='max-width: 150px;'>
             </div>
             <h2 style='color: #4a6fa5; text-align: center;'>Verify Your Email Address</h2>
             <p>Hello $name,</p>
@@ -559,12 +646,8 @@ function send_verification_email($email, $name, $token) {
         $mail->Body = $mail_body;
         $mail->AltBody = strip_tags(str_replace('<br>', "\r\n", $mail_body));
         
-        // For debugging, log the verification link
-        error_log("Verification link generated: " . $verification_link);
-        
         // Send the email
         if (is_development()) {
-            // In development environment, log instead of sending
             error_log("Development mode: Email would be sent to $email with subject '{$mail->Subject}'");
             return true;
         } else {
@@ -578,32 +661,87 @@ function send_verification_email($email, $name, $token) {
 }
 
 /**
- * Development helper to bypass email sending when in development environment
+ * HTML input for password with toggle visibility
+ * @param string $name Input name attribute
+ * @param string $attributes Additional HTML attributes
  */
-function is_development() {
-    // Return false to force email sending for testing
-    return false;
-    
-    // Original code (uncomment when done testing)
-    /*
-    $dev_hosts = ['localhost', '127.0.0.1'];
-    return in_array($_SERVER['SERVER_NAME'], $dev_hosts) || 
-           substr($_SERVER['SERVER_NAME'], 0, 4) === 'test' ||
-           substr($_SERVER['SERVER_NAME'], 0, 3) === 'dev';
-    */
+function html_password_input($name, $attributes = '')
+{
+    echo <<<HTML
+    <div class="password-input-container">
+        <input type="password" id="$name" name="$name" $attributes>
+        <i class="password-toggle fas fa-eye" onclick="togglePasswordVisibility('$name')"></i>
+    </div>
+    <script>
+    function togglePasswordVisibility(inputId) {
+        const input = document.getElementById(inputId);
+        const icon = input.nextElementSibling;
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.replace("fa-eye", "fa-eye-slash");
+        } else {
+            input.type = "password";
+            icon.classList.replace("fa-eye-slash", "fa-eye");
+        }
+    }
+    </script>
+    <style>
+    .password-input-container {
+        position: relative;
+    }
+    .password-toggle {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #999;
+    }
+    .password-toggle:hover {
+        color: #333;
+    }
+    </style>
+HTML;
 }
 
 /**
- * Generate a secure activation token
+ * HTML input for phone number with proper formatting
+ * @param string $name Input name attribute
+ * @param string $attributes Additional HTML attributes
  */
-function generate_activation_token() {
-    return bin2hex(random_bytes(32));
+function html_phone_input($name, $attributes = '')
+{
+    $value = $_POST[$name] ?? '';
+
+    echo <<<HTML
+    <div class="phone-input-container">
+        <span class="country-code">+60</span>
+        <input type="tel" id="$name" name="$name" value="$value" $attributes>
+    </div>
+    <style>
+    .phone-input-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .country-code {
+        position: absolute;
+        left: 10px;
+        font-weight: bold;
+        color: #555;
+    }
+    .phone-input-container input {
+        padding-left: 40px !important;
+    }
+    </style>
+HTML;
 }
 
 /**
  * Generate <input type='text'>
  */
-function html_text($key, $attr = '') {
+function html_text($key, $attr = '')
+{
     $value = encode($GLOBALS[$key] ?? '');
     echo "<input type='text' id='$key' name='$key' value='$value' $attr>";
 }
@@ -611,7 +749,8 @@ function html_text($key, $attr = '') {
 /**
  * Generate <input type='password'>
  */
-function html_password($key, $attr = '') {
+function html_password($key, $attr = '')
+{
     $value = encode($GLOBALS[$key] ?? '');
     echo "<input type='password' id='$key' name='$key' value='$value' $attr>";
 }
@@ -619,7 +758,8 @@ function html_password($key, $attr = '') {
 /**
  * Generate <input type='email'>
  */
-function html_email($key, $attr = '') {
+function html_email($key, $attr = '')
+{
     $value = encode($GLOBALS[$key] ?? '');
     echo "<input type='email' id='$key' name='$key' value='$value' $attr>";
 }
@@ -627,7 +767,8 @@ function html_email($key, $attr = '') {
 /**
  * Generate <input type='tel'>
  */
-function html_tel($key, $attr = '') {
+function html_tel($key, $attr = '')
+{
     $value = encode($GLOBALS[$key] ?? '');
     echo "<input type='tel' id='$key' name='$key' value='$value' $attr>";
 }
@@ -635,20 +776,22 @@ function html_tel($key, $attr = '') {
 /**
  * Generate <input type='file'>
  */
-function html_file($key, $accept = '', $attr = '') {
+function html_file($key, $accept = '', $attr = '')
+{
     echo "<input type='file' id='$key' name='$key' accept='$accept' $attr>";
 }
 
 /**
  * Generate radio buttons for gender selection
  */
-function html_gender($key, $selected = null) {
+function html_gender($key, $selected = null)
+{
     $genders = [
         'Male' => 'Male',
         'Female' => 'Female',
         'Other' => 'Other'
     ];
-    
+
     echo '<div class="gender-options">';
     foreach ($genders as $value => $label) {
         $checked = ($selected === $value) ? 'checked' : '';
@@ -663,7 +806,8 @@ function html_gender($key, $selected = null) {
 }
 
 // Temporary test - remove after verification
-function test_err_function() {
+function test_err_function()
+{
     global $_err;
     $_err['test'] = 'This is a test error message';
     err('test');

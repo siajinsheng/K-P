@@ -92,10 +92,6 @@ if (is_post()) {
                 $profilePicPath = 'default-profile.jpg'; // Default profile image
             }
             
-            // Generate activation token and expiry
-            $activation_token = generate_activation_token();
-            $activation_expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
-            
             // Begin transaction
             $_db->beginTransaction();
             
@@ -104,24 +100,31 @@ if (is_post()) {
                 INSERT INTO user (
                     user_id, user_name, user_Email, user_password, 
                     user_gender, user_phone, user_profile_pic, status, 
-                    role, activation_token, activation_expiry
+                    role
                 ) VALUES (
                     ?, ?, ?, ?, 
                     ?, ?, ?, 'Pending', 
-                    'member', ?, ?
+                    'member'
                 )
             ");
             
             $stm->execute([
                 $user_id, $name, $email, $hashedPassword,
-                $gender, $phone, $profilePicPath, $activation_token, $activation_expiry
+                $gender, $phone, $profilePicPath
             ]);
+            
+            // Create a verification token
+            $token = create_token($user_id, 'email_verification', 24);
             
             // Commit the transaction
             $_db->commit();
             
             // Send verification email
-            $email_sent = send_verification_email($email, $name, $activation_token);
+            $email_sent = send_verification_email($email, $name, $token);
+            
+            // For debugging
+            error_log("Registration successful for user $name ($email). Email sent: " . ($email_sent ? "Yes" : "No"));
+            error_log("Verification token: $token");
             
             // Set success message and redirect to login with appropriate message
             if ($email_sent) {
