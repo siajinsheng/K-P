@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Gender filter change handling
+    // Gender filter change handling (keep existing code)
     const genderOptions = document.querySelectorAll('.gender-option input');
     genderOptions.forEach(option => {
         option.addEventListener('change', function() {
@@ -11,6 +11,25 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
         });
     });
+
+    // NEW CODE: Sorting change handling
+    const sortSelect = document.getElementById('sort-select');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            // Get current URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // Update sort parameter
+            if (this.value) {
+                urlParams.set('sort', this.value);
+            } else {
+                urlParams.delete('sort');
+            }
+            
+            // Redirect to the new URL
+            window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
+        });
+    }
 
     // Check authentication status first before allowing add to cart
     function checkAuthentication() {

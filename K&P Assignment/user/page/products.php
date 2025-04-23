@@ -7,6 +7,9 @@ $gender = req('gender', 'Man'); // Default to Man if no gender specified
 // Get category filter if any
 $category_id = req('category', '');
 
+// Get sorting parameter (if any)
+$sort = req('sort', ''); // Default to no specific sorting
+
 // Build query to get products based on filters
 $sql = "SELECT p.product_id, p.product_name, p.product_price, p.product_pic1, 
                c.category_name, c.category_id 
@@ -14,16 +17,42 @@ $sql = "SELECT p.product_id, p.product_name, p.product_price, p.product_pic1,
         JOIN category c ON p.category_id = c.category_id
         WHERE p.product_status = 'Available'";
 
-// Apply filters
+// Apply filters for gender and category
+$params = [];
+$conditions = [];
+
+// Add gender condition
+$conditions[] = "p.product_type = ?";
+$params[] = $gender;
+
+// Add category condition if specified
 if ($category_id) {
-    $stm = $_db->prepare($sql . " AND p.category_id = ? AND p.product_type = ?");
-    $stm->execute([$category_id, $gender]);
-} else {
-    $stm = $_db->prepare($sql . " AND p.product_type = ?");
-    $stm->execute([$gender]);
+    $conditions[] = "p.category_id = ?";
+    $params[] = $category_id;
 }
 
-// Get the products
+// Add conditions to SQL query
+if (!empty($conditions)) {
+    $sql .= " AND " . implode(" AND ", $conditions);
+}
+
+// Apply sorting
+switch ($sort) {
+    case 'price_asc':
+        $sql .= " ORDER BY p.product_price ASC";
+        break;
+    case 'price_desc':
+        $sql .= " ORDER BY p.product_price DESC";
+        break;
+    default:
+        // Default sorting (e.g., by product name or ID)
+        $sql .= " ORDER BY p.product_name ASC";
+        break;
+}
+
+// Prepare and execute query
+$stm = $_db->prepare($sql);
+$stm->execute($params);
 $products = $stm->fetchAll();
 
 // Get categories for filter menu
@@ -70,16 +99,27 @@ $categories = $cat_stm->fetchAll();
             <div class="category-filter">
                 <h3>Categories</h3>
                 <ul>
-                    <li><a href="?gender=<?= $gender ?>" class="<?= $category_id === '' ? 'active' : '' ?>">All Products</a></li>
+                    <li><a href="?gender=<?= $gender ?>&sort=<?= $sort ?>" class="<?= $category_id === '' ? 'active' : '' ?>">All Products</a></li>
                     <?php foreach ($categories as $category): ?>
                     <li>
-                        <a href="?gender=<?= $gender ?>&category=<?= $category->category_id ?>" 
+                        <a href="?gender=<?= $gender ?>&category=<?= $category->category_id ?>&sort=<?= $sort ?>" 
                            class="<?= $category_id === $category->category_id ? 'active' : '' ?>">
                             <?= $category->category_name ?>
                         </a>
                     </li>
                     <?php endforeach; ?>
                 </ul>
+            </div>
+            
+            <div class="sort-filter">
+                <h3>Sort By</h3>
+                <div class="sort-options">
+                    <select id="sort-select" class="sort-select">
+                        <option value="">Default</option>
+                        <option value="price_asc" <?= $sort === 'price_asc' ? 'selected' : '' ?>>Price: Low to High</option>
+                        <option value="price_desc" <?= $sort === 'price_desc' ? 'selected' : '' ?>>Price: High to Low</option>
+                    </select>
+                </div>
             </div>
         </div>
 
