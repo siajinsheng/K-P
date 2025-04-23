@@ -2,7 +2,7 @@
 $_title = 'Insert Product';
 require '../../_base.php';
 auth('admin', 'staff');
-require 'header.php';
+require '../headFooter/header.php';
 
 if (!isset($_SESSION['form_token'])) {
     $_SESSION['form_token'] = bin2hex(random_bytes(32));

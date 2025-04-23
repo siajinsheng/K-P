@@ -28,7 +28,7 @@ try {
     $total_orders = $stmt->fetchColumn();
 
     // Get total user count (only regular customers, not admin)
-    $customer_query = "SELECT COUNT(*) as count FROM user WHERE role != 'admin'";
+    $customer_query = "SELECT COUNT(*) as count FROM user WHERE role = 'member'";
     $stmt = $_db->prepare($customer_query);
     $stmt->execute();
     $total_users = $stmt->fetchColumn();
@@ -217,7 +217,7 @@ try {
                     </div>
                 </div>
                 <div class="bg-gray-50 px-5 py-2">
-                    <a href="../customer/users.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                    <a href="../customer/customers.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                         View all users <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>
@@ -304,7 +304,7 @@ try {
         <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden mb-8">
             <div class="flex justify-between items-center p-5 border-b border-gray-200">
                 <h3 class="text-lg font-bold text-gray-800">Recent Orders</h3>
-                <a href="orders.php" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                <a href="../order/orders.php" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
                     View All <i class="fas fa-arrow-right ml-1"></i>
                 </a>
             </div>
@@ -356,7 +356,7 @@ try {
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <a href="order_details.php?id=<?= $order->order_id ?>" class="text-indigo-600 hover:text-indigo-900">View</a>
+                                        <a href="../order/view_order_details.php?id=<?= $order->order_id ?>" class="text-indigo-600 hover:text-indigo-900">View</a>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -398,7 +398,7 @@ try {
                                         <span class="text-sm font-medium text-gray-900">RM<?= number_format($product->revenue, 2) ?></span>
                                     </div>
                                 </div>
-                                <a href="Detail_Product.php?id=<?= $product->product_id ?>" class="ml-4 text-indigo-600 hover:text-indigo-900">
+                                <a href="../product/Detail_Product.php?id=<?= $product->product_id ?>" class="ml-4 text-indigo-600 hover:text-indigo-900">
                                     <i class="fas fa-eye"></i>
                                 </a>
                             </div>
@@ -445,7 +445,7 @@ try {
                                         <?php endif; ?>
                                     </div>
                                 </div>
-                                <a href="Update_Product.php?id=<?= $item->product_id ?>" class="ml-4 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 py-1 px-3 rounded-lg text-sm">
+                                <a href="../product/Update_Product.php?id=<?= $item->product_id ?>" class="ml-4 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 py-1 px-3 rounded-lg text-sm">
                                     Restock
                                 </a>
                             </div>
