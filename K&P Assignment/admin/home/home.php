@@ -138,7 +138,7 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="home.css" rel="stylesheet">
+    <link href="/admin/home/home.css" rel="stylesheet">
 </head>
 
 <body class="bg-gray-50">
@@ -158,10 +158,10 @@ try {
                 <p class="text-lg"><i class="far fa-calendar-alt mr-2"></i> <?= date('l, F j, Y') ?></p>
             </div>
             <div class="flex space-x-3">
-                <a href="product.php" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center">
+                <a href="../product/product.php" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center">
                     <i class="fas fa-box mr-2"></i> Manage Products
                 </a>
-                <a href="orders.php" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg flex items-center">
+                <a href="../order/orders.php" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg flex items-center">
                     <i class="fas fa-shopping-cart mr-2"></i> View Orders
                 </a>
             </div>
@@ -181,7 +181,7 @@ try {
                     </div>
                 </div>
                 <div class="bg-gray-50 px-5 py-2">
-                    <a href="product.php" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                    <a href="../product/product.php" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
                         View all products <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>
@@ -199,7 +199,7 @@ try {
                     </div>
                 </div>
                 <div class="bg-gray-50 px-5 py-2">
-                    <a href="orders.php" class="text-green-600 hover:text-green-800 text-sm font-medium">
+                    <a href="../order/orders.php" class="text-green-600 hover:text-green-800 text-sm font-medium">
                         View all orders <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>
@@ -217,7 +217,7 @@ try {
                     </div>
                 </div>
                 <div class="bg-gray-50 px-5 py-2">
-                    <a href="users.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                    <a href="../customer/users.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                         View all users <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>
@@ -458,7 +458,7 @@ try {
 
     <?php require '../headFooter/footer.php'; ?>
 
-    <script src="../js/home.js"></script>
+    <script src="/admin/home/home.js"></script>
 </body>
 
 </html>

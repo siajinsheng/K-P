@@ -33,11 +33,10 @@
                 <div>
                     <h3 class="text-lg font-bold text-gray-800 mb-4">Quick Links</h3>
                     <ul class="space-y-2">
-                        <li><a href="home.php" class="text-gray-600 hover:text-indigo-600 text-sm">Dashboard</a></li>
-                        <li><a href="product.php" class="text-gray-600 hover:text-indigo-600 text-sm">Products</a></li>
-                        <li><a href="orders.php" class="text-gray-600 hover:text-indigo-600 text-sm">Orders</a></li>
-                        <li><a href="reports.php" class="text-gray-600 hover:text-indigo-600 text-sm">Reports</a></li>
-                        <li><a href="settings.php" class="text-gray-600 hover:text-indigo-600 text-sm">Settings</a></li>
+                        <li><a href="../home/home.php" class="text-gray-600 hover:text-indigo-600 text-sm">Dashboard</a></li>
+                        <li><a href="../product/product.php" class="text-gray-600 hover:text-indigo-600 text-sm">Products</a></li>
+                        <li><a href="../order/orders.php" class="text-gray-600 hover:text-indigo-600 text-sm">Orders</a></li>
+                        <li><a href="../product/reports.php" class="text-gray-600 hover:text-indigo-600 text-sm">Reports</a></li>
                     </ul>
                 </div>
                 

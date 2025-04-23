@@ -25,7 +25,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="header.css">
+    <link rel="stylesheet" href="/admin/headFooter/header.css">
     <title>K&P Fashion | Admin Dashboard</title>
 </head>
 <body>
@@ -34,8 +34,8 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <div class="flex justify-between items-center">
                 <!-- Logo -->
                 <div class="flex items-center">
-                    <a href="home.php" class="flex items-center">
-                        <img src="../pic/logo.jpg" alt="K&P Fashion Logo" class="h-12 mr-3">
+                    <a href="../home/home.php" class="flex items-center">
+                        <img src="../../img/K&P logo.png" alt="K&P Fashion Logo" class="h-12 mr-3">
                         <span class="text-xl font-bold text-gray-800 hidden md:block">K&P Admin</span>
                     </a>
                 </div>
@@ -47,25 +47,28 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 
                 <!-- Desktop Navigation -->
                 <nav class="hidden md:flex items-center space-x-6">
-                    <a href="home.php" class="nav-item <?= $current_page === '../home/home.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="../home/home.php" class="nav-item <?= $current_page === '../home/home.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-home mr-1"></i> Home
                     </a>
-                    <a href="product.php" class="nav-item <?= $current_page === '../product/product.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="../product/product.php" class="nav-item <?= $current_page === '../product/product.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-tshirt mr-1"></i> Products
                     </a>
-                    <a href="discount.php" class="nav-item <?= $current_page === '../discount/discount.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="../category/category.php" class="nav-item <?= $current_page === '../category/category.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                        <i class="fas fa-tshirt mr-1"></i> Category
+                    </a>
+                    <a href="../discount/discount.php" class="nav-item <?= $current_page === '../discount/discount.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-percentage mr-1"></i> Discounts
                     </a>
-                    <a href="orders.php" class="nav-item <?= $current_page === '../order/orders.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="../order/orders.php" class="nav-item <?= $current_page === '../order/orders.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-shopping-cart mr-1"></i> Orders
                     </a>
-                    <a href="payment.php" class="nav-item <?= $current_page === '../payment/payment.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="../payment/payment.php" class="nav-item <?= $current_page === '../payment/payment.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-credit-card mr-1"></i> Payments
                     </a>
-                    <a href="customers.php" class="nav-item <?= $current_page === '../customer/customers.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="../customer/customers.php" class="nav-item <?= $current_page === '../customer/customers.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-users mr-1"></i> Customers
                     </a>
-                    <a href="staff.php" class="nav-item <?= $current_page === '../staff/staff.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="../staff/staff.php" class="nav-item <?= $current_page === '../staff/staff.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-user-tie mr-1"></i> Staff
                     </a>
                     
@@ -100,7 +103,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <!-- Mobile Menu -->
     <div class="mobile-menu md:hidden" id="mobile-nav">
         <div class="flex justify-between items-center mb-6">
-            <a href="home.php" class="flex items-center">
+            <a href="../home/home.php" class="flex items-center">
                 <img src="../../img/K&P logo.png" alt="K&P Fashion Logo" class="h-10">
                 <span class="text-lg font-bold text-gray-800 ml-2">K&P Admin</span>
             </a>
@@ -110,25 +113,28 @@ $current_page = basename($_SERVER['PHP_SELF']);
         </div>
         
         <div class="flex flex-col space-y-4">
-            <a href="home.php" class="py-2 px-4 rounded-lg <?= $current_page === 'home.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
+            <a href="../home/home.php" class="py-2 px-4 rounded-lg <?= $current_page === '../home/home.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
                 <i class="fas fa-home mr-3"></i> Home
             </a>
-            <a href="product.php" class="py-2 px-4 rounded-lg <?= $current_page === 'product.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
+            <a href="../product/product.php" class="py-2 px-4 rounded-lg <?= $current_page === '../product/product.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
                 <i class="fas fa-tshirt mr-3"></i> Products
             </a>
-            <a href="discount.php" class="py-2 px-4 rounded-lg <?= $current_page === 'discount.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
+            <a href="../category/category.php" class="py-2 px-4 rounded-lg <?= $current_page === '../category/category.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
+                <i class="fas fa-tshirt mr-3"></i> Category
+            </a>
+            <a href="../discount/discount.php" class="py-2 px-4 rounded-lg <?= $current_page === '../discount/discount.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
                 <i class="fas fa-percentage mr-3"></i> Discounts
             </a>
-            <a href="orders.php" class="py-2 px-4 rounded-lg <?= $current_page === 'orders.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
+            <a href="../order/orders.php" class="py-2 px-4 rounded-lg <?= $current_page === '../order/orders.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
                 <i class="fas fa-shopping-cart mr-3"></i> Orders
             </a>
-            <a href="payment.php" class="py-2 px-4 rounded-lg <?= $current_page === 'payment.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
+            <a href="../payment/payment.php" class="py-2 px-4 rounded-lg <?= $current_page === '../payment/payment.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
                 <i class="fas fa-credit-card mr-3"></i> Payments
             </a>
-            <a href="customers.php" class="py-2 px-4 rounded-lg <?= $current_page === 'customers.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
+            <a href="../customer/customers.php" class="py-2 px-4 rounded-lg <?= $current_page === '../customer/customers.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
                 <i class="fas fa-users mr-3"></i> Customers
             </a>
-            <a href="staff.php" class="py-2 px-4 rounded-lg <?= $current_page === 'staff.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
+            <a href="../staff/staff.php" class="py-2 px-4 rounded-lg <?= $current_page === '../staff/staff.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
                 <i class="fas fa-user-tie mr-3"></i> Staff
             </a>
             
