@@ -2,7 +2,6 @@
 $_title = 'Update Product';
 require '../../_base.php';
 auth('admin', 'staff');
-require '../headFooter/header.php';
 
 // Get product ID from URL parameter
 $product_id = req('id');
@@ -13,11 +12,14 @@ if (!$product_id) {
     redirect('product.php');
 }
 
-// Handle form submission
+// Process form submission BEFORE including any HTML output
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         // Start transaction
         $_db->beginTransaction();
+
+        // Get sizes from POST data
+        $sizes = req('size', []);
 
         if (!empty($sizes)) {
             $placeholders = rtrim(str_repeat('?,', count($sizes)), ',');
@@ -108,7 +110,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Update stock quantities
-        $sizes = req('size', []);
         $stocks = req('stock', []);
 
         if (!empty($sizes) && count($sizes) === count($stocks)) {
@@ -149,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         temp('error', 'Error updating product: ' . $e->getMessage());
+        redirect('Update_Product.php?id=' . $product_id); // Redirect back to the form with error message
     }
 }
 
@@ -185,6 +187,9 @@ try {
     temp('error', 'Database error: ' . $e->getMessage());
     redirect('product.php');
 }
+
+// NOW it's safe to include the header and output HTML
+require '../headFooter/header.php';
 ?>
 
 <!DOCTYPE html>

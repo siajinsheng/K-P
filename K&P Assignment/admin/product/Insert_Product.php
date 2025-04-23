@@ -44,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $product_description = trim($_POST['product_description'] ?? '');
     $product_price = $_POST['product_price'] ?? '';
     $category_id = $_POST['category_id'] ?? '';
+    $product_type = $_POST['product_type'] ?? ''; // Added product_type field
 
     // Initialize error array
     $errors = [];
@@ -70,6 +71,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($category_id)) {
         $errors['category_id'] = 'Category is required';
+    }
+
+    // Validate product_type
+    if (empty($product_type)) {
+        $errors['product_type'] = 'Product type is required';
+    } elseif (!in_array($product_type, ['Unisex', 'Man', 'Women'])) {
+        $errors['product_type'] = 'Invalid product type selected';
     }
 
     // Image upload handling
@@ -128,9 +136,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 product_name, 
                 product_pic1, product_pic2, product_pic3,
                 product_description, product_price, 
+                product_type, 
                 product_status
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?
             )");
 
             $stmt->execute([
@@ -142,6 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $image_slots[2],
                 $product_description,
                 $product_price,
+                $product_type, // Include product_type in the SQL insert
                 'Available' // Default status
             ]);
 
@@ -164,9 +175,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Commit transaction
             $_db->commit();
 
-            // Redirect with success message
-            $_SESSION['message'] = 'Product added successfully';
+            // Set success message in session
+            $_SESSION['success_message'] = "Product '$product_name' added successfully!";
             
+            // Redirect to product list page
+            header("Location: product.php");
             exit();
         } catch (PDOException $e) {
             // Rollback transaction
@@ -204,6 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             border-radius: 1rem;
             transition: transform 0.2s ease-in-out;
+            background-color: white;
         }
 
         .card:hover {
@@ -225,31 +239,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn-primary {
             background-color: #4f46e5;
             transition: all 0.3s ease;
+            padding: 0.75rem 1.5rem;
+            color: white;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .btn-primary:hover {
             background-color: #4338ca;
             transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         .btn-secondary {
             background-color: #e2e8f0;
             transition: all 0.3s ease;
+            padding: 0.75rem 1.5rem;
+            color: #334155;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .btn-secondary:hover {
             background-color: #cbd5e1;
             transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         .btn-danger {
             background-color: #ef4444;
             transition: all 0.3s ease;
+            padding: 0.75rem 1.5rem;
+            color: white;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .btn-danger:hover {
             background-color: #dc2626;
             transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         .drop-zone {
@@ -259,6 +297,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-align: center;
             transition: all 0.3s ease;
             background-color: #f8fafc;
+            cursor: pointer;
         }
 
         .drop-zone.drag-over {
@@ -290,6 +329,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-radius: 0.75rem;
             overflow: hidden;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone-preview:hover {
+            transform: scale(1.05);
         }
 
         .drop-zone-preview img {
@@ -334,6 +378,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-right: 0.5rem;
             font-weight: 600;
         }
+        
+        .product-type-selector {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+        
+        .type-option {
+            border: 2px solid #e2e8f0;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            flex: 1;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .type-option:hover {
+            border-color: #94a3b8;
+            background-color: #f8fafc;
+        }
+        
+        .type-option.selected {
+            border-color: #4f46e5;
+            background-color: rgba(79, 70, 229, 0.1);
+            color: #4f46e5;
+        }
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #1e40af;
+        }
+        
+        .panel-section {
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            background: white;
+        }
+        
+        /* Animation for success feedback */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-fadeInUp {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
     </style>
 </head>
 
@@ -346,7 +450,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <?php if (!empty($errors)): ?>
-                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-md" role="alert">
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-md animate-fadeInUp" role="alert">
                     <div class="flex items-center mb-2">
                         <i class="fas fa-exclamation-circle mr-2"></i>
                         <p class="font-bold">Please fix the following errors:</p>
@@ -362,9 +466,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <form id="productForm" method="POST" enctype="multipart/form-data" class="space-y-6">
                 <input type="hidden" name="uploaded_images" id="uploadedImagesInput">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($token) ?>">
+                <input type="hidden" name="product_type" id="product_type_input" value="<?= htmlspecialchars($_POST['product_type'] ?? '') ?>">
 
-                <div class="bg-indigo-50 p-4 rounded-lg mb-6">
-                    <h2 class="text-lg font-semibold text-indigo-800 mb-2">Basic Information</h2>
+                <div class="panel-section">
+                    <div class="section-title mb-4">
+                        <i class="fas fa-info-circle text-blue-700"></i>
+                        <h2 class="text-lg font-semibold">Basic Information</h2>
+                    </div>
+                    
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label for="product_name" class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
@@ -404,25 +513,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Product Type</label>
+                        <div class="product-type-selector">
+                            <div class="type-option <?= (isset($_POST['product_type']) && $_POST['product_type'] == 'Man') ? 'selected' : '' ?>" data-value="Man">
+                                <i class="fas fa-male mr-1"></i> Men
+                            </div>
+                            <div class="type-option <?= (isset($_POST['product_type']) && $_POST['product_type'] == 'Women') ? 'selected' : '' ?>" data-value="Women">
+                                <i class="fas fa-female mr-1"></i> Women
+                            </div>
+                            <div class="type-option <?= (isset($_POST['product_type']) && $_POST['product_type'] == 'Unisex') ? 'selected' : '' ?>" data-value="Unisex">
+                                <i class="fas fa-user-friends mr-1"></i> Unisex
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="mt-4">
                         <label for="product_description" class="block text-sm font-medium text-gray-700 mb-1">Product Description</label>
                         <textarea id="product_description" name="product_description"
                             class="form-input w-full rounded-lg px-4 py-2 focus:outline-none"
                             rows="4" required
-                            placeholder="Provide a detailed description of the product"><?=
-                                                                                        htmlspecialchars($_POST['product_description'] ?? '')
-                                                                                        ?></textarea>
+                            placeholder="Provide a detailed description of the product"><?= htmlspecialchars($_POST['product_description'] ?? '') ?></textarea>
                     </div>
                 </div>
 
-                <div class="bg-green-50 p-4 rounded-lg mb-6">
-                    <h2 class="text-lg font-semibold text-green-800 mb-2">Inventory Management</h2>
+                <div class="panel-section">
+                    <div class="section-title mb-4">
+                        <i class="fas fa-boxes text-green-700"></i>
+                        <h2 class="text-lg font-semibold text-green-800">Inventory Management</h2>
+                    </div>
                     <p class="text-sm text-gray-600 mb-4">Enter the stock quantity for each available size</p>
 
                     <div class="size-quantity">
                         <?php foreach (['S', 'M', 'L', 'XL', 'XXL'] as $size): ?>
-                            <div class="bg-white p-3 rounded-lg shadow-sm">
+                            <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100">
                                 <div class="flex justify-between items-center mb-2">
                                     <label for="quantity_<?= $size ?>" class="block text-sm font-medium text-gray-700">Size <?= $size ?></label>
                                     <span class="size-badge"><?= $size ?></span>
@@ -439,8 +564,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </p>
                 </div>
 
-                <div class="bg-blue-50 p-4 rounded-lg">
-                    <h2 class="text-lg font-semibold text-blue-800 mb-2">Product Images</h2>
+                <div class="panel-section">
+                    <div class="section-title mb-4">
+                        <i class="fas fa-images text-blue-700"></i>
+                        <h2 class="text-lg font-semibold text-blue-800">Product Images</h2>
+                    </div>
                     <p class="text-sm text-gray-600 mb-4">Upload up to 3 high-quality images of your product</p>
 
                     <div id="dropZone" class="drop-zone">
@@ -461,15 +589,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="flex justify-center space-x-4 pt-6">
                     <button type="submit"
-                        class="btn-primary text-white px-6 py-3 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center">
+                        class="btn-primary focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                         <i class="fas fa-plus-circle mr-2"></i> Add Product
                     </button>
                     <button type="reset"
-                        class="btn-secondary text-gray-700 px-6 py-3 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center">
+                        class="btn-secondary focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
                         <i class="fas fa-redo mr-2"></i> Reset Form
                     </button>
                     <a href="product.php"
-                        class="btn-danger text-white px-6 py-3 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 flex items-center">
+                        class="btn-danger focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
                         <i class="fas fa-times-circle mr-2"></i> Cancel
                     </a>
                 </div>
@@ -483,7 +611,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const fileInput = document.getElementById('fileInput');
             const dropZonePreviews = document.getElementById('dropZonePreviews');
             const uploadedImagesInput = document.getElementById('uploadedImagesInput');
+            const productTypeInput = document.getElementById('product_type_input');
+            const typeOptions = document.querySelectorAll('.type-option');
             let uploadedFiles = [];
+
+            // Handle product type selection
+            typeOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // Remove selected class from all options
+                    typeOptions.forEach(el => el.classList.remove('selected'));
+                    
+                    // Add selected class to clicked option
+                    this.classList.add('selected');
+                    
+                    // Update hidden input
+                    productTypeInput.value = this.getAttribute('data-value');
+                });
+            });
+
+            // Set initial selection if value exists
+            if (productTypeInput.value) {
+                document.querySelector(`.type-option[data-value="${productTypeInput.value}"]`)?.classList.add('selected');
+            }
 
             // Prevent default drag behaviors
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -519,6 +668,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     deleteUploadedFile(filename);
                 });
 
+                // Reset product type selection
+                typeOptions.forEach(el => el.classList.remove('selected'));
+                productTypeInput.value = '';
+
                 uploadedFiles = [];
                 uploadedImagesInput.value = JSON.stringify(uploadedFiles);
             });
@@ -551,8 +704,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Process each file
                 Array.from(files).forEach(file => {
-                    if (!file.type.startsWith('image/')) {
-                        alert('Only image files are allowed');
+                    if (!validateImage(file)) {
                         return;
                     }
 
@@ -653,6 +805,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Validate form before submission
             document.getElementById('productForm').addEventListener('submit', function(e) {
+                // Check product type
+                if (!productTypeInput.value) {
+                    e.preventDefault();
+                    alert('Please select a product type (Men, Women, or Unisex)');
+                    return false;
+                }
+                
                 let totalStock = 0;
                 const sizes = ['S', 'M', 'L', 'XL', 'XXL'];
 
@@ -666,7 +825,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (totalStock <= 0) {
                     e.preventDefault();
                     alert('Please add stock for at least one size');
-                    document.querySelector('.bg-green-50').scrollIntoView({
+                    document.querySelector('.panel-section:nth-child(2)').scrollIntoView({
                         behavior: 'smooth'
                     });
                     return false;
@@ -675,7 +834,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (uploadedFiles.length === 0) {
                     e.preventDefault();
                     alert('Please upload at least one product image');
-                    document.querySelector('.bg-blue-50').scrollIntoView({
+                    document.querySelector('.panel-section:nth-child(3)').scrollIntoView({
                         behavior: 'smooth'
                     });
                     return false;
@@ -689,9 +848,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 return true;
             });
 
-            // Make sure upload_image.php exists and can handle the uploads
-            console.log('Form initialized successfully');
-
+            // Cancel button event
             document.querySelector('a[href="product.php"]').addEventListener('click', function(e) {
                 // Prevent default navigation
                 e.preventDefault();
@@ -713,6 +870,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             function validateImage(file) {
                 // Check file type
                 if (!file.type.startsWith('image/')) {
+                    alert('Only image files are allowed');
                     return false;
                 }
 
@@ -724,7 +882,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 return true;
             }
-
         });
     </script>
 </body>
