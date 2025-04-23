@@ -2,7 +2,6 @@
 $_title = 'Insert Product';
 require '../../_base.php';
 auth('admin', 'staff');
-require '../headFooter/header.php';
 
 if (!isset($_SESSION['form_token'])) {
     $_SESSION['form_token'] = bin2hex(random_bytes(32));
@@ -16,7 +15,7 @@ function generateProductId($db)
     $lastId = $lastIdQuery->fetch(PDO::FETCH_COLUMN);
 
     if ($lastId) {
-        $num = (int)substr($lastId, 2) + 1;
+        $num = (int)substr($lastId, 1) + 1;
         return 'P' . str_pad($num, 3, '0', STR_PAD_LEFT);
     } else {
         return 'P001';
@@ -35,6 +34,10 @@ function isProductNameExists($db, $product_name)
 $categoryQuery = $_db->query('SELECT category_id, category_name FROM category');
 $categories = $categoryQuery->fetchAll(PDO::FETCH_ASSOC);
 
+// Initialize variables
+$errors = [];
+$redirect = false;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Generate a new unique product ID
     $product_id = generateProductId($_db);
@@ -44,10 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $product_description = trim($_POST['product_description'] ?? '');
     $product_price = $_POST['product_price'] ?? '';
     $category_id = $_POST['category_id'] ?? '';
-    $product_type = $_POST['product_type'] ?? ''; // Added product_type field
-
-    // Initialize error array
-    $errors = [];
+    $product_type = $_POST['product_type'] ?? ''; 
 
     // Validation
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['form_token']) {
@@ -152,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $image_slots[2],
                 $product_description,
                 $product_price,
-                $product_type, // Include product_type in the SQL insert
+                $product_type,
                 'Available' // Default status
             ]);
 
@@ -178,9 +178,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Set success message in session
             $_SESSION['success_message'] = "Product '$product_name' added successfully!";
             
-            // Redirect to product list page
-            header("Location: product.php");
-            exit();
+            // Set redirect flag (instead of redirecting immediately)
+            $redirect = "product.php";
         } catch (PDOException $e) {
             // Rollback transaction
             $_db->rollBack();
@@ -195,6 +194,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors['database'] = 'Failed to insert product. Please try again. Error: ' . $e->getMessage();
         }
     }
+}
+
+// Now include the header (after all header modifications)
+require '../headFooter/header.php';
+
+// If we have a redirect pending, do it after header is included
+if ($redirect) {
+    echo "<script>window.location.href = '$redirect';</script>";
 }
 ?>
 

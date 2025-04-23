@@ -89,6 +89,17 @@ $status_bg = match ($product->product_status) {
     default => 'bg-blue-100'
 };
 
+// Define product type colors
+$product_type_colors = [
+    'Man' => ['bg' => 'bg-blue-100', 'text' => 'text-blue-800', 'icon' => 'fa-male'],
+    'Women' => ['bg' => 'bg-pink-100', 'text' => 'text-pink-800', 'icon' => 'fa-female'],
+    'Unisex' => ['bg' => 'bg-purple-100', 'text' => 'text-purple-800', 'icon' => 'fa-venus-mars'],
+    '' => ['bg' => 'bg-gray-100', 'text' => 'text-gray-800', 'icon' => 'fa-question']
+];
+
+// Get color and icon for current product type
+$type_style = $product_type_colors[$product->product_type] ?? $product_type_colors[''];
+
 // Calculate discounted price if applicable
 $discounted_price = $product->product_price;
 if ($discount) {
@@ -346,10 +357,16 @@ if ($discount) {
                             </span>
                         </div>
 
-                        <div class="mb-4 flex items-center">
+                        <div class="mb-4 flex flex-wrap gap-2 items-center">
                             <span class="text-gray-700 mr-2">Category:</span>
                             <span class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium">
                                 <?= htmlspecialchars($product->category_name ?? 'Uncategorized') ?>
+                            </span>
+                            
+                            <span class="text-gray-700 ml-4 mr-2">Type:</span>
+                            <span class="px-3 py-1 <?= $type_style['bg'] ?> <?= $type_style['text'] ?> rounded-full text-sm font-medium flex items-center">
+                                <i class="fas <?= $type_style['icon'] ?> mr-1"></i>
+                                <?= htmlspecialchars($product->product_type ?: 'Not specified') ?>
                             </span>
                         </div>
 
