@@ -364,7 +364,7 @@ if (is_post() && isset($_POST['update_profile'])) {
                                     </div>
                                     
                                     <div class="address-actions">
-                                        <a href="edit-address.php?id=<?= $address->address_id ?>" class="btn secondary-btn sm">
+                                        <a href="edit_address.php?id=<?= $address->address_id ?>" class="btn secondary-btn sm">
                                             <i class="fas fa-edit"></i> Edit
                                         </a>
                                         <?php if (!$address->is_default): ?>
@@ -381,7 +381,7 @@ if (is_post() && isset($_POST['update_profile'])) {
                         <?php endif; ?>
                         
                         <div class="add-address">
-                            <a href="add-address.php" class="btn primary-btn">
+                            <a href="add_address.php" class="btn primary-btn">
                                 <i class="fas fa-plus"></i> Add New Address
                             </a>
                         </div>

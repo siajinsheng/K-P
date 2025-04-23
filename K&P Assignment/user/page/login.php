@@ -4,7 +4,7 @@ require '../../_base.php';
 
 // Check if user is already logged in
 if (isset($_SESSION['user'])) {
-    redirect('../index.php'); // Redirect to homepage or dashboard if already logged in
+    redirect('../../index.php'); // Redirect to homepage or dashboard if already logged in
 }
 
 // Handle resend verification email
@@ -107,7 +107,7 @@ if (is_post() && isset($_POST['login'])) {
                     } elseif ($user->role === 'staff') {
                         redirect('../../admin/index.php');
                     } else {
-                        redirect('../index.php'); // Regular user/member
+                        redirect('../../index.php'); // Regular user/member
                     }
                 }
             } else {
@@ -145,10 +145,8 @@ if (!isset($_SESSION['user']) && isset($_COOKIE['user_id']) && isset($_COOKIE['r
                 $stm->execute([$user->user_id]);
                 
                 // Redirect based on user role
-                if ($user->role === 'admin') {
-                    redirect('../../admin/index.php');
-                } elseif ($user->role === 'staff') {
-                    redirect('../../admin/index.php');
+                if ($user->role === 'Member') {
+                    redirect('../../index.php');
                 } else {
                     redirect('../../index.php');
                 }
