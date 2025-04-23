@@ -2,7 +2,7 @@
 $_title = 'Product Management';
 require '../../_base.php';
 auth('admin', 'staff');
-require 'header.php';
+require '../headFooter/header.php';
 
 // Initialize variables
 $page = get('page', 1);
@@ -554,7 +554,7 @@ if (is_post() && isset($_POST['update_status'])) {
         </script>
     <?php endif; ?>
 
-    <?php require 'footer.php'; ?>
+    <?php require '../headFooter/footer.php'; ?>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
