@@ -116,14 +116,14 @@ $current_user = isset($_SESSION['user']) ? $_SESSION['user']->user_name : 'Guest
     <div class="overlay" id="overlay"></div>
 
     <!-- Current user and time info -->
-    <?php if ($_SESSION['user'] && $_SESSION['user']->role === 'admin'): ?>
+    <!-- <?php if ($_SESSION['user'] && $_SESSION['user']->role === 'member'): ?>
     <div class="system-info">
         <div class="system-info-content">
             <span class="system-time"><?= $current_time ?></span>
             <span class="system-user"><?= $current_user ?></span>
         </div>
     </div>
-    <?php endif; ?>
+    <?php endif; ?> -->
 
     <script src="/user/js/header.js"></script>
 </body>

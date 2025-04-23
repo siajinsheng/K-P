@@ -1,7 +1,6 @@
 <?php
 $_title = 'K&P - Register';
 require '../../_base.php';
-// Removed: require_once 'email_functions.php';
 
 if (is_post()) {
     $name = req('name');
@@ -93,37 +92,50 @@ if (is_post()) {
                 $profilePicPath = 'default-profile.jpg'; // Default profile image
             }
             
+            // Generate activation token and expiry
+            $activation_token = generate_activation_token();
+            $activation_expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
+            
             // Begin transaction
             $_db->beginTransaction();
             
-            // Insert into database - note: Set status to Active directly
+            // Insert into database - Set status to 'Pending' until email verification
             $stm = $_db->prepare("
                 INSERT INTO user (
                     user_id, user_name, user_Email, user_password, 
                     user_gender, user_phone, user_profile_pic, status, 
-                    role
+                    role, activation_token, activation_expiry
                 ) VALUES (
                     ?, ?, ?, ?, 
-                    ?, ?, ?, 'Active', 
-                    'member'
+                    ?, ?, ?, 'Pending', 
+                    'member', ?, ?
                 )
             ");
             
             $stm->execute([
                 $user_id, $name, $email, $hashedPassword,
-                $gender, $phone, $profilePicPath
+                $gender, $phone, $profilePicPath, $activation_token, $activation_expiry
             ]);
             
             // Commit the transaction
             $_db->commit();
             
-            // Set success message and redirect to login
-            temp('success', 'Registration successful! You can now log in with your credentials.');
+            // Send verification email
+            $email_sent = send_verification_email($email, $name, $activation_token);
+            
+            // Set success message and redirect to login with appropriate message
+            if ($email_sent) {
+                temp('success', 'Registration successful! A verification email has been sent to your email address. Please verify your email to activate your account.');
+            } else {
+                temp('info', 'Registration successful! However, we could not send a verification email. Please contact support.');
+            }
             redirect('login.php');
             
         } catch (PDOException $e) {
             // Rollback transaction on error
-            $_db->rollBack();
+            if ($_db->inTransaction()) {
+                $_db->rollBack();
+            }
             error_log("Registration error: " . $e->getMessage());
             $_err['database'] = 'Registration failed. Please try again.';
         }
@@ -169,11 +181,11 @@ if (is_post()) {
                     <label for="email">Email Address</label>
                     <input type="email" id="email" name="email" class="form-control" value="<?= htmlspecialchars($email ?? '') ?>" required>
                     <?= err('email') ?>
+                    <small class="form-text">A verification email will be sent to this address.</small>
                 </div>
                 
                 <div class="form-group">
                     <label for="phone">Phone Number</label>
-                    <!-- Using custom function for phone input -->
                     <?php html_phone_input('phone', 'class="form-control" required'); ?>
                     <?= err('phone') ?>
                     <small class="text-muted">Enter 9-10 digits starting with 1 (e.g., 182259156). Country code 60 will be added automatically.</small>
@@ -200,7 +212,6 @@ if (is_post()) {
                 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <!-- Using custom function for password input -->
                     <?php html_password_input('password', 'class="form-control" required'); ?>
                     <?= err('password') ?>
                     <small class="text-muted">Must contain at least 8 characters with one uppercase letter, one lowercase letter, one number, and one special character (e.g., P@ssw0rd)</small>

@@ -27,6 +27,7 @@ require '_base.php';
       <!-- Content for section 3 -->
     </section>
   </div>
+  <?php include 'user/footer.php'; ?>
 
   <script src="js/index.js"></script>
 </body>

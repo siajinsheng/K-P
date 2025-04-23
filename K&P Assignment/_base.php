@@ -221,7 +221,7 @@ function get_file($key)
 function save_photo($file, $target_dir = 'Upload_Images', $width = 200, $height = 200)
 {
     $photo = uniqid() . '.jpg';
-    require_once 'admin/lib/SimpleImage.php';
+    require_once 'lib/SimpleImage.php';
     $img = new SimpleImage();
     $img->fromFile($file['tmp_name'])
         ->thumbnail($width, $height)
@@ -236,7 +236,7 @@ function save_photo_user($f, $folder, $width = 200, $height = 200)
 {
     $photo = uniqid() . '.jpg';
 
-    require_once 'admin/lib/SimpleImage.php';
+    require_once 'lib/SimpleImage.php';
     $img = new SimpleImage();
     $img->fromFile($f->tmp_name)
         ->thumbnail($width, $height)
@@ -475,8 +475,18 @@ function showError($message)
  */
 function get_mail()
 {
-    require_once 'User/lib/PHPMailer.php';
-    require_once 'User/lib/SMTP.php';
+    if (file_exists('user/lib/PHPMailer.php')) {
+        require_once 'user/lib/PHPMailer.php';
+        require_once 'user/lib/SMTP.php';
+    } else if (file_exists('../lib/PHPMailer.php')) {
+        require_once '../lib/PHPMailer.php';
+        require_once '../lib/SMTP.php';
+    } else if (file_exists('../../user/lib/PHPMailer.php')) {
+        require_once '../../user/lib/PHPMailer.php';
+        require_once '../../user/lib/SMTP.php';
+    } else {
+        throw new Exception("PHPMailer libraries not found");
+    }
 
     $m = new PHPMailer(true);
     $m->isSMTP();
@@ -484,21 +494,103 @@ function get_mail()
     $m->Host = 'smtp.gmail.com';
     $m->Port = 587;
     $m->Username = 'siajs-wm22@student.tarc.edu.my';
-    $m->Password = '20040419Sjs.';
+    $m->Password = 'wwhg dpgh abas xqzu';
     $m->CharSet = 'utf-8';
     $m->setFrom($m->Username, 'K&P Store');
 
+    // Enable SMTP debugging (comment out in production)
+    // $m->SMTPDebug = 2;
+    
+    // Enable secure connection
+    $m->SMTPSecure = 'tls';
+
     return $m;
+}
+
+/**
+ * Send verification email to user
+ * 
+ * @param string $email The recipient's email address
+ * @param string $name The recipient's name
+ * @param string $token The verification token
+ * @return bool True if email sent successfully, false otherwise
+ */
+function send_verification_email($email, $name, $token) {
+    try {
+        $mail = get_mail();
+        $mail->addAddress($email, $name);
+        $mail->Subject = 'Verify Your K&P Account Email';
+
+        // Create verification link using absolute URLs
+        // This is a more reliable approach for emails
+        $server_name = $_SERVER['SERVER_NAME'];
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+        $port = $_SERVER['SERVER_PORT'] != '80' && $_SERVER['SERVER_PORT'] != '443' ? ":{$_SERVER['SERVER_PORT']}" : "";
+        
+        // Construct base URL
+        $base_url = $protocol . $server_name . $port;
+        
+        // Hard-coded path to verification page
+        $verification_link = $base_url . "/K&P Assignment/user/page/verify_email.php?token=" . urlencode($token);
+        
+        // Email body with responsive design
+        $mail_body = "
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;'>
+            <div style='text-align: center; margin-bottom: 20px;'>
+                <img src='{$base_url}/K&P Assignment/user/img/logo.png' alt='K&P Logo' style='max-width: 150px;'>
+            </div>
+            <h2 style='color: #4a6fa5; text-align: center;'>Verify Your Email Address</h2>
+            <p>Hello $name,</p>
+            <p>Thank you for registering with K&P. To activate your account, please verify your email address by clicking the button below:</p>
+            <div style='text-align: center; margin: 30px 0;'>
+                <a href='$verification_link' style='background-color: #4a6fa5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; font-weight: bold;'>Verify Email Address</a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste the link below into your browser:</p>
+            <p style='background-color: #f5f5f5; padding: 10px; word-break: break-all;'>$verification_link</p>
+            <p>This verification link will expire in 24 hours.</p>
+            <p>If you didn't create an account with us, please ignore this email.</p>
+            <div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 12px; color: #888;'>
+                <p>This is an automated message, please do not reply to this email.</p>
+                <p>&copy; " . date('Y') . " K&P Fashion. All rights reserved.</p>
+            </div>
+        </div>";
+
+        $mail->isHTML(true);
+        $mail->Body = $mail_body;
+        $mail->AltBody = strip_tags(str_replace('<br>', "\r\n", $mail_body));
+        
+        // For debugging, log the verification link
+        error_log("Verification link generated: " . $verification_link);
+        
+        // Send the email
+        if (is_development()) {
+            // In development environment, log instead of sending
+            error_log("Development mode: Email would be sent to $email with subject '{$mail->Subject}'");
+            return true;
+        } else {
+            $mail->send();
+            return true;
+        }
+    } catch (Exception $e) {
+        error_log("Failed to send verification email to $email: " . $e->getMessage());
+        return false;
+    }
 }
 
 /**
  * Development helper to bypass email sending when in development environment
  */
 function is_development() {
+    // Return false to force email sending for testing
+    return false;
+    
+    // Original code (uncomment when done testing)
+    /*
     $dev_hosts = ['localhost', '127.0.0.1'];
     return in_array($_SERVER['SERVER_NAME'], $dev_hosts) || 
            substr($_SERVER['SERVER_NAME'], 0, 4) === 'test' ||
            substr($_SERVER['SERVER_NAME'], 0, 3) === 'dev';
+    */
 }
 
 /**

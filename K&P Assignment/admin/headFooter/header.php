@@ -25,7 +25,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/header.css">
+    <link rel="stylesheet" href="header.css">
     <title>K&P Fashion | Admin Dashboard</title>
 </head>
 <body>
@@ -47,25 +47,25 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 
                 <!-- Desktop Navigation -->
                 <nav class="hidden md:flex items-center space-x-6">
-                    <a href="home.php" class="nav-item <?= $current_page === 'home.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="home.php" class="nav-item <?= $current_page === '../home/home.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-home mr-1"></i> Home
                     </a>
-                    <a href="product.php" class="nav-item <?= $current_page === 'product.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="product.php" class="nav-item <?= $current_page === '../product/product.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-tshirt mr-1"></i> Products
                     </a>
-                    <a href="discount.php" class="nav-item <?= $current_page === 'discount.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="discount.php" class="nav-item <?= $current_page === '../discount/discount.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-percentage mr-1"></i> Discounts
                     </a>
-                    <a href="orders.php" class="nav-item <?= $current_page === 'orders.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="orders.php" class="nav-item <?= $current_page === '../order/orders.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-shopping-cart mr-1"></i> Orders
                     </a>
-                    <a href="payment.php" class="nav-item <?= $current_page === 'payment.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="payment.php" class="nav-item <?= $current_page === '../payment/payment.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-credit-card mr-1"></i> Payments
                     </a>
-                    <a href="customers.php" class="nav-item <?= $current_page === 'customers.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="customers.php" class="nav-item <?= $current_page === '../customer/customers.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-users mr-1"></i> Customers
                     </a>
-                    <a href="staff.php" class="nav-item <?= $current_page === 'staff.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
+                    <a href="staff.php" class="nav-item <?= $current_page === '../staff/staff.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
                         <i class="fas fa-user-tie mr-1"></i> Staff
                     </a>
                     
@@ -83,11 +83,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
                                 <p class="text-sm font-medium text-gray-900"><?= htmlspecialchars($current_user['user_name'] ?? 'Admin') ?></p>
                                 <p class="text-xs text-gray-500"><?= htmlspecialchars($current_user['user_Email'] ?? '') ?></p>
                             </div>
-                            <a href="/admin/page/profile.php" class="text-gray-700 hover:text-indigo-600">
+                            <a href="/admin/profile/profile.php" class="text-gray-700 hover:text-indigo-600">
                                 <i class="fas fa-user-cog mr-3 text-gray-400"></i> Profile Settings
                             </a>
                             <div class="border-t border-gray-200"></div>
-                            <a href="/admin/page/logout.php" class="text-red-600 hover:bg-red-50">
+                            <a href="/admin/loginOut/logout.php" class="text-red-600 hover:bg-red-50">
                                 <i class="fas fa-sign-out-alt mr-3 text-red-400"></i> Logout
                             </a>
                         </div>
