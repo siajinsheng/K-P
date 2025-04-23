@@ -1,10 +1,10 @@
 <?php
 require '../../_base.php';
 
-// Clear admin-specific cookies
-setcookie('admin_id', '', time() - 3600, '/');
-setcookie('admin_token', '', time() - 3600, '/');
+// Log the logout action if a user is logged in
+if (isset($_SESSION['user'])) {
+    error_log("Admin logout: {$_SESSION['user']->user_name} ({$_SESSION['user']->user_id}) logged out");
+}
 
-// Use the common logout function from _base.php, redirecting to admin login
+// Clear all session data and cookies
 logout('login.php');
-?>

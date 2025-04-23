@@ -1,6 +1,6 @@
 <?php
 require '../../_base.php';
-auth(0, 1); // Only admin and managers can access
+auth('admin', 'staff');
 
 // Define upload directory
 $upload_dir = '../../img/';

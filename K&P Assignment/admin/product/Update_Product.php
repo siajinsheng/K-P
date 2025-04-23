@@ -2,7 +2,7 @@
 $_title = 'Update Product';
 require '../../_base.php';
 auth('admin', 'staff');
-require 'header.php';
+require '../headFooter/header.php';
 
 // Get product ID from URL parameter
 $product_id = req('id');
