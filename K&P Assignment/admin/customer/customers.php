@@ -2,135 +2,140 @@
 $_title = 'Customer Management';
 require '../../_base.php';
 
-// Admin role authentication
+safe_session_start();
 $_SESSION['previous_url'] = $_SERVER['REQUEST_URI'];
 auth('admin', 'staff');
 require '../headFooter/header.php';
 
-$_title = 'Customer List';
-
-// Gender and Status Mapping
 $user_gender = ['Male' => 'Male', 'Female' => 'Female', 'Other' => 'Other'];
 $user_status = ['Active' => 'Active', 'Inactive' => 'Inactive', 'Banned' => 'Banned'];
 
-// Sorting Configuration
 $fields = ['user_Email' => 'Email', 'user_name' => 'Customer Name', 'user_gender' => 'Gender'];
-$sort = req('sort');
-key_exists($sort, $fields) || $sort = 'user_Email';
-$dir = req('dir');
-in_array($dir, ['asc', 'desc']) || $dir = 'asc';
+$sort = req('sort'); key_exists($sort, $fields) || $sort = 'user_Email';
+$dir  = req('dir'); in_array($dir, ['asc', 'desc']) || $dir = 'asc';
 
-// Pagination & Search Filters
-$page = req('page', 1);
+$page   = req('page', 1);
 $email  = req('email');
-$status = req('status');
+$status = req('status') ?: null;
 
-// Fetch Members Only
 require_once '../../lib/SimplePager.php';
-$sql = "SELECT user_id, user_Email, user_name, user_gender, user_profile_pic, status 
-        FROM user 
-        WHERE user_Email LIKE ? 
-          AND (status = ? OR ?) 
-          AND role = 'member' 
+$sql = "SELECT user_id, user_Email, user_name, user_gender, user_profile_pic, status
+        FROM user
+        WHERE user_Email LIKE ?
+          AND (status = ? OR ?)
+          AND role = 'member'
         ORDER BY $sort $dir";
-$params = ["%$email%", $status, $status == null];
+$params = ["%$email%", $status, $status === null];
 $p = new SimplePager($sql, $params, 10, $page);
 $arr = $p->result;
 
-// Handle Updates & Actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_id = req('user_id');
     if (isset($_POST['update'])) {
-        // Update User Details
-        $name = req('user_name');
-        $email = req('user_Email');
-        $gender = req('user_gender');
-        
-        $stm = $_db->prepare("UPDATE user SET user_name = ?, user_Email = ?, user_gender = ? WHERE user_id = ?");
-        $success = $stm->execute([$name, $email, $gender, $user_id]);
+        $stm = $_db->prepare("UPDATE user SET user_name=?, user_Email=?, user_gender=? WHERE user_id=?");
+        $success = $stm->execute([
+            req('user_name'),
+            req('user_Email'),
+            req('user_gender'),
+            $user_id
+        ]);
     } elseif (isset($_POST['ban'])) {
-        // Ban/Unban User
-        $new_status = req('status') === 'Banned' ? 'Active' : 'Banned';
-        $stm = $_db->prepare("UPDATE user SET status = ? WHERE user_id = ?");
-        $success = $stm->execute([$new_status, $user_id]);
+        $new = req('status') === 'Banned' ? 'Active' : 'Banned';
+        $stm = $_db->prepare("UPDATE user SET status=? WHERE user_id=?");
+        $success = $stm->execute([$new, $user_id]);
     } elseif (isset($_POST['lock'])) {
-        // Lock/Unlock Account
-        $new_status = req('status') === 'Inactive' ? 'Active' : 'Inactive';
-        $stm = $_db->prepare("UPDATE user SET status = ? WHERE user_id = ?");
-        $success = $stm->execute([$new_status, $user_id]);
+        $new = req('status') === 'Inactive' ? 'Active' : 'Inactive';
+        $stm = $_db->prepare("UPDATE user SET status=? WHERE user_id=?");
+        $success = $stm->execute([$new, $user_id]);
     }
-    if ($success) {
-        temp('info', 'Customer updated successfully');
-        redirect('customers.php');
-    } else {
-        temp('error', 'Update failed');
-    }
+    temp($success ? 'info' : 'error', $success ? 'Customer updated.' : 'Update failed.');
+    redirect('customers.php');
 }
 ?>
 
-<head>
-    <link rel="stylesheet" href="/admin/customer/cusStaff.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-</head>
+<link rel="stylesheet" href="/admin/customer/cusStaff.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<h1 style="text-align: center;">Customer List</h1>
-<br>
-<form>
-    <p>Search Email:</p>
-    <?= html_search('email') ?>
-    <p>Filter Status:</p>
-    <?= html_select('status', $user_status, 'All') ?>
-    <button>Search <i class="fas fa-search"></i></button>
-</form>
+<div class="container mx-auto py-6">
+  <h1 class="text-2xl font-bold mb-4">Customer List</h1>
 
-<p class="record"><?= $p->count ?> of <?= $p->item_count ?> record(s) | Page <?= $p->page ?> of <?= $p->page_count ?></p>
+  <form class="search-form mb-4" method="get">
+    <div class="form-group">
+      <label for="email">Search Email:</label>
+      <?= html_search('email') ?>
+    </div>
+    <div class="form-group">
+      <label for="status">Filter Status:</label>
+      <?= html_select('status', $user_status, $status) ?>
+    </div>
+    <button type="submit"><i class="fas fa-search"></i> Search</button>
+  </form>
 
-<table class="table">
-    <tr>
+  <p class="record">Showing <?= $p->count ?> of <?= $p->item_count ?> | Page <?= $p->page ?> of <?= $p->page_count ?></p>
+
+  <table class="table">
+    <thead>
+      <tr>
         <?= table_headers($fields, $sort, $dir, "page=$page&email=$email&status=$status") ?>
-        <th>Profile Photo</th>
+        <th>Photo</th>
         <th>Status</th>
         <th>Actions</th>
-    </tr>
-    <?php foreach ($arr as $customer): ?>
-        <tr>
-            <td><?= htmlspecialchars($customer->user_Email) ?></td>
-            <td><?= htmlspecialchars($customer->user_name) ?></td>
-            <td><?= isset($user_gender[$customer->user_gender]) ? $user_gender[$customer->user_gender] : 'Not Specified' ?></td>
-            <td>
-                <img src="/admin/pic/<?= !empty($customer->user_profile_pic) ? htmlspecialchars($customer->user_profile_pic) : 'default.png' ?>" 
-                     class="popup" alt="Profile Photo" 
-                     onerror="this.onerror=null;this.src='/admin/pic/default.png';">
-            </td>
-            <td class="<?= $customer->status === 'Banned' ? 'status-blocked' : 'status-active' ?>">
-                <?= isset($user_status[$customer->status]) ? $user_status[$customer->status] : 'Unknown' ?>
-            </td>
-            <td>
-                <td class="actions">
-                <form action="" method="post" style="display:inline;">
-                    <input type="hidden" name="user_id" value="<?= htmlspecialchars($customer->user_id) ?>">
-                    <input type="hidden" name="status" value="<?= htmlspecialchars($customer->status) ?>">
-                    <input type="text" name="user_name" value="<?= htmlspecialchars($customer->user_name) ?>" required>
-                    <input type="email" name="user_Email" value="<?= htmlspecialchars($customer->user_Email) ?>" required>
-                    <select name="user_gender">
-                        <?php foreach ($user_gender as $key => $label): ?>
-                            <option value="<?= $key ?>" <?= ($customer->user_gender === $key) ? 'selected' : '' ?>><?= $label ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <div class="action-wrapper">
-                    <button type="submit" name="update" class="button-update">Update</button>
-                    <button type="submit" name="lock" class="<?= $customer->status === 'Inactive' ? 'button-unlock' : 'button-lock' ?>">
-                        <?= $customer->status === 'Inactive' ? 'Unlock' : 'Lock' ?>
-                    </button>
-                    <button type="submit" name="ban" class="<?= $customer->status === 'Banned' ? 'button-unblock' : 'button-block' ?>">
-                        <?= $customer->status === 'Banned' ? 'Unban' : 'Ban' ?>
-                    </button>
-                        </div>
-                </form>
-            </td>
-        </tr>
-    <?php endforeach; ?>
-</table>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($arr as $c): ?>
+      <tr>
+        <td><?= htmlspecialchars($c->user_Email) ?></td>
+        <td><?= htmlspecialchars($c->user_name) ?></td>
+        <td><?= htmlspecialchars($c->user_gender) ?></td>
+        <td>
+          <img src="/admin/pic/<?= $c->user_profile_pic ?: 'default.png' ?>"
+               onerror="this.src='/admin/pic/default.png';"
+               class="popup" />
+        </td>
+        <td class="status-<?= strtolower($c->status) ?>">
+          <?= $user_status[$c->status] ?? 'Unknown' ?>
+        </td>
+        <td class="actions">
+          <form method="post">
+            <input type="hidden" name="user_id" value="<?= $c->user_id ?>">
+            <input type="hidden" name="status"  value="<?= $c->status ?>">
+            <input type="text" name="user_name" value="<?= htmlspecialchars($c->user_name) ?>" required>
+            <input type="email" name="user_Email" value="<?= htmlspecialchars($c->user_Email) ?>" required>
+            <select name="user_gender">
+              <?php foreach ($user_gender as $g): ?>
+                <option value="<?= $g ?>" <?= $c->user_gender === $g ? 'selected' : '' ?>><?= $g ?></option>
+              <?php endforeach; ?>
+            </select>
+            <button name="update" class="button-update">Update</button>
+            <button name="lock" class="<?= $c->status==='Inactive' ? 'button-unlock' : 'button-lock' ?>">
+              <?= $c->status==='Inactive' ? 'Unlock' : 'Lock' ?>
+            </button>
+            <button name="ban" class="<?= $c->status==='Banned' ? 'button-unblock' : 'button-block' ?>">
+              <?= $c->status==='Banned' ? 'Unban' : 'Ban' ?>
+            </button>
+          </form>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
 
-<br>
-<?= $p->html("sort=$sort&dir=$dir&email=$email&status=$status") ?>
+  <nav class="pagination-nav" aria-label="Customer Pages">
+    <?php
+      $base = "customers.php?sort=$sort&dir=$dir&email=" . urlencode($email) . "&status=" . urlencode($status);
+    ?>
+    <a href="<?= $base ?>&page=1">First</a>
+    <?php if ($p->page > 1): ?>
+      <a href="<?= $base ?>&page=<?= $p->page - 1 ?>">Previous</a>
+    <?php else: ?>
+      <span class="disabled">Previous</span>
+    <?php endif; ?>
+    <?php if ($p->page < $p->page_count): ?>
+      <a href="<?= $base ?>&page=<?= $p->page + 1 ?>">Next</a>
+    <?php else: ?>
+      <span class="disabled">Next</span>
+    <?php endif; ?>
+    <a href="<?= $base ?>&page=<?= $p->page_count ?>">Last</a>
+  </nav>
+</div>
