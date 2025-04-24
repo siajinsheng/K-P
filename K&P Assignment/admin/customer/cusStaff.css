@@ -69,14 +69,17 @@
    border: none;
    border-radius: 4px;
  }
+ /* color of each button */
  .button-update { background: #28a745; color: #fff; }
  .button-lock   { background: #ffc107; }
+ .button-unlock   { background: #ffc107; }
  .button-block  { background: #dc3545; color: #fff; }
+ .button-unblock  { background: #dc3545; color: #fff; }
  
- /* Status Pills */
+ /* Status colors*/
  .status-active   { background: #d4edda; color: #155724; padding: 0.25rem 0.5rem; border-radius: 4px; }
  .status-inactive { background: #fff3cd; color: #856404; padding: 0.25rem 0.5rem; border-radius: 4px; }
- .status-blocked  { background: #f8d7da; color: #721c24; padding: 0.25rem 0.5rem; border-radius: 4px; }
+ .status-banned  { background: #f8d7da; color: #721c24; padding: 0.25rem 0.5rem; border-radius: 4px; }
  
  /* Pagination (First/Prev/Next/Last) */
  .pagination-nav {

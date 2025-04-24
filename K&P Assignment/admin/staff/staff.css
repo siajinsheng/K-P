@@ -190,7 +190,7 @@
     border-radius: 4px;
     text-align: center;
   }
-  .status-blocked {
+  .status-banned {
     color: #721c24;
     background-color: #f8d7da;
     padding: 0.3rem 0.5rem;
@@ -428,11 +428,18 @@
   text-align: center;
   font-weight: 500;
 }
-.status-blocked {
+.status-banned {
   background: #f8d7da;
   color: #721c24;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   text-align: center;
   font-weight: 500;
+}
+button.button-delete {
+  background-color: #6c757d;
+  color: #fff;
+}
+button.button-delete:hover {
+  background-color: #5a6268;
 }
