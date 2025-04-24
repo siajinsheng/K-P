@@ -106,26 +106,36 @@ if (!empty($search)) {
     $query_params[] = "%$search%";
 }
 
-// Fetch categories with proper distinct handling
+// Fetch categories with proper distinct handling - FIXED QUERY
 try {
-    // This approach ensures we get only unique category IDs 
-    // while still getting all the associated data
-    $query = "SELECT c.* FROM category c
-              JOIN (SELECT DISTINCT category_id FROM category) AS unique_cats
-              ON c.category_id = unique_cats.category_id
-              $search_condition
-              ORDER BY c.$sort $dir";
-              
+    // Simplified query to get unique categories
+    $query = "SELECT * FROM category";
+    
+    if (!empty($search)) {
+        $query .= " WHERE category_id LIKE ? OR category_name LIKE ?";
+    }
+    
+    $query .= " ORDER BY $sort $dir";
+    
     $stmt = $_db->prepare($query);
     $stmt->execute($query_params);
-    $categories = $stmt->fetchAll();
+    $all_categories = $stmt->fetchAll();
     
-    // Count products in each category
-    foreach ($categories as &$category) {
-        $prod_query = "SELECT COUNT(*) FROM product WHERE category_id = ?";
-        $prod_stmt = $_db->prepare($prod_query);
-        $prod_stmt->execute([$category->category_id]);
-        $category->product_count = $prod_stmt->fetchColumn();
+    // Ensure uniqueness by category_id
+    $categories = [];
+    $seen_category_ids = [];
+    
+    foreach ($all_categories as $category) {
+        if (!in_array($category->category_id, $seen_category_ids)) {
+            $seen_category_ids[] = $category->category_id;
+            $categories[] = $category;
+            
+            // Count products for this category
+            $prod_query = "SELECT COUNT(*) FROM product WHERE category_id = ?";
+            $prod_stmt = $_db->prepare($prod_query);
+            $prod_stmt->execute([$category->category_id]);
+            $category->product_count = $prod_stmt->fetchColumn();
+        }
     }
     
 } catch (PDOException $e) {
