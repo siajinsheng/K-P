@@ -45,6 +45,7 @@ button:hover {
 
 /* Table Styling */
 .table {
+    table-layout: fixed;
     width: auto;
     margin: 20px auto;
     border-collapse: collapse;
@@ -152,6 +153,7 @@ td.actions form {
     align-items: center;
     gap: 8px;
   }
+  
   
 
 
