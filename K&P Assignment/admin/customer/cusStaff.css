@@ -45,7 +45,7 @@ button:hover {
 
 /* Table Styling */
 .table {
-    width: 90%;
+    width: auto;
     margin: 20px auto;
     border-collapse: collapse;
     background: white;
@@ -121,10 +121,38 @@ img.popup {
 .button-unblock:hover {
     background: darkgreen;
 }
+/* assuming your cell has a class like .actions or .action-cell */
+td.actions {
+    white-space: nowrap;
+  }
+  
+  /* tighten up spacing so it all fits more nicely */
+  td.actions button {
+    margin: 0 4px;
+    vertical-align: middle;
+  }
+
+  .action-wrapper {
+    display: inline-flex;      /* line-up horizontally */
+    align-items: center;       /* vertical centering */
+    flex-wrap: nowrap;         /* absolutely no wrapping */
+    gap: 8px;                  /* space between buttons */
+  }
+  
+  .action-wrapper button {
+    flex-shrink: 0;            /* never shrink into next line */
+  }
+  
 
 
-
-
+/* only target the inline form in the Actions column */
+td.actions form {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+  }
+  
 
 
 /* Pagination Container */

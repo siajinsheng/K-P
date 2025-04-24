@@ -5,7 +5,7 @@ require '../../_base.php';
 // Admin role authentication
 $_SESSION['previous_url'] = $_SERVER['REQUEST_URI'];
 auth('admin', 'staff');
-require 'header.php';
+require '../headFooter/header.php';
 
 $_title = 'Customer List';
 
@@ -26,7 +26,7 @@ $email  = req('email');
 $status = req('status');
 
 // Fetch Members Only
-require_once '../lib/SimplePager.php';
+require_once '../../lib/SimplePager.php';
 $sql = "SELECT user_id, user_Email, user_name, user_gender, user_profile_pic, status 
         FROM user 
         WHERE user_Email LIKE ? 
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <head>
-    <link rel="stylesheet" href="/admin/css/cusStaff.css">
+    <link rel="stylesheet" href="/admin/customer/cusStaff.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 
@@ -106,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?= isset($user_status[$customer->status]) ? $user_status[$customer->status] : 'Unknown' ?>
             </td>
             <td>
+                <td class="actions">
                 <form action="" method="post" style="display:inline;">
                     <input type="hidden" name="user_id" value="<?= htmlspecialchars($customer->user_id) ?>">
                     <input type="hidden" name="status" value="<?= htmlspecialchars($customer->status) ?>">
@@ -116,6 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <option value="<?= $key ?>" <?= ($customer->user_gender === $key) ? 'selected' : '' ?>><?= $label ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <div class="action-wrapper">
                     <button type="submit" name="update" class="button-update">Update</button>
                     <button type="submit" name="lock" class="<?= $customer->status === 'Inactive' ? 'button-unlock' : 'button-lock' ?>">
                         <?= $customer->status === 'Inactive' ? 'Unlock' : 'Lock' ?>
@@ -123,6 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button type="submit" name="ban" class="<?= $customer->status === 'Banned' ? 'button-unblock' : 'button-block' ?>">
                         <?= $customer->status === 'Banned' ? 'Unban' : 'Ban' ?>
                     </button>
+                        </div>
                 </form>
             </td>
         </tr>

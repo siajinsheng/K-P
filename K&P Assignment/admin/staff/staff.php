@@ -5,7 +5,7 @@ require '../../_base.php';
 // Admin role authentication
 $_SESSION['previous_url'] = $_SERVER['REQUEST_URI'];
 auth('admin', 'staff');
-require 'header.php';
+require '../headFooter/header.php';
 
 $_title = 'Staff List';
 
@@ -26,7 +26,7 @@ $email  = req('email');
 $status = req('status');
 
 // Fetch Staff Only
-require_once '../lib/SimplePager.php';
+require_once '../../lib/SimplePager.php';
 $sql = "SELECT user_id, user_Email, user_name, user_gender, user_profile_pic, status 
         FROM user 
         WHERE user_Email LIKE ? 
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <head>
-    <link rel="stylesheet" href="/admin/css/cusStaff.css">
+    <link rel="stylesheet" href="/admin/customer/cusStaff.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 
