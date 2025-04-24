@@ -103,9 +103,9 @@ if (is_post() && isset($_POST['login'])) {
 
                     // Redirect based on user role
                     if ($user->role === 'admin') {
-                        redirect('../../admin/index.php');
+                        redirect('../../admin/home/home.php');
                     } elseif ($user->role === 'staff') {
-                        redirect('../../admin/index.php');
+                        redirect('../../admin/home/home.php');
                     } else {
                         redirect('../../index.php'); // Regular user/member
                     }

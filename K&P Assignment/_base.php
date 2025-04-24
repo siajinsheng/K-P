@@ -100,7 +100,7 @@ function safe_session_start()
     }
 }
 
-// Enhanced auth function for better session checks
+// Enhanced auth function for better debugging
 function auth(...$roles)
 {
     safe_session_start(); // Ensure the session is started
@@ -113,7 +113,7 @@ function auth(...$roles)
 
     // Debug the session data
     error_log("Auth check - Session data: " . (isset($_SESSION['user']) ?
-        "User: {$_SESSION['user']->user_name}, ID: {$_SESSION['user']->user_id}" :
+        "User: {$_SESSION['user']->user_name}, ID: {$_SESSION['user']->user_id}, Role: {$_SESSION['user']->role}" :
         "No user in session"));
 
     // Check if a user is logged in
@@ -125,6 +125,9 @@ function auth(...$roles)
 
     // Get the user object from session
     $user = $_SESSION['user'];
+
+    // Print user details for debugging
+    error_log("Auth check - User details: ID: {$user->user_id}, Name: {$user->user_name}, Role: {$user->role}");
 
     // Check if user exists and is active
     try {
@@ -152,6 +155,7 @@ function auth(...$roles)
 
         // If no specific roles are required (empty roles array), any authenticated user is allowed
         if (empty($roles)) {
+            error_log("Auth success - No specific role required, user allowed");
             return; // User is authenticated, no specific role required
         }
 
@@ -160,13 +164,14 @@ function auth(...$roles)
         foreach ($roles as $role) {
             if ($db_user->role == $role) {
                 $hasRequiredRole = true;
+                error_log("Auth success - User has required role: {$role}");
                 break;
             }
         }
 
         // If no matching role is found, redirect
         if (!$hasRequiredRole) {
-            error_log("Auth failed - User ID {$user->user_id} role {$db_user->role} does not match required roles");
+            error_log("Auth failed - User ID {$user->user_id} role {$db_user->role} does not match required roles: " . implode(', ', $roles));
             temp('info', 'You do not have permission to access this page');
             redirect($login_path);
         }

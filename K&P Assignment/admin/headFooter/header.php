@@ -19,6 +19,15 @@ if (isset($_SESSION['user'])) {
     redirect('/admin/loginOut/login.php');
 }
 
+// Check that we have a valid user with the right role
+if (!isset($user->role) || ($user->role !== 'admin' && $user->role !== 'staff')) {
+    // Log the issue for debugging
+    error_log("Invalid user role: " . ($user->role ?? 'undefined'));
+    // Force logout and redirect
+    logout('/admin/loginOut/login.php');
+    exit;
+}
+
 $photo = isset($user->admin_profile_pic) 
     ? $user->admin_profile_pic 
     : 'default.png';
@@ -94,13 +103,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
                             <div class="profile-photo-container">
                                 <img src="/admin/pic/<?= htmlspecialchars($photo) ?>" alt="Profile" class="profile-photo">
                             </div>
-                            <span class="ml-2 text-gray-700"><?= htmlspecialchars($current_user['user_name'] ?? 'Admin') ?></span>
+                            <span class="ml-2 text-gray-700"><?= htmlspecialchars($user->user_name ?? 'Admin') ?></span>
                             <i class="fas fa-chevron-down ml-1 text-gray-500 text-xs"></i>
                         </a>
                         <div class="dropdown-content mt-2">
                             <div class="py-2 px-4 border-b border-gray-200">
-                                <p class="text-sm font-medium text-gray-900"><?= htmlspecialchars($current_user['user_name'] ?? 'Admin') ?></p>
-                                <p class="text-xs text-gray-500"><?= htmlspecialchars($current_user['user_Email'] ?? '') ?></p>
+                                <p class="text-sm font-medium text-gray-900"><?= htmlspecialchars($user->user_name ?? 'Admin') ?></p>
+                                <p class="text-xs text-gray-500"><?= htmlspecialchars($user->user_Email ?? '') ?></p>
                             </div>
                             <a href="/admin/profile/profile.php" class="text-gray-700 hover:text-indigo-600">
                                 <i class="fas fa-user-cog mr-3 text-gray-400"></i> Profile Settings
@@ -155,10 +164,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
             
             <div class="border-t border-gray-200 my-2 pt-2">
-                <a href="/admin/page/profile.php" class="py-2 px-4 rounded-lg text-gray-700">
+                <a href="/admin/profile/profile.php" class="py-2 px-4 rounded-lg text-gray-700">
                     <i class="fas fa-user-cog mr-3"></i> Profile Settings
                 </a>
-                <a href="/admin/page/logout.php" class="py-2 px-4 rounded-lg text-red-600 mt-2 block">
+                <a href="/admin/loginOut/logout.php" class="py-2 px-4 rounded-lg text-red-600 mt-2 block">
                     <i class="fas fa-sign-out-alt mr-3"></i> Logout
                 </a>
             </div>
@@ -182,6 +191,25 @@ window.addEventListener('click', function(event) {
         const dropdowns = document.querySelectorAll('.profile-dropdown');
         dropdowns.forEach(dropdown => {
             dropdown.classList.remove('show');
+        });
+    }
+});
+
+// Mobile menu toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const closeMenuButton = document.getElementById('close-mobile-menu');
+    const mobileNav = document.getElementById('mobile-nav');
+    
+    if(mobileMenuButton && mobileNav) {
+        mobileMenuButton.addEventListener('click', function() {
+            mobileNav.classList.toggle('active');
+        });
+    }
+    
+    if(closeMenuButton && mobileNav) {
+        closeMenuButton.addEventListener('click', function() {
+            mobileNav.classList.remove('active');
         });
     }
 });
