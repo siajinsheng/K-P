@@ -129,6 +129,11 @@ $statusCounts = $statusStmt->fetch(PDO::FETCH_ASSOC);
 
 /**
  * Auto-update order statuses based on dates
+ * 
+ * Rules:
+ * 1. Orders are auto-updated to "Delivered" when the estimated_date equals current date
+ * 2. Orders are auto-cancelled when the delivered_date is past the current date and order isn't completed
+ * 3. When an order is cancelled due to late delivery, payment is auto-refunded
  */
 function autoUpdateOrderStatuses() {
     global $_db;
@@ -136,7 +141,11 @@ function autoUpdateOrderStatuses() {
     $currentDate = date('Y-m-d');
     
     try {
-        // Orders that should be delivered today - update to "Delivered"
+        // Begin transaction to ensure all updates are atomic
+        $_db->beginTransaction();
+        
+        // 1. Orders that should be delivered today - update to "Delivered"
+        // Only shipped orders will be auto-updated to delivered
         $deliveredQuery = "UPDATE orders o
                           JOIN delivery d ON o.delivery_id = d.delivery_id
                           SET o.orders_status = 'Delivered'
@@ -147,23 +156,76 @@ function autoUpdateOrderStatuses() {
         $deliveredStmt->bindValue(':currentDate', $currentDate);
         $deliveredStmt->execute();
         
-        // Orders that are past the delivered_date and not processed - update to "Cancelled"
+        // Also update the delivery status to "Delivered" and set the delivered_date
+        if ($deliveredStmt->rowCount() > 0) {
+            $updateDeliveryQuery = "UPDATE delivery d
+                                   JOIN orders o ON d.delivery_id = o.delivery_id
+                                   SET d.delivery_status = 'Delivered',
+                                       d.delivered_date = :currentDate
+                                   WHERE DATE(d.estimated_date) = :currentDate
+                                   AND o.orders_status = 'Delivered'
+                                   AND d.delivery_status = 'Out for Delivery'";
+            
+            $updateDeliveryStmt = $_db->prepare($updateDeliveryQuery);
+            $updateDeliveryStmt->bindValue(':currentDate', $currentDate);
+            $updateDeliveryStmt->execute();
+        }
+        
+        // 2. Orders that have missed their delivery date - update to "Cancelled"
+        // Only affects orders that aren't already Delivered or Cancelled
         $cancelledQuery = "UPDATE orders o
                           JOIN delivery d ON o.delivery_id = d.delivery_id
                           SET o.orders_status = 'Cancelled'
                           WHERE DATE(d.delivered_date) < :currentDate
-                          AND o.orders_status NOT IN ('Processing', 'Shipped', 'Delivered', 'Cancelled')";
+                          AND o.orders_status NOT IN ('Delivered', 'Cancelled')";
         
         $cancelledStmt = $_db->prepare($cancelledQuery);
         $cancelledStmt->bindValue(':currentDate', $currentDate);
         $cancelledStmt->execute();
+        
+        // 3. For cancelled orders due to missed delivery, update payment status to "Refunded"
+        // and delivery status to "Failed"
+        if ($cancelledStmt->rowCount() > 0) {
+            // Update payment status to "Refunded"
+            $updatePaymentQuery = "UPDATE payment p
+                                  JOIN orders o ON p.order_id = o.order_id
+                                  JOIN delivery d ON o.delivery_id = d.delivery_id
+                                  SET p.payment_status = 'Refunded'
+                                  WHERE DATE(d.delivered_date) < :currentDate
+                                  AND o.orders_status = 'Cancelled'
+                                  AND p.payment_status != 'Refunded'";
+            
+            $updatePaymentStmt = $_db->prepare($updatePaymentQuery);
+            $updatePaymentStmt->bindValue(':currentDate', $currentDate);
+            $updatePaymentStmt->execute();
+            
+            // Update delivery status to "Failed"
+            $updateDeliveryQuery = "UPDATE delivery d
+                                   JOIN orders o ON d.delivery_id = o.delivery_id
+                                   SET d.delivery_status = 'Failed'
+                                   WHERE DATE(d.delivered_date) < :currentDate
+                                   AND o.orders_status = 'Cancelled'
+                                   AND d.delivery_status != 'Failed'";
+            
+            $updateDeliveryStmt = $_db->prepare($updateDeliveryQuery);
+            $updateDeliveryStmt->bindValue(':currentDate', $currentDate);
+            $updateDeliveryStmt->execute();
+        }
+        
+        // Commit all changes
+        $_db->commit();
+        
     } catch (Exception $e) {
+        // Rollback on error
+        $_db->rollBack();
         error_log("Auto-update orders error: " . $e->getMessage());
     }
 }
 
 /**
  * Check if staff can update to the given status
+ * - Staff can only update from Pending to Processing
+ * - Staff can only update from Processing to Shipped
  */
 function canStaffUpdateToStatus($currentStatus, $newStatus) {
     if ($currentStatus === 'Pending' && $newStatus === 'Processing') {

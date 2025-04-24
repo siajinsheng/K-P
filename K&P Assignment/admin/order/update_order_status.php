@@ -38,36 +38,30 @@ if (!$orderData) {
 
 $currentStatus = $orderData->orders_status;
 
-// Validate status transition is allowed
-// Define allowed transitions
+// Define allowed transitions for each role
 $allowedTransitions = [
-    'Pending' => ['Processing', 'Cancelled'],
-    'Processing' => ['Shipped', 'Cancelled'],
-    'Shipped' => ['Delivered', 'Cancelled'],
-    'Delivered' => [], // Terminal state, no transitions allowed
-    'Cancelled' => []  // Terminal state, no transitions allowed
+    'admin' => [
+        'Pending' => ['Processing', 'Cancelled'],
+        'Processing' => ['Shipped', 'Cancelled'],
+        'Shipped' => ['Delivered', 'Cancelled'],
+        'Delivered' => [], // Terminal state, no transitions allowed
+        'Cancelled' => []  // Terminal state, no transitions allowed
+    ],
+    'staff' => [
+        'Pending' => ['Processing'],
+        'Processing' => ['Shipped'],
+        'Shipped' => [], // Staff cannot mark as Delivered
+        'Delivered' => [],
+        'Cancelled' => []
+    ]
 ];
 
-// Role-based permission check
-if ($currentUserRole === 'staff') {
-    // Staff can only do specific transitions
-    if (
-        !($currentStatus === 'Pending' && $newStatus === 'Processing') && 
-        !($currentStatus === 'Processing' && $newStatus === 'Shipped')
-    ) {
-        echo json_encode([
-            'success' => false, 
-            'message' => 'Staff users can only change status from Pending to Processing or from Processing to Shipped'
-        ]);
-        exit;
-    }
-}
-
-// Check if the transition is allowed
-if (!in_array($newStatus, $allowedTransitions[$currentStatus])) {
+// Check if the transition is allowed for the current role
+$role = $currentUserRole === 'admin' ? 'admin' : 'staff';
+if (!isset($allowedTransitions[$role][$currentStatus]) || !in_array($newStatus, $allowedTransitions[$role][$currentStatus])) {
     echo json_encode([
         'success' => false, 
-        'message' => "Cannot change status from $currentStatus to $newStatus"
+        'message' => "You don't have permission to change status from $currentStatus to $newStatus"
     ]);
     exit;
 }
@@ -117,6 +111,14 @@ try {
                               WHERE o.order_id = ?";
         $updateDeliveryStmt = $_db->prepare($updateDeliveryQuery);
         $updateDeliveryStmt->execute([$orderId]);
+        
+        // Also update payment status to "Refunded" if order was cancelled by admin
+        $updatePaymentQuery = "UPDATE payment p
+                             JOIN orders o ON p.order_id = o.order_id 
+                             SET p.payment_status = 'Refunded'
+                             WHERE o.order_id = ?";
+        $updatePaymentStmt = $_db->prepare($updatePaymentQuery);
+        $updatePaymentStmt->execute([$orderId]);
     }
     
     $_db->commit();
