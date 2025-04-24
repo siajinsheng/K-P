@@ -1,6 +1,8 @@
 <?php
+$_title = 'Edit Discount';
 require_once '../../_base.php';
 auth('admin', 'staff');
+require '../headFooter/header.php';
 
 // Make sure current_user is defined for the header
 if (isset($_SESSION['user'])) {
@@ -11,8 +13,8 @@ if (isset($_SESSION['user'])) {
 $discount_id = get('id');
 
 if (!$discount_id) {
-    $_SESSION['temp_error'] = 'Invalid discount ID';
-    redirect('index.php');
+    temp('error', 'Invalid discount ID');
+    redirect('discount.php');
 }
 
 // Get discount data
@@ -26,8 +28,8 @@ $stm->execute([$discount_id]);
 $discount = $stm->fetch();
 
 if (!$discount) {
-    $_SESSION['temp_error'] = 'Discount not found';
-    redirect('index.php');
+    temp('error', 'Discount not found');
+    redirect('discount.php');
 }
 
 // Handle form submission
@@ -51,7 +53,7 @@ if (is_post()) {
     
     if (!$end_date) {
         $_err['end_date'] = 'End date is required';
-    } elseif ($start_date && $end_date && $end_date < $start_date) {
+    } elseif ($start_date && $end_date && strtotime($end_date) < strtotime($start_date)) {
         $_err['end_date'] = 'End date must be after start date';
     }
     
@@ -95,8 +97,8 @@ if (is_post()) {
                              WHERE Discount_id = ?");
         $stm->execute([$discount_rate, $start_date, $end_date, $status, $discount_id]);
         
-        $_SESSION['temp_success'] = 'Discount updated successfully';
-        redirect('index.php');
+        temp('success', 'Discount updated successfully');
+        redirect('discount.php');
     }
 }
 ?>
@@ -106,345 +108,370 @@ if (is_post()) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Discount - K&P Admin</title>
-    <!-- Include head content directly instead of using include -->
+    <title><?= $_title ?></title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../user/style/style.css">
     <style>
-        .form-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .form-card {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 30px;
-            margin-top: 20px;
-        }
-        
-        .form-title {
-            margin-bottom: 20px;
-            color: #4a6fa5;
-            border-bottom: 2px solid #e9ecef;
-            padding-bottom: 10px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-        
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 16px;
-        }
-        
-        .form-actions {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 30px;
-        }
-        
-        .back-button {
-            background-color: #6c757d;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            text-decoration: none;
-            cursor: pointer;
-        }
-        
-        .submit-button {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        
-        .back-button:hover {
-            background-color: #5a6268;
-        }
-        
-        .submit-button:hover {
-            background-color: #218838;
-        }
-        
-        .product-display {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            padding: 15px;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            margin-bottom: 20px;
+        .product-card {
+            transition: all 0.3s ease;
         }
         
         .product-image {
-            width: 100px;
-            height: 100px;
+            height: 160px;
             object-fit: cover;
         }
         
-        .product-details {
-            flex: 1;
-        }
-        
-        .product-id {
-            color: #6c757d;
-            font-size: 14px;
-            margin-bottom: 5px;
-        }
-        
-        .product-name {
-            font-size: 18px;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-        
-        .product-price {
-            font-size: 16px;
-            color: #dc3545;
-            font-weight: bold;
+        .err {
+            color: #dc2626;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
         }
         
         .discount-preview {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
+            transition: all 0.3s ease;
         }
         
-        .discount-preview-title {
-            font-size: 18px;
-            margin-bottom: 15px;
-            color: #4a6fa5;
+        .timeline {
+            position: relative;
+            padding-left: 30px;
         }
         
-        .discount-preview-content {
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 2px;
+            background-color: #e5e7eb;
         }
         
-        .discount-preview-item {
-            margin-bottom: 10px;
-            flex: 0 0 48%;
+        .timeline-item {
+            position: relative;
+            padding-bottom: 1.5rem;
         }
         
-        .discount-preview-label {
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #6c757d;
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -30px;
+            top: 0;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background-color: #818cf8;
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px #818cf8;
         }
         
-        .discount-preview-value {
-            font-size: 16px;
+        .timeline-item.active::before {
+            background-color: #34d399;
+            box-shadow: 0 0 0 2px #34d399;
         }
         
-        .original-price {
-            text-decoration: line-through;
-            color: #6c757d;
+        .timeline-item.expired::before {
+            background-color: #f87171;
+            box-shadow: 0 0 0 2px #f87171;
         }
         
-        .discounted-price {
-            color: #28a745;
-            font-weight: bold;
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
         }
         
-        .err {
-            color: #dc3545;
-            font-size: 14px;
-            margin-top: 5px;
-            display: block;
+        .status-badge.active {
+            background-color: #d1fae5;
+            color: #065f46;
         }
         
-        .general-error {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
+        .status-badge.upcoming {
+            background-color: #dbeafe;
+            color: #1e40af;
         }
         
-        @media (max-width: 768px) {
-            .discount-preview-item {
-                flex: 0 0 100%;
-            }
-            
-            .product-display {
-                flex-direction: column;
-                text-align: center;
-            }
+        .status-badge.expired {
+            background-color: #fee2e2;
+            color: #991b1b;
         }
     </style>
 </head>
-<body>
-    <!-- Simple header instead of included one -->
-    <header>
-        <div class="logo">
-            <h1>K&P Admin Panel</h1>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-3xl font-bold text-gray-800"><?= $_title ?></h1>
+            <a href="discount.php" class="flex items-center text-indigo-600 hover:text-indigo-800">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Discounts
+            </a>
         </div>
-        <nav>
-            <ul>
-                <li><a href="../index.php">Dashboard</a></li>
-                <li><a href="../product/index.php">Products</a></li>
-                <li><a href="../discount/index.php" class="active">Discounts</a></li>
-                <li><a href="../payment/index.php">Orders</a></li>
-                <li><a href="../../user/page/logout.php">Logout</a></li>
-            </ul>
-        </nav>
-    </header>
-    
-    <div class="form-container">
-        <a href="index.php" class="back-button">← Back to Discounts</a>
         
-        <div class="form-card">
-            <h2 class="form-title">Edit Discount</h2>
-            
-            <?php if (isset($_err['general'])): ?>
-                <div class="general-error"><?= $_err['general'] ?></div>
-            <?php endif; ?>
-            
-            <div class="product-display">
-                <img src="../../user/product_pic/<?= encode($discount->product_pic1) ?>" class="product-image" alt="Product Image">
-                <div class="product-details">
-                    <div class="product-id"><?= encode($discount->product_id) ?></div>
-                    <div class="product-name"><?= encode($discount->product_name) ?></div>
-                    <div class="product-price">RM <?= number_format($discount->product_price, 2) ?></div>
+        <?php if (!empty($_err['general'])): ?>
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-circle mt-1"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="font-bold">Error</p>
+                        <p><?= $_err['general'] ?></p>
+                    </div>
                 </div>
             </div>
-            
-            <form action="" method="post">
-                <div class="form-group">
-                    <label for="discount_rate">Discount Rate (%):</label>
-                    <input type="number" id="discount_rate" name="discount_rate" min="1" max="100" step="0.01" 
-                           value="<?= post('discount_rate', $discount->discount_rate) ?>" required>
-                    <?php err('discount_rate'); ?>
+        <?php endif; ?>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Product Info Card -->
+            <div class="bg-white shadow-md rounded-lg overflow-hidden">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-700">Product Information</h2>
                 </div>
                 
-                <div class="form-group">
-                    <label for="start_date">Start Date:</label>
-                    <input type="date" id="start_date" name="start_date" 
-                           value="<?= post('start_date', $discount->start_date) ?>" required>
-                    <?php err('start_date'); ?>
-                </div>
-                
-                <div class="form-group">
-                    <label for="end_date">End Date:</label>
-                    <input type="date" id="end_date" name="end_date" 
-                           value="<?= post('end_date', $discount->end_date) ?>" required>
-                    <?php err('end_date'); ?>
-                </div>
-                
-                <div class="discount-preview">
-                    <h3 class="discount-preview-title">Discount Preview</h3>
-                    <div class="discount-preview-content">
-                        <div class="discount-preview-item">
-                            <div class="discount-preview-label">Original Price:</div>
-                            <div class="discount-preview-value original-price">RM <span id="original-price"><?= number_format($discount->product_price, 2) ?></span></div>
+                <div class="p-6">
+                    <div class="mb-6 flex justify-center">
+                        <img src="../../img/<?= encode($discount->product_pic1) ?>" alt="<?= encode($discount->product_name) ?>" 
+                             class="product-image w-full rounded-lg shadow-sm">
+                    </div>
+                    
+                    <h3 class="text-lg font-bold text-gray-800 mb-2"><?= encode($discount->product_name) ?></h3>
+                    <div class="text-sm text-gray-500 mb-4"><?= encode($discount->product_id) ?></div>
+                    
+                    <div class="bg-gray-50 rounded-md p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm text-gray-500">Regular Price:</span>
+                            <span class="font-bold text-gray-800">RM <?= number_format($discount->product_price, 2) ?></span>
                         </div>
                         
-                        <div class="discount-preview-item">
-                            <div class="discount-preview-label">Discounted Price:</div>
-                            <div class="discount-preview-value discounted-price">RM <span id="discounted-price">0.00</span></div>
+                        <div class="text-sm text-gray-500 mt-4">Discount ID:</div>
+                        <div class="font-mono text-sm bg-gray-100 p-2 rounded border border-gray-200 mt-1 break-all">
+                            <?= encode($discount->Discount_id) ?>
                         </div>
-                        
-                        <div class="discount-preview-item">
-                            <div class="discount-preview-label">Savings:</div>
-                            <div class="discount-preview-value">RM <span id="savings">0.00</span> (<span id="discount-rate-display">0</span>%)</div>
-                        </div>
-                        
-                        <div class="discount-preview-item">
-                            <div class="discount-preview-label">Status:</div>
-                            <div class="discount-preview-value"><span id="discount-status">-</span></div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <div class="text-sm font-medium text-gray-700 mb-2">Discount Timeline</div>
+                        <div class="timeline">
+                            <?php
+                            $today = date('Y-m-d');
+                            $creationDate = (new DateTime($discount->start_date))->modify('-1 day')->format('Y-m-d');
+                            $timelineClass = '';
+                            
+                            if ($discount->status === 'Active') {
+                                $timelineClass = 'active';
+                            } elseif ($discount->status === 'Expired') {
+                                $timelineClass = 'expired';
+                            }
+                            ?>
+                            
+                            <div class="timeline-item">
+                                <div class="text-sm font-medium">Created</div>
+                                <div class="text-xs text-gray-500"><?= date('d M Y', strtotime($creationDate)) ?></div>
+                            </div>
+                            
+                            <div class="timeline-item <?= $today >= $discount->start_date ? $timelineClass : '' ?>">
+                                <div class="text-sm font-medium">Starts</div>
+                                <div class="text-xs text-gray-500"><?= date('d M Y', strtotime($discount->start_date)) ?></div>
+                            </div>
+                            
+                            <div class="timeline-item <?= $today > $discount->end_date ? 'expired' : '' ?>">
+                                <div class="text-sm font-medium">Ends</div>
+                                <div class="text-xs text-gray-500"><?= date('d M Y', strtotime($discount->end_date)) ?></div>
+                            </div>
+                            
+                            <div class="flex items-center mt-4">
+                                <span class="text-sm mr-2">Current Status:</span>
+                                <?php
+                                $statusClass = '';
+                                if ($discount->status === 'Active') {
+                                    $statusClass = 'active';
+                                } elseif ($discount->status === 'Upcoming') {
+                                    $statusClass = 'upcoming';
+                                } elseif ($discount->status === 'Expired') {
+                                    $statusClass = 'expired';
+                                }
+                                ?>
+                                <span class="status-badge <?= $statusClass ?>">
+                                    <?= htmlspecialchars($discount->status) ?>
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-                <div class="form-actions">
-                    <a href="index.php" class="back-button">Cancel</a>
-                    <button type="submit" class="submit-button">Update Discount</button>
+            </div>
+            
+            <!-- Edit Form Card -->
+            <div class="bg-white shadow-md rounded-lg overflow-hidden lg:col-span-2">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-700">Edit Discount</h2>
+                    <p class="text-gray-500">Modify the discount details</p>
                 </div>
-            </form>
+                
+                <form method="post" class="p-6">
+                    <!-- Discount Details -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="discount_rate" class="block text-sm font-medium text-gray-700 mb-2">Discount Rate (%)</label>
+                            <input type="number" id="discount_rate" name="discount_rate" min="1" max="100" step="0.1" 
+                                   value="<?= post('discount_rate', $discount->discount_rate) ?>" 
+                                   class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <?php if (isset($_err['discount_rate'])): ?>
+                                <div class="text-sm text-red-600 mt-1"><?= $_err['discount_rate'] ?></div>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="start_date" class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                                <input type="date" id="start_date" name="start_date" 
+                                       value="<?= post('start_date', $discount->start_date) ?>" 
+                                       class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                <?php if (isset($_err['start_date'])): ?>
+                                    <div class="text-sm text-red-600 mt-1"><?= $_err['start_date'] ?></div>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <div>
+                                <label for="end_date" class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                                <input type="date" id="end_date" name="end_date" 
+                                       value="<?= post('end_date', $discount->end_date) ?>" 
+                                       class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                <?php if (isset($_err['end_date'])): ?>
+                                    <div class="text-sm text-red-600 mt-1"><?= $_err['end_date'] ?></div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Discount Preview -->
+                    <div class="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200 discount-preview" id="discountPreview">
+                        <h3 class="font-semibold text-lg text-gray-700 mb-4">Discount Preview</h3>
+                        <div id="previewContent">
+                            <!-- Preview content will be injected here by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-200">
+                        <a href="discount.php" class="px-6 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Cancel
+                        </a>
+                        <button type="submit" class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Update Discount
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-    
-    <!-- Simple footer -->
-    <footer>
-        <p>&copy; <?= date('Y') ?> K&P Fashion Admin Panel. All rights reserved.</p>
-    </footer>
-    
+
+    <?php require '../headFooter/footer.php'; ?>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const discountRateInput = document.getElementById('discount_rate');
             const startDateInput = document.getElementById('start_date');
             const endDateInput = document.getElementById('end_date');
-            const originalPrice = parseFloat("<?= $discount->product_price ?>");
+            const previewContent = document.getElementById('previewContent');
             
-            // Function to update the discount preview
-            function updateDiscountPreview() {
-                const discountRate = parseFloat(discountRateInput.value) || 0;
-                const startDate = new Date(startDateInput.value);
-                const endDate = new Date(endDateInput.value);
-                const today = new Date();
-                
-                // Calculate discounted price and savings
-                const discount = originalPrice * (discountRate / 100);
-                const discountedPrice = originalPrice - discount;
-                
-                document.getElementById('discount-rate-display').textContent = discountRate.toFixed(2);
-                document.getElementById('discounted-price').textContent = discountedPrice.toFixed(2);
-                document.getElementById('savings').textContent = discount.toFixed(2);
-                
-                // Determine status
-                let status = "-";
-                
-                if (isNaN(startDate) || isNaN(endDate)) {
-                    status = "Invalid dates";
-                } else if (today >= startDate && today <= endDate) {
-                    status = "<span style='color: #28a745;'>Active</span>";
-                } else if (today < startDate) {
-                    status = "<span style='color: #007bff;'>Upcoming</span>";
-                } else {
-                    status = "<span style='color: #dc3545;'>Expired</span>";
-                }
-                
-                document.getElementById('discount-status').innerHTML = status;
-            }
+            // Original product price from PHP
+            const productPrice = <?= json_encode($discount->product_price) ?>;
+            const productImage = "../../img/<?= encode($discount->product_pic1) ?>";
+            const productName = "<?= addslashes($discount->product_name) ?>";
+            const productId = "<?= addslashes($discount->product_id) ?>";
             
-            // Update preview when inputs change
-            discountRateInput.addEventListener('input', updateDiscountPreview);
+            // Start date change handler
             startDateInput.addEventListener('change', function() {
                 // End date must be after start date
-                if (startDateInput.value) {
-                    endDateInput.min = startDateInput.value;
-                    
-                    if (endDateInput.value && endDateInput.value < startDateInput.value) {
-                        endDateInput.value = startDateInput.value;
-                    }
+                if (this.value && endDateInput.value && endDateInput.value < this.value) {
+                    endDateInput.value = this.value;
                 }
                 
                 updateDiscountPreview();
             });
+            
+            // End date change handler
             endDateInput.addEventListener('change', updateDiscountPreview);
             
-            // Initialize preview on page load
+            // Discount rate change handler
+            discountRateInput.addEventListener('input', updateDiscountPreview);
+            
+            // Function to update discount preview
+            function updateDiscountPreview() {
+                const discountRate = parseFloat(discountRateInput.value) || 0;
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+                
+                // Calculate discounted price
+                const price = parseFloat(productPrice) || 0;
+                const discountAmount = price * (discountRate / 100);
+                const finalPrice = price - discountAmount;
+                
+                // Determine status based on dates
+                let statusText = '';
+                let statusClass = '';
+                const today = new Date().toISOString().split('T')[0];
+                
+                if (!startDate || !endDate) {
+                    statusText = 'Dates not set';
+                    statusClass = 'bg-gray-100 text-gray-600';
+                } else if (today >= startDate && today <= endDate) {
+                    statusText = 'Will be Active';
+                    statusClass = 'bg-green-100 text-green-800';
+                } else if (today < startDate) {
+                    statusText = 'Will be Upcoming';
+                    statusClass = 'bg-blue-100 text-blue-800';
+                } else {
+                    statusText = 'Will be Expired';
+                    statusClass = 'bg-red-100 text-red-800';
+                }
+                
+                // Format dates nicely
+                let formattedStartDate = startDate ? new Date(startDate).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not set';
+                let formattedEndDate = endDate ? new Date(endDate).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not set';
+                
+                // Create preview HTML
+                previewContent.innerHTML = `
+                    <div class="flex flex-col md:flex-row items-start gap-6">
+                        <div class="flex-1">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div class="text-sm text-gray-500">Original Price</div>
+                                    <div class="font-bold text-gray-700 line-through">RM ${price.toFixed(2)}</div>
+                                </div>
+                                
+                                <div>
+                                    <div class="text-sm text-gray-500">Discount Rate</div>
+                                    <div class="font-bold text-red-600">${discountRate.toFixed(1)}% OFF</div>
+                                </div>
+                                
+                                <div>
+                                    <div class="text-sm text-gray-500">Discounted Price</div>
+                                    <div class="font-bold text-green-600">RM ${finalPrice.toFixed(2)}</div>
+                                </div>
+                                
+                                <div>
+                                    <div class="text-sm text-gray-500">You Save</div>
+                                    <div class="font-bold text-indigo-600">RM ${discountAmount.toFixed(2)}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 pt-4 border-t border-gray-200">
+                                <div class="flex flex-col md:flex-row md:justify-between gap-2">
+                                    <div>
+                                        <span class="text-sm text-gray-500">New Validity:</span>
+                                        <span class="ml-2 text-sm font-medium">${formattedStartDate} to ${formattedEndDate}</span>
+                                    </div>
+                                    <div>
+                                        <span class="px-3 py-1 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Initial update of discount preview
             updateDiscountPreview();
         });
     </script>

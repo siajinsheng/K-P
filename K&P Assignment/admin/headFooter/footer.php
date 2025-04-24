@@ -1,111 +1,113 @@
 </div> <!-- End of Main Content Wrapper -->
-    
-    <footer class="bg-white border-t border-gray-200 mt-12">
-        <div class="container mx-auto px-4 py-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <!-- Logo and About -->
-                <div>
-                    <div class="flex items-center mb-4">
-                        <img src="../pic/logo.jpg" alt="K&P Fashion Logo" class="h-10 mr-3">
-                        <h3 class="text-lg font-bold text-gray-800">K&P Fashion</h3>
-                    </div>
-                    <p class="text-gray-600 text-sm mb-4">
-                        K&P Fashion offers trendy and high-quality clothing for all styles and occasions,
-                        providing excellent customer service and a seamless shopping experience.
-                    </p>
-                    <div class="flex space-x-4">
-                        <a href="#" class="text-gray-500 hover:text-indigo-600 transition-colors">
-                            <i class="fab fa-facebook-f"></i>
-                        </a>
-                        <a href="#" class="text-gray-500 hover:text-indigo-600 transition-colors">
-                            <i class="fab fa-instagram"></i>
-                        </a>
-                        <a href="#" class="text-gray-500 hover:text-indigo-600 transition-colors">
-                            <i class="fab fa-twitter"></i>
-                        </a>
-                        <a href="#" class="text-gray-500 hover:text-indigo-600 transition-colors">
-                            <i class="fab fa-linkedin-in"></i>
-                        </a>
-                    </div>
-                </div>
-                
-                <!-- Quick Links -->
-                <div>
-                    <h3 class="text-lg font-bold text-gray-800 mb-4">Quick Links</h3>
-                    <ul class="space-y-2">
-                        <li><a href="../home/home.php" class="text-gray-600 hover:text-indigo-600 text-sm">Dashboard</a></li>
-                        <li><a href="../product/product.php" class="text-gray-600 hover:text-indigo-600 text-sm">Products</a></li>
-                        <li><a href="../order/orders.php" class="text-gray-600 hover:text-indigo-600 text-sm">Orders</a></li>
-                        <li><a href="../product/reports.php" class="text-gray-600 hover:text-indigo-600 text-sm">Reports</a></li>
-                    </ul>
-                </div>
-                
-                <!-- Contact Info -->
-                <div>
-                    <h3 class="text-lg font-bold text-gray-800 mb-4">Contact Information</h3>
-                    <ul class="space-y-2">
-                        <li class="flex items-start">
-                            <i class="fas fa-map-marker-alt text-indigo-600 mt-1 mr-3"></i>
-                            <span class="text-gray-600 text-sm">123 Fashion Street, Kuala Lumpur, Malaysia</span>
-                        </li>
-                        <li class="flex items-center">
-                            <i class="fas fa-phone-alt text-indigo-600 mr-3"></i>
-                            <span class="text-gray-600 text-sm">+60 12-345-6789</span>
-                        </li>
-                        <li class="flex items-center">
-                            <i class="fas fa-envelope text-indigo-600 mr-3"></i>
-                            <span class="text-gray-600 text-sm">support@kpfashion.com</span>
-                        </li>
-                    </ul>
-                </div>
+
+<footer class="admin-footer">
+    <div class="footer-container">
+        <div class="footer-left">
+            <h3>Visit Our Store</h3>
+            <div class="map-container">
+                <iframe
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3983.786880529544!2d101.61542180000001!3d3.1508396000000043!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31cc4ed53[...]"
+                    width="100%"
+                    height="250"
+                    style="border:0;"
+                    allowfullscreen=""
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade">
+                </iframe>
             </div>
-            
-            <div class="border-t border-gray-200 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
-                <p class="text-gray-500 text-sm mb-4 md:mb-0">&copy; <?= date('Y') ?> K&P Fashion. All rights reserved.</p>
-                <div class="flex space-x-4">
-                    <a href="#" class="text-gray-500 hover:text-indigo-600 text-sm">Privacy Policy</a>
-                    <a href="#" class="text-gray-500 hover:text-indigo-600 text-sm">Terms of Service</a>
-                    <a href="#" class="text-gray-500 hover:text-indigo-600 text-sm">Help Center</a>
+            <div class="store-info">
+                <div class="store-detail">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <p>Jalan Genting Kelang, Setapak, 53300 Kuala Lumpur, Malaysia</p>
+                </div>
+                <div class="store-detail">
+                    <i class="fas fa-phone"></i>
+                    <p>+60 3-4145 0123</p>
+                </div>
+                <div class="store-detail">
+                    <i class="fas fa-clock"></i>
+                    <p>Mon-Sat: 10:00 AM - 9:00 PM</p>
                 </div>
             </div>
         </div>
-    </footer>
 
-    <script>
-    // Toggle dropdown menu
-    function toggleDropdown(event) {
-        event.stopPropagation();
-        document.querySelector('.profile-dropdown').classList.toggle('show');
-    }
+        <div class="footer-right">
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="../home/home.php">Dashboard</a></li>
+                        <li><a href="../product/product.php">Products</a></li>
+                        <li><a href="../category/category.php">Categories</a></li>
+                        <li><a href="../discount/discount.php">Discounts</a></li>
+                    </ul>
+                </div>
 
-    // Close dropdown when clicking outside
-    window.addEventListener('click', function() {
-        document.querySelector('.profile-dropdown').classList.remove('show');
-    });
-    
-    // Mobile menu functionality
-    document.getElementById('mobile-menu-button').addEventListener('click', function() {
-        document.getElementById('mobile-nav').classList.add('show');
-    });
-    
-    document.getElementById('close-mobile-menu').addEventListener('click', function() {
-        document.getElementById('mobile-nav').classList.remove('show');
-    });
-    
-    // Add scroll effect to header
-    window.addEventListener('scroll', function() {
-        const header = document.querySelector('.navbar');
-        if (window.scrollY > 10) {
-            header.classList.add('scrolled');
-        } else {
-            header.classList.remove('scrolled');
-        }
-    });
-    
-    // Initialize header state on page load
-    if (window.scrollY > 10) {
-        document.querySelector('.navbar').classList.add('scrolled');
-    }
-    </script>
+                <div class="footer-column">
+                    <h4>Management</h4>
+                    <ul>
+                        <li><a href="../order/orders.php">Orders</a></li>
+                        <li><a href="../payment/payment.php">Payments</a></li>
+                        <li><a href="../customer/customers.php">Customers</a></li>
+                        <?php if (isset($_SESSION['user']) && $_SESSION['user']->role === 'admin'): ?>
+                        <li><a href="../staff/staff.php">Staff</a></li>
+                        <?php endif; ?>
+                    </ul>
+                </div>
+
+                <div class="footer-column">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="../home/reports.php">Sales Reports</a></li>
+                        <li><a href="../help/documentation.php">Documentation</a></li>
+                        <li><a href="../help/system_guide.php">System Guide</a></li>
+                        <li><a href="../help/faq.php">FAQ</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-column">
+                    <h4>Account</h4>
+                    <ul>
+                        <li><a href="../profile/profile.php">My Profile</a></li>
+                        <li><a href="../profile/security.php">Security</a></li>
+                        <li><a href="../loginOut/logout.php">Log Out</a></li>
+                        <li>
+                            <div class="user-info">
+                                <span class="user-name"><?= htmlspecialchars($_SESSION['user']->user_name ?? 'Admin') ?></span>
+                                <span class="current-time"><?= date('Y-m-d H:i:s') ?></span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-social">
+                <h4>Follow K&P Fashion</h4>
+                <div class="social-icons">
+                    <a href="https://www.instagram.com/js_0419_"><i class="fab fa-instagram"></i></a>
+                    <a href="https://www.facebook.com/lee.jinkhai.7"><i class="fab fa-facebook"></i></a>
+                    <a href="https://twitter.com"><i class="fab fa-twitter"></i></a>
+                    <a href="https://youtube.com"><i class="fab fa-youtube"></i></a>
+                </div>
+            </div>
+
+            <div class="footer-newsletter">
+                <h4>Admin Notifications</h4>
+                <div class="newsletter-input">
+                    <input type="email" placeholder="Your work email" disabled>
+                    <button type="button" disabled><i class="fas fa-bell"></i></button>
+                </div>
+                <p class="notification-text">Admin notifications are managed in system settings</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-bottom">
+        <p>© <?= date('Y') ?> K&P Fashion Admin Portal. All rights reserved.</p>
+        <p>Current User: <?= htmlspecialchars($_SESSION['user']->user_name ?? 'Admin') ?> | Last Login: <?= date('Y-m-d H:i:s') ?></p>
+    </div>
+
+    <script src="/admin/headFooter/header.js"></script>
+</footer>
 </body>
 </html>

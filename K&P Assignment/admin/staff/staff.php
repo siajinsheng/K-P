@@ -6,7 +6,7 @@ require '../../_base.php';
 
 safe_session_start();
 $_SESSION['previous_url'] = $_SERVER['REQUEST_URI'];
-auth('admin', 'staff');
+auth('admin');
 
 // Generate MBXXX ID
 function generateMBId($db) {

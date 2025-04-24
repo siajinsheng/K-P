@@ -40,177 +40,114 @@ if (!file_exists($photoPath)) {
 
 // Determine active page
 $current_page = basename($_SERVER['PHP_SELF']);
+
+// Check if current user is staff and trying to access staff.php
+$isStaffPage = strpos($current_page, 'staff.php') !== false;
+if ($user->role === 'staff' && $isStaffPage) {
+    // Redirect staff away from staff management page
+    redirect('/admin/home/home.php');
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/admin/headFooter/header.css">
+    <link rel="stylesheet" href="/admin/headFooter/footer.css">
     <title>K&P Fashion | Admin Dashboard</title>
+    <script src="/admin/headFooter/header.js"></script>
 </head>
 <body>
-    <header class="navbar bg-white w-full py-3 px-4 fixed top-0 left-0 right-0 z-30">
-        <div class="container mx-auto">
-            <div class="flex justify-between items-center">
-                <!-- Logo -->
-                <div class="flex items-center">
-                    <a href="../home/home.php" class="flex items-center">
-                        <img src="../../img/K&P logo.png" alt="K&P Fashion Logo" class="h-12 mr-3">
-                        <span class="text-xl font-bold text-gray-800 hidden md:block">K&P Admin</span>
-                    </a>
-                </div>
-                
-                <!-- Mobile Menu Button -->
-                <button id="mobile-menu-button" class="md:hidden text-gray-700 focus:outline-none">
-                    <i class="fas fa-bars text-xl"></i>
-                </button>
-                
-                <!-- Desktop Navigation -->
-                <nav class="hidden md:flex items-center space-x-6">
-                    <a href="../home/home.php" class="nav-item <?= $current_page === '../home/home.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
-                        <i class="fas fa-home mr-1"></i> Home
-                    </a>
-                    <a href="../product/product.php" class="nav-item <?= $current_page === '../product/product.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
-                        <i class="fas fa-tshirt mr-1"></i> Products
-                    </a>
-                    <a href="../category/category.php" class="nav-item <?= $current_page === '../category/category.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
-                        <i class="fas fa-tshirt mr-1"></i> Category
-                    </a>
-                    <a href="../discount/discount.php" class="nav-item <?= $current_page === '../discount/discount.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
-                        <i class="fas fa-percentage mr-1"></i> Discounts
-                    </a>
-                    <a href="../order/orders.php" class="nav-item <?= $current_page === '../order/orders.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
-                        <i class="fas fa-shopping-cart mr-1"></i> Orders
-                    </a>
-                    <a href="../payment/payment.php" class="nav-item <?= $current_page === '../payment/payment.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
-                        <i class="fas fa-credit-card mr-1"></i> Payments
-                    </a>
-                    <a href="../customer/customers.php" class="nav-item <?= $current_page === '../customer/customers.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
-                        <i class="fas fa-users mr-1"></i> Customers
-                    </a>
-                    <a href="../staff/staff.php" class="nav-item <?= $current_page === '../staff/staff.php' ? 'active' : '' ?> text-gray-700 hover:text-indigo-600 font-medium">
-                        <i class="fas fa-user-tie mr-1"></i> Staff
-                    </a>
-                    
-                    <!-- User Profile Dropdown -->
-                    <div class="profile-dropdown ml-2">
-                        <a href="#" class="flex items-center" onclick="toggleDropdown(event)">
-                            <div class="profile-photo-container">
-                                <img src="/admin/pic/<?= htmlspecialchars($photo) ?>" alt="Profile" class="profile-photo">
+    <div class="navbar">
+        <div class="header-left">
+            <button class="toggle-btn" id="toggleBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="logo">
+                <a href="../home/home.php"><img src="../../img/K&P logo.png" alt="K&P Logo"></a>
+                <span class="logo-text">K&P Admin</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <ul>
+                <li><a href="../home/home.php" class="<?= $current_page === 'home.php' ? 'active' : '' ?>">Home</a></li>
+                <li><a href="../product/product.php" class="<?= $current_page === 'product.php' ? 'active' : '' ?>">Products</a></li>
+                <li><a href="../category/category.php" class="<?= $current_page === 'category.php' ? 'active' : '' ?>">Category</a></li>
+                <li><a href="../discount/discount.php" class="<?= $current_page === 'discount.php' ? 'active' : '' ?>">Discounts</a></li>
+                <li><a href="../order/orders.php" class="<?= $current_page === 'orders.php' ? 'active' : '' ?>">Orders</a></li>
+                <li><a href="../payment/payment.php" class="<?= $current_page === 'payment.php' ? 'active' : '' ?>">Payments</a></li>
+                <li><a href="../customer/customers.php" class="<?= $current_page === 'customers.php' ? 'active' : '' ?>">Customers</a></li>
+                <?php if ($user->role === 'admin'): ?>
+                <li><a href="../staff/staff.php" class="<?= $current_page === 'staff.php' ? 'active' : '' ?>">Staff</a></li>
+                <?php endif; ?>
+                <li class="user-profile-container">
+                    <div class="user-profile">
+                        <img src="../../img/<?= htmlspecialchars($photo) ?>" alt="<?= htmlspecialchars($user->user_name ?? 'Admin') ?>" class="profile-pic">
+                        <i class="fas fa-chevron-down"></i>
+                        <div class="profile-dropdown">
+                            <div class="profile-header">
+                                <img src="../../img/<?= htmlspecialchars($photo) ?>" alt="<?= htmlspecialchars($user->user_name ?? 'Admin') ?>">
+                                <div class="profile-info">
+                                    <span class="profile-name"><?= htmlspecialchars($user->user_name ?? 'Admin') ?></span>
+                                    <span class="profile-email"><?= htmlspecialchars($user->user_Email ?? '') ?></span>
+                                </div>
                             </div>
-                            <span class="ml-2 text-gray-700"><?= htmlspecialchars($user->user_name ?? 'Admin') ?></span>
-                            <i class="fas fa-chevron-down ml-1 text-gray-500 text-xs"></i>
-                        </a>
-                        <div class="dropdown-content mt-2">
-                            <div class="py-2 px-4 border-b border-gray-200">
-                                <p class="text-sm font-medium text-gray-900"><?= htmlspecialchars($user->user_name ?? 'Admin') ?></p>
-                                <p class="text-xs text-gray-500"><?= htmlspecialchars($user->user_Email ?? '') ?></p>
-                            </div>
-                            <a href="/admin/profile/profile.php" class="text-gray-700 hover:text-indigo-600">
-                                <i class="fas fa-user-cog mr-3 text-gray-400"></i> Profile Settings
-                            </a>
-                            <div class="border-t border-gray-200"></div>
-                            <a href="/admin/loginOut/logout.php" class="text-red-600 hover:bg-red-50">
-                                <i class="fas fa-sign-out-alt mr-3 text-red-400"></i> Logout
-                            </a>
+                            <ul>
+                                <li><a href="/admin/profile/profile.php"><i class="fas fa-user-cog"></i> Profile Settings</a></li>
+                                <li><a href="/admin/loginOut/logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                            </ul>
                         </div>
                     </div>
-                </nav>
-            </div>
-        </div>
-    </header>
-    
-    <!-- Mobile Menu -->
-    <div class="mobile-menu md:hidden" id="mobile-nav">
-        <div class="flex justify-between items-center mb-6">
-            <a href="../home/home.php" class="flex items-center">
-                <img src="../../img/K&P logo.png" alt="K&P Fashion Logo" class="h-10">
-                <span class="text-lg font-bold text-gray-800 ml-2">K&P Admin</span>
-            </a>
-            <button id="close-mobile-menu" class="text-gray-700 focus:outline-none">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        
-        <div class="flex flex-col space-y-4">
-            <a href="../home/home.php" class="py-2 px-4 rounded-lg <?= $current_page === '../home/home.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
-                <i class="fas fa-home mr-3"></i> Home
-            </a>
-            <a href="../product/product.php" class="py-2 px-4 rounded-lg <?= $current_page === '../product/product.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
-                <i class="fas fa-tshirt mr-3"></i> Products
-            </a>
-            <a href="../category/category.php" class="py-2 px-4 rounded-lg <?= $current_page === '../category/category.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
-                <i class="fas fa-tshirt mr-3"></i> Category
-            </a>
-            <a href="../discount/discount.php" class="py-2 px-4 rounded-lg <?= $current_page === '../discount/discount.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
-                <i class="fas fa-percentage mr-3"></i> Discounts
-            </a>
-            <a href="../order/orders.php" class="py-2 px-4 rounded-lg <?= $current_page === '../order/orders.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
-                <i class="fas fa-shopping-cart mr-3"></i> Orders
-            </a>
-            <a href="../payment/payment.php" class="py-2 px-4 rounded-lg <?= $current_page === '../payment/payment.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
-                <i class="fas fa-credit-card mr-3"></i> Payments
-            </a>
-            <a href="../customer/customers.php" class="py-2 px-4 rounded-lg <?= $current_page === '../customer/customers.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
-                <i class="fas fa-users mr-3"></i> Customers
-            </a>
-            <a href="../staff/staff.php" class="py-2 px-4 rounded-lg <?= $current_page === '../staff/staff.php' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' ?>">
-                <i class="fas fa-user-tie mr-3"></i> Staff
-            </a>
-            
-            <div class="border-t border-gray-200 my-2 pt-2">
-                <a href="/admin/profile/profile.php" class="py-2 px-4 rounded-lg text-gray-700">
-                    <i class="fas fa-user-cog mr-3"></i> Profile Settings
-                </a>
-                <a href="/admin/loginOut/logout.php" class="py-2 px-4 rounded-lg text-red-600 mt-2 block">
-                    <i class="fas fa-sign-out-alt mr-3"></i> Logout
-                </a>
-            </div>
+                </li>
+            </ul>
         </div>
     </div>
-    
-    <!-- Main Content Wrapper - adds padding for fixed header -->
-    <div class="pt-20">
+
+    <div class="sidebar" id="sidebar">
+        <ul>
+            <li><a href="../home/home.php" class="<?= $current_page === 'home.php' ? 'active' : '' ?>">
+                <i class="fas fa-home"></i> Home
+            </a></li>
+            <li><a href="../product/product.php" class="<?= $current_page === 'product.php' ? 'active' : '' ?>">
+                <i class="fas fa-tshirt"></i> Products
+            </a></li>
+            <li><a href="../category/category.php" class="<?= $current_page === 'category.php' ? 'active' : '' ?>">
+                <i class="fas fa-tag"></i> Category
+            </a></li>
+            <li><a href="../discount/discount.php" class="<?= $current_page === 'discount.php' ? 'active' : '' ?>">
+                <i class="fas fa-percentage"></i> Discounts
+            </a></li>
+            <li><a href="../order/orders.php" class="<?= $current_page === 'orders.php' ? 'active' : '' ?>">
+                <i class="fas fa-shopping-cart"></i> Orders
+            </a></li>
+            <li><a href="../payment/payment.php" class="<?= $current_page === 'payment.php' ? 'active' : '' ?>">
+                <i class="fas fa-credit-card"></i> Payments
+            </a></li>
+            <li><a href="../customer/customers.php" class="<?= $current_page === 'customers.php' ? 'active' : '' ?>">
+                <i class="fas fa-users"></i> Customers
+            </a></li>
+            <?php if ($user->role === 'admin'): ?>
+            <li><a href="../staff/staff.php" class="<?= $current_page === 'staff.php' ? 'active' : '' ?>">
+                <i class="fas fa-user-tie"></i> Staff
+            </a></li>
+            <?php endif; ?>
+            <li><a href="/admin/profile/profile.php">
+                <i class="fas fa-user-cog"></i> Profile Settings
+            </a></li>
+            <li><a href="/admin/loginOut/logout.php">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a></li>
+        </ul>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Main Content Wrapper -->
+    <div class="content-wrapper">
         <!-- Main content goes here -->
-
-<script>
-function toggleDropdown(event) {
-    event.preventDefault();
-    const dropdown = event.currentTarget.parentElement;
-    dropdown.classList.toggle('show');
-}
-
-// Close dropdown if clicked outside
-window.addEventListener('click', function(event) {
-    if (!event.target.closest('.profile-dropdown')) {
-        const dropdowns = document.querySelectorAll('.profile-dropdown');
-        dropdowns.forEach(dropdown => {
-            dropdown.classList.remove('show');
-        });
-    }
-});
-
-// Mobile menu toggle
-document.addEventListener('DOMContentLoaded', function() {
-    const mobileMenuButton = document.getElementById('mobile-menu-button');
-    const closeMenuButton = document.getElementById('close-mobile-menu');
-    const mobileNav = document.getElementById('mobile-nav');
-    
-    if(mobileMenuButton && mobileNav) {
-        mobileMenuButton.addEventListener('click', function() {
-            mobileNav.classList.toggle('active');
-        });
-    }
-    
-    if(closeMenuButton && mobileNav) {
-        closeMenuButton.addEventListener('click', function() {
-            mobileNav.classList.remove('active');
-        });
-    }
-});
-</script>
