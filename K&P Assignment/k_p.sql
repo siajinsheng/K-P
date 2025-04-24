@@ -439,18 +439,18 @@ INSERT INTO `tokens` (`id`, `user_id`, `token`, `type`, `expires_at`, `created_a
 -- Table structure for table `user`
 --
 
-CREATE TABLE `user` (
-  `user_id` varchar(255) NOT NULL,
-  `user_name` varchar(255) DEFAULT NULL,
-  `user_Email` varchar(255) NOT NULL,
-  `user_password` varchar(255) NOT NULL,
-  `user_gender` enum('Male','Female','Other') DEFAULT NULL,
-  `user_phone` varchar(20) DEFAULT NULL,
-  `user_profile_pic` varchar(255) DEFAULT NULL,
-  `user_update_time` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `status` enum('Active','Inactive','Banned') NOT NULL DEFAULT 'Active',
-  `role` varchar(10) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  CREATE TABLE `user` (
+    `user_id` varchar(255) NOT NULL,
+    `user_name` varchar(255) DEFAULT NULL,
+    `user_Email` varchar(255) NOT NULL,
+    `user_password` varchar(255) NOT NULL,
+    `user_gender` enum('Male','Female','Other') DEFAULT NULL,
+    `user_phone` varchar(20) DEFAULT NULL,
+    `user_profile_pic` varchar(255) DEFAULT NULL,
+    `user_update_time` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+    `status` enum('Active','Inactive','Banned') NOT NULL DEFAULT 'Active',
+    `role` varchar(10) NOT NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `user`

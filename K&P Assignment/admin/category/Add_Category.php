@@ -1,75 +1,64 @@
 <?php
-$_title = 'Add Category';
-require '../../_base.php';
-auth(0, 1);
+// Start output buffering at the very beginning
+ob_start();
 
-// Function to generate a new category ID
-function generateCategoryId() {
-    global $_db;
+$_title = 'Add New Category';
+require '../../_base.php';
+auth('admin', 'staff');
+require '../headFooter/header.php';
+
+// Function to generate new sequential category ID
+function generate_category_id($_db) {
+    // Get the highest existing category ID
+    $stmt = $_db->prepare("SELECT MAX(CAST(SUBSTRING(category_id, 4) AS UNSIGNED)) as max_id FROM category WHERE category_id LIKE 'CAT%'");
+    $stmt->execute();
+    $result = $stmt->fetch();
     
-    // Get the highest existing category_id
-    $stmt = $_db->query("SELECT category_id FROM category ORDER BY category_id DESC LIMIT 1");
-    $highestId = $stmt->fetchColumn();
+    $next_id = 1001; // Default starting ID
     
-    if (!$highestId) {
-        // If no categories exist yet, start with CAT001
-        return 'CAT001';
+    if ($result && $result->max_id) {
+        $next_id = (int)$result->max_id + 1;
     }
     
-    // Extract the numeric part and increment it
-    if (preg_match('/CAT(\d+)/', $highestId, $matches)) {
-        $nextNum = intval($matches[1]) + 1;
-        return 'CAT' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
-    } else {
-        // Fallback if the format is unexpected
-        return 'CAT001';
-    }
+    // Format the new category ID
+    return "CAT" . $next_id;
 }
 
-$errors = [];
-$success = false;
-$popup_message = '';
+// Generate preview ID for display
+$preview_category_id = generate_category_id($_db);
 
+// Process form submission
 if (is_post()) {
-    // Get the category name from the form
+    // Auto-generate category ID
+    $category_id = generate_category_id($_db);
     $category_name = post('category_name');
     
-    // Validate the category name
+    // Validation
+    $_err = [];
+    
     if (empty($category_name)) {
-        $errors[] = 'Category name is required';
-        $popup_message = 'Error: Category name is required';
-    } else {
-        // Check if the category name already exists
-        $check_stmt = $_db->prepare("SELECT COUNT(*) FROM category WHERE category_name = ?");
-        $check_stmt->execute([$category_name]);
-        if ($check_stmt->fetchColumn() > 0) {
-            $errors[] = 'Category with this name already exists';
-            $popup_message = 'Error: Category with this name already exists';
-        } else {
-            try {
-                // Generate a new category ID
-                $category_id = generateCategoryId();
-                
-                // Insert the new category
-                $stmt = $_db->prepare("INSERT INTO category (category_id, category_name) VALUES (?, ?)");
-                $result = $stmt->execute([$category_id, $category_name]);
-                
-                if ($result) {
-                    $success = true;
-                    $popup_message = "Success: Category '$category_name' has been successfully added with ID: $category_id";
-                    temp('info', "Category '$category_name' has been successfully added with ID: $category_id");
-                    // We'll use JavaScript to show popup before redirect
-                } else {
-                    $errors[] = 'Failed to add category';
-                    $popup_message = 'Error: Failed to add category';
-                }
-            } catch (PDOException $e) {
-                $errors[] = 'Database error: ' . $e->getMessage();
-                $popup_message = 'Error: Database error occurred';
-            }
+        $_err['category_name'] = 'Category Name is required';
+    } elseif (strlen($category_name) > 255) {
+        $_err['category_name'] = 'Category Name must be 255 characters or less';
+    }
+    
+    // If no errors, insert new category
+    if (empty($_err)) {
+        try {
+            $stm = $_db->prepare('INSERT INTO category (category_id, category_name) VALUES (?, ?)');
+            $stm->execute([$category_id, $category_name]);
+            
+            temp('success', 'Category added successfully with ID: ' . $category_id);
+            redirect('category.php');
+        } catch (PDOException $e) {
+            temp('error', 'Database error: ' . $e->getMessage());
         }
     }
 }
+
+// Fetch recent categories for display
+$stmt = $_db->query("SELECT * FROM category ORDER BY category_id DESC LIMIT 6");
+$recent_categories = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -78,166 +67,266 @@ if (is_post()) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $_title ?></title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="category.css" rel="stylesheet">
     <style>
-        .btn-black {
-            background-color: black;
-            color: white;
+        /* Additional custom styles */
+        .card-hover-effect {
             transition: all 0.3s ease;
         }
-
-        .btn-black:hover {
-            background-color: #333;
+        .card-hover-effect:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
-
-        input, select, textarea {
-            border-color: #000;
-            transition: all 0.3s ease;
+        .form-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
         }
-
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: #000;
-            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.3);
+        .category-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            margin: 0.25rem;
+            transition: all 0.2s ease;
         }
-        
-        /* Custom modal styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
+        .category-badge:hover {
+            transform: scale(1.05);
         }
-        
-        .modal-content {
-            background-color: white;
-            margin: 15% auto;
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 500px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            position: relative;
+        .pulse-animation {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
-        
-        .close-modal {
-            position: absolute;
-            right: 15px;
-            top: 10px;
-            font-size: 24px;
-            cursor: pointer;
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+        .preview-container {
+            background-image: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+            border: 1px dashed #cbd5e0;
         }
     </style>
 </head>
-<body class="bg-gray-100">
-    <!-- Modal for popup messages -->
-    <div id="messageModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <div id="modalIcon" class="text-center text-4xl mb-2"></div>
-            <h2 id="modalTitle" class="text-xl font-bold text-center mb-2"></h2>
-            <p id="modalMessage" class="text-center"></p>
-            <div class="text-center mt-4">
-                <button id="modalButton" class="btn-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded">
-                    OK
-                </button>
-            </div>
-        </div>
-    </div>
-
+<body class="bg-gray-50">
     <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold text-center mb-6">Add New Category</h1>
+        <!-- Header Section -->
+        <div class="flex items-center mb-8">
+            <a href="category.php" class="group mr-4 flex items-center text-indigo-600 hover:text-indigo-800 transition-colors">
+                <i class="fas fa-arrow-left mr-2 transform group-hover:-translate-x-1 transition-transform"></i>
+                <span>Back to Categories</span>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-800">Add New Category</h1>
+        </div>
         
-        <?php if (!empty($errors)): ?>
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                <strong class="font-bold">Error!</strong>
-                <ul class="list-disc pl-5">
-                    <?php foreach ($errors as $error): ?>
-                        <li><?= htmlspecialchars($error) ?></li>
-                    <?php endforeach; ?>
-                </ul>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Form Section -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover-effect">
+                    <!-- Form Header -->
+                    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6">
+                        <div class="flex items-center">
+                            <div class="rounded-full bg-white p-3 mr-4">
+                                <i class="fas fa-tag text-indigo-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-white text-xl font-bold">Create New Category</h2>
+                                <p class="text-indigo-100 text-sm">Add a new product category to organize your inventory</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Body -->
+                    <div class="p-8">
+                        <form method="post" class="space-y-8">
+                            <!-- Info Notice -->
+                            <div class="flex items-start p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                                <div class="flex-shrink-0 pt-0.5">
+                                    <i class="fas fa-info-circle text-blue-500 text-lg"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-blue-800">Automatic ID Generation</h3>
+                                    <p class="text-sm text-blue-700 mt-1">
+                                        A unique Category ID will be assigned automatically in the format: <strong><?= $preview_category_id ?></strong>
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- Category Preview -->
+                            <div class="preview-container p-6 rounded-lg">
+                                <h3 class="text-sm font-medium text-gray-700 mb-3">Preview:</h3>
+                                <div class="flex items-center p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+                                    <div class="flex-shrink-0 h-12 w-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                        <i class="fas fa-tags text-indigo-600"></i>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm text-gray-500">ID: <span class="font-mono text-gray-800"><?= $preview_category_id ?></span></div>
+                                        <div class="font-medium text-gray-800" id="previewName">
+                                            <?= $GLOBALS['category_name'] ?? 'New Category Name' ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Category Name Input -->
+                            <div class="space-y-2">
+                                <label for="category_name" class="block text-sm font-medium text-gray-700">
+                                    Category Name <span class="text-red-600">*</span>
+                                </label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i class="fas fa-pencil-alt text-gray-400"></i>
+                                    </div>
+                                    <input type="text" id="category_name" name="category_name" 
+                                           class="form-input block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none"
+                                           value="<?= $GLOBALS['category_name'] ?? '' ?>"
+                                           placeholder="e.g., Summer Collection"
+                                           oninput="document.getElementById('previewName').textContent = this.value || 'New Category Name'">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                                        <span class="text-gray-400 text-xs" id="charCount">0/255</span>
+                                    </div>
+                                </div>
+                                <?php if (isset($_err['category_name'])): ?>
+                                <p class="mt-1 text-sm text-red-600">
+                                    <i class="fas fa-exclamation-circle mr-1"></i> <?= $_err['category_name'] ?>
+                                </p>
+                                <?php else: ?>
+                                <p class="mt-1 text-xs text-gray-500">
+                                    Enter a descriptive name for the category (max 255 characters)
+                                </p>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <!-- Submit Button -->
+                            <div class="pt-4">
+                                <button type="submit" class="w-full flex justify-center items-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                                    <i class="fas fa-save mr-2"></i> Save Category
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
-        <?php endif; ?>
-        
-        <?php if ($success): ?>
-            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                <strong class="font-bold">Success!</strong>
-                <p>Category has been added successfully.</p>
-            </div>
-        <?php endif; ?>
-        
-        <div class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto">
-            <form action="Add_Category.php" method="post" class="space-y-4">
-                <div>
-                    <label for="category_name" class="block text-sm font-medium text-gray-700">Category Name</label>
-                    <input type="text" id="category_name" name="category_name" required
-                           class="mt-1 block w-full rounded-md border-gray-300 border-2 p-2 shadow-sm focus:border-black focus:ring focus:ring-black focus:ring-opacity-50">
-                    <p class="mt-1 text-sm text-gray-500">Category ID will be automatically generated</p>
+            
+            <!-- Sidebar Section -->
+            <div class="lg:col-span-1">
+                <!-- Recent Categories Card -->
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6 card-hover-effect">
+                    <div class="bg-gradient-to-r from-green-500 to-teal-500 p-4">
+                        <h3 class="text-white font-bold">Recent Categories</h3>
+                        <p class="text-green-100 text-xs">Recently added categories in the system</p>
+                    </div>
+                    <div class="p-4">
+                        <?php if (count($recent_categories) > 0): ?>
+                            <ul class="divide-y divide-gray-200">
+                                <?php foreach ($recent_categories as $category): ?>
+                                <li class="py-3 hover:bg-gray-50 px-2 rounded-lg transition-colors">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <p class="font-medium text-gray-800"><?= htmlspecialchars($category->category_name) ?></p>
+                                            <p class="text-xs text-gray-500"><?= htmlspecialchars($category->category_id) ?></p>
+                                        </div>
+                                        <a href="update_category.php?id=<?= $category->category_id ?>" class="text-indigo-600 hover:text-indigo-800">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else: ?>
+                            <div class="py-4 text-center text-gray-500">
+                                <i class="fas fa-folder-open text-gray-400 text-3xl mb-2"></i>
+                                <p>No categories found</p>
+                            </div>
+                        <?php endif; ?>
+                        <div class="mt-4 text-center">
+                            <a href="category.php" class="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                                View all categories <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="flex justify-between pt-4">
-                    <a href="product.php" class="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-4 rounded transition">
-                        Cancel
-                    </a>
-                    <button type="submit" class="btn-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded">
-                        Add Category
-                    </button>
+                <!-- Tips Card -->
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover-effect">
+                    <div class="bg-gradient-to-r from-yellow-400 to-orange-500 p-4">
+                        <h3 class="text-white font-bold">Tips & Guidelines</h3>
+                        <p class="text-yellow-100 text-xs">Best practices for category management</p>
+                    </div>
+                    <div class="p-6">
+                        <ul class="space-y-4">
+                            <li class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                </div>
+                                <p class="ml-2 text-sm text-gray-600">
+                                    Use clear and descriptive category names
+                                </p>
+                            </li>
+                            <li class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                </div>
+                                <p class="ml-2 text-sm text-gray-600">
+                                    Avoid creating duplicate categories
+                                </p>
+                            </li>
+                            <li class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                </div>
+                                <p class="ml-2 text-sm text-gray-600">
+                                    Category IDs are automatically generated
+                                </p>
+                            </li>
+                            <li class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                </div>
+                                <p class="ml-2 text-sm text-gray-600">
+                                    Categories with products cannot be deleted
+                                </p>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
-
+    
+    <?php require '../headFooter/footer.php'; ?>
+    
     <script>
-        // Modal functionality
-        const modal = document.getElementById('messageModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalMessage = document.getElementById('modalMessage');
-        const modalIcon = document.getElementById('modalIcon');
-        const modalButton = document.getElementById('modalButton');
-        const closeBtn = document.querySelector('.close-modal');
-        
-        // Close modal when clicking the X or the OK button
-        closeBtn.onclick = function() {
-            closeModal();
-        }
-        
-        modalButton.onclick = function() {
-            closeModal();
-        }
-        
-        // Close modal when clicking outside of it
-        window.onclick = function(event) {
-            if (event.target == modal) {
-                closeModal();
+        // Character counter for category name
+        document.getElementById('category_name').addEventListener('input', function() {
+            const count = this.value.length;
+            document.getElementById('charCount').textContent = count + '/255';
+            
+            // Change color based on length
+            if (count > 200) {
+                document.getElementById('charCount').className = 'text-orange-500 text-xs';
+            } else {
+                document.getElementById('charCount').className = 'text-gray-400 text-xs';
             }
-        }
-        
-        function closeModal() {
-            modal.style.display = "none";
-            <?php if ($success): ?>
-            // Redirect after showing success message
-            window.location.href = 'product.php';
-            <?php endif; ?>
-        }
-        
-        function showModal(isSuccess, message) {
-            modalTitle.textContent = isSuccess ? "Success" : "Error";
-            modalMessage.textContent = message;
-            modalIcon.innerHTML = isSuccess 
-                ? '<i class="fas fa-check-circle text-green-500"></i>' 
-                : '<i class="fas fa-exclamation-circle text-red-500"></i>';
-            modal.style.display = "block";
-        }
-        
-        <?php if (!empty($popup_message)): ?>
-        // Show modal with the message when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            showModal(<?= $success ? 'true' : 'false' ?>, <?= json_encode($popup_message) ?>);
         });
-        <?php endif; ?>
+        
+        // Trigger initial character count
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputElement = document.getElementById('category_name');
+            if (inputElement.value) {
+                const event = new Event('input');
+                inputElement.dispatchEvent(event);
+            }
+        });
     </script>
 </body>
 </html>
+<?php
+// Flush the output buffer and send output to browser
+ob_end_flush();
+?>

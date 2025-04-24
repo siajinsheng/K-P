@@ -1,12 +1,12 @@
 <?php
-include('header.php');
+include('../headFooter/header.php');
 
 $errors = [];
-$admin_id = $_SESSION['adminID'];
+$admin_id = $_SESSION['user_id'];
 
-$query = "SELECT * FROM admin WHERE admin_id = :admin_id";
+$query = "SELECT * FROM user WHERE user_id = :user_id";
 $stmt = $_db->prepare($query);
-$stmt->execute(['admin_id' => $admin_id]);
+$stmt->execute(['user_id' => $user_id]);
 $admin = $stmt->fetch(); 
 
 if (!$admin) {
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link type="text/css" rel="stylesheet" href="CSS/appAdmin.css" />
+    <link type="text/css" rel="stylesheet" href="../profile/appAdmin.css" />
     <title>Admin Profile</title>
     <style>
         body {

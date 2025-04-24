@@ -37,13 +37,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $product_price = req('product_price');
         $product_description = req('product_description');
         $product_status = req('product_status');
+        $product_type = req('product_type');
 
         $update_query = "UPDATE product SET 
                          product_name = ?,
                          category_id = ?, 
                          product_price = ?, 
                          product_description = ?, 
-                         product_status = ? 
+                         product_status = ?,
+                         product_type = ? 
                          WHERE product_id = ?";
 
         $stmt = $_db->prepare($update_query);
@@ -53,14 +55,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $product_price,
             $product_description,
             $product_status,
+            $product_type,
             $product_id
         ]);
 
-        // Handle image uploads
-        $image_fields = ['product_pic1', 'product_pic2', 'product_pic3', 'product_pic4', 'product_pic5', 'product_pic6'];
+        // Handle image uploads - limited to 3 images as per database schema
+        $image_fields = ['product_pic1', 'product_pic2', 'product_pic3'];
+
+        // First check if we're trying to remove product_pic1 without providing a replacement
+        if (isset($_POST['remove_product_pic1']) && $_POST['remove_product_pic1'] === '1' && empty($_FILES['product_pic1']['name'])) {
+            // Check if there's currently an image for product_pic1
+            $check_pic1_query = "SELECT product_pic1 FROM product WHERE product_id = ? AND product_pic1 IS NOT NULL";
+            $check_pic1_stmt = $_db->prepare($check_pic1_query);
+            $check_pic1_stmt->execute([$product_id]);
+            
+            // If trying to remove the main image without a replacement, throw an exception
+            if ($check_pic1_stmt->fetch()) {
+                throw new Exception("Main product image (Image 1) cannot be removed without a replacement");
+            }
+        }
 
         foreach ($image_fields as $field) {
-            if (!empty($_FILES[$field]['name'])) {
+            // Check if the image should be removed
+            if (isset($_POST['remove_' . $field]) && $_POST['remove_' . $field] === '1') {
+                // Can't remove product_pic1 without a replacement - this is checked above
+                if ($field === 'product_pic1' && empty($_FILES['product_pic1']['name'])) {
+                    continue; // Skip this iteration
+                }
+                
+                // Get the old filename before removing it
+                $old_filename_query = "SELECT $field FROM product WHERE product_id = ?";
+                $old_filename_stmt = $_db->prepare($old_filename_query);
+                $old_filename_stmt->execute([$product_id]);
+                $old_filename = $old_filename_stmt->fetchColumn();
+
+                // Update the database to remove the image reference
+                $update_image = "UPDATE product SET $field = NULL WHERE product_id = ?";
+                $stmt = $_db->prepare($update_image);
+                $stmt->execute([$product_id]);
+
+                // Delete the old image file if it exists
+                if (!empty($old_filename)) {
+                    $old_file_path = '../../img/' . $old_filename;
+                    if (file_exists($old_file_path)) {
+                        unlink($old_file_path);
+                    }
+                }
+            }
+            // Check if a new image is being uploaded
+            elseif (!empty($_FILES[$field]['name'])) {
                 // Generate a unique filename
                 $file_extension = pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION);
                 $new_filename = $product_id . '_' . $field . '_' . time() . '.' . $file_extension;
@@ -107,6 +150,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception("Failed to upload image $field");
                 }
             }
+        }
+
+        // One final check to make sure product_pic1 exists
+        $check_main_image_query = "SELECT product_pic1 FROM product WHERE product_id = ?";
+        $check_main_image_stmt = $_db->prepare($check_main_image_query);
+        $check_main_image_stmt->execute([$product_id]);
+        $main_image = $check_main_image_stmt->fetchColumn();
+
+        if (empty($main_image)) {
+            throw new Exception("Main product image (Image 1) is required");
         }
 
         // Update stock quantities
@@ -190,6 +243,10 @@ try {
 
 // NOW it's safe to include the header and output HTML
 require '../headFooter/header.php';
+
+// Check for success message
+$success_message = temp('success');
+$error_message = temp('error');
 ?>
 
 <!DOCTYPE html>
@@ -745,6 +802,26 @@ require '../headFooter/header.php';
             margin-bottom: 0.5rem;
         }
 
+        /* Success message styles */
+        .alert {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+            position: relative;
+        }
+
+        .alert-success {
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #059669;
+        }
+
+        .alert-error {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #DC2626;
+        }
+
         /* Mobile responsiveness improvements */
         @media (max-width: 640px) {
             .btn {
@@ -834,6 +911,26 @@ require '../headFooter/header.php';
             </div>
         </div>
 
+        <!-- Success Message -->
+        <?php if ($success_message): ?>
+        <div class="alert alert-success mb-4">
+            <div class="flex items-center">
+                <i class="fas fa-check-circle mr-2"></i>
+                <strong><?= $success_message ?></strong>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Error Message -->
+        <?php if ($error_message): ?>
+        <div class="alert alert-error mb-4">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                <strong><?= $error_message ?></strong>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- Header with Actions -->
         <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
@@ -902,6 +999,15 @@ require '../headFooter/header.php';
                             </div>
 
                             <div class="form-group">
+                                <label for="product_type" class="required-field">Product Type</label>
+                                <select id="product_type" name="product_type" required>
+                                    <option value="Unisex" <?= $product->product_type === 'Unisex' ? 'selected' : '' ?>>Unisex</option>
+                                    <option value="Man" <?= $product->product_type === 'Man' ? 'selected' : '' ?>>Man</option>
+                                    <option value="Women" <?= $product->product_type === 'Women' ? 'selected' : '' ?>>Women</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
                                 <label for="product_price" class="required-field">Price (RM)</label>
                                 <div class="relative">
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -941,14 +1047,15 @@ require '../headFooter/header.php';
                         <h2 class="text-xl font-semibold mb-4">Product Images</h2>
                         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                             <?php
-                            $image_fields = ['product_pic1', 'product_pic2', 'product_pic3', 'product_pic4', 'product_pic5', 'product_pic6'];
-                            $image_labels = ['Main Image', 'Image 2', 'Image 3', 'Image 4', 'Image 5', 'Image 6'];
+                            $image_fields = ['product_pic1', 'product_pic2', 'product_pic3'];
+                            $image_labels = ['Main Image (Required)', 'Image 2', 'Image 3'];
 
                             foreach ($image_fields as $index => $field):
                                 $image_url = !empty($product->$field) ? '../../img/' . $product->$field : '';
+                                $is_required = $field === 'product_pic1';
                             ?>
                                 <div class="form-group">
-                                    <label for="<?= $field ?>" class="<?= $index === 0 ? 'required-field' : '' ?>"><?= $image_labels[$index] ?></label>
+                                    <label for="<?= $field ?>" class="<?= $is_required ? 'required-field' : '' ?>"><?= $image_labels[$index] ?></label>
                                     <div class="drop-zone" id="dropZone_<?= $field ?>"
                                         ondragover="handleDragOver(event, '<?= $field ?>')"
                                         ondragleave="handleDragLeave(event, '<?= $field ?>')"
@@ -957,25 +1064,38 @@ require '../headFooter/header.php';
                                             <?php if (!empty($image_url)): ?>
                                                 <img src="<?= $image_url ?>" alt="<?= $image_labels[$index] ?>" id="preview_<?= $field ?>">
                                             <?php else: ?>
-                                                <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                                                <div class="flex flex-col items-center justify-center h-full text-gray-400" id="placeholder_<?= $field ?>">
                                                     <i class="fas fa-image text-4xl mb-2"></i>
-                                                    <span class="text-sm">Drag and drop or click to upload</span>
+                                                    <span class="text-sm"><?= $is_required ? 'Main image required' : 'Drag and drop or click to upload' ?></span>
                                                 </div>
                                             <?php endif; ?>
                                         </div>
                                         <input type="file" name="<?= $field ?>" id="<?= $field ?>" class="hidden" accept="image/jpeg,image/png,image/gif">
+                                        <!-- Hidden field to track if image should be removed -->
+                                        <input type="hidden" name="remove_<?= $field ?>" id="remove_<?= $field ?>" value="0">
                                         <div class="text-center">
                                             <button type="button" class="btn btn-outline mt-2" onclick="document.getElementById('<?= $field ?>').click()">
                                                 <i class="fas fa-upload mr-2"></i>Choose File
                                             </button>
                                             <?php if (!empty($image_url)): ?>
-                                                <button type="button" class="btn btn-danger mt-2 ml-2" onclick="clearImage('<?= $field ?>')">
+                                                <button type="button" class="btn btn-danger mt-2 ml-2 <?= $is_required ? 'main-img-remove-btn' : '' ?>" id="removeBtn_<?= $field ?>" 
+                                                    <?= $is_required ? 'data-field="' . $field . '"' : '' ?>
+                                                    onclick="removeImage('<?= $field ?>')">
+                                                    <i class="fas fa-trash-alt mr-2"></i>Remove
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="button" class="btn btn-danger mt-2 ml-2 hidden <?= $is_required ? 'main-img-remove-btn' : '' ?>" id="removeBtn_<?= $field ?>" 
+                                                    <?= $is_required ? 'data-field="' . $field . '"' : '' ?>
+                                                    onclick="removeImage('<?= $field ?>')">
                                                     <i class="fas fa-trash-alt mr-2"></i>Remove
                                                 </button>
                                             <?php endif; ?>
                                         </div>
                                         <div class="text-xs text-gray-500 mt-2">
                                             <p>Max file size: 5MB. Allowed formats: JPG, JPEG, PNG, GIF</p>
+                                            <?php if ($is_required): ?>
+                                            <p class="text-red-500 font-semibold mt-1">Main image is required</p>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>
@@ -1082,7 +1202,7 @@ require '../headFooter/header.php';
             <div class="help-content">
                 <div class="help-item">
                     <h3>Basic Information</h3>
-                    <p>Enter the product's name, category, price, and status. Make sure the product name is clear and descriptive.</p>
+                    <p>Enter the product's name, category, type, price, and status. Make sure the product name is clear and descriptive.</p>
                 </div>
                 <div class="help-item">
                     <h3>Product Images</h3>
@@ -1114,29 +1234,27 @@ require '../headFooter/header.php';
         </div>
     </div>
 
-    <!-- Image Cropper Modal -->
-    <div id="cropperModal" class="modal">
-        <div class="modal-content">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold">Crop Image</h2>
-                <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeCropperModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="cropper-container">
-                <img id="cropperImage" src="" alt="Image to crop">
-            </div>
-            <div class="flex justify-end gap-4 mt-4">
-                <button type="button" class="btn btn-outline" onclick="closeCropperModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" id="cropImageBtn">
-                    <i class="fas fa-crop-alt mr-2"></i>Crop & Save
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
     <script>
+        // Auto-hide success message after 5 seconds
+        const successAlert = document.querySelector('.alert-success');
+        if (successAlert) {
+            setTimeout(() => {
+                successAlert.style.transition = 'opacity 1s';
+                successAlert.style.opacity = '0';
+                setTimeout(() => successAlert.style.display = 'none', 1000);
+            }, 5000);
+        }
+
+        // Auto-hide error message after 8 seconds
+        const errorAlert = document.querySelector('.alert-error');
+        if (errorAlert) {
+            setTimeout(() => {
+                errorAlert.style.transition = 'opacity 1s';
+                errorAlert.style.opacity = '0';
+                setTimeout(() => errorAlert.style.display = 'none', 1000);
+            }, 8000);
+        }
+
         // Tabs functionality
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', function() {
@@ -1195,12 +1313,11 @@ require '../headFooter/header.php';
         }
 
         // Image preview functionality
-        const imageInputs = ['product_pic1', 'product_pic2', 'product_pic3', 'product_pic4', 'product_pic5', 'product_pic6'];
+        const imageInputs = ['product_pic1', 'product_pic2', 'product_pic3'];
 
         imageInputs.forEach(inputId => {
             const input = document.getElementById(inputId);
-            const preview = document.getElementById('preview_' + inputId);
-
+            
             input.addEventListener('change', function() {
                 if (input.files && input.files[0]) {
                     if (!validateImage(input.files[0], inputId)) {
@@ -1209,53 +1326,63 @@ require '../headFooter/header.php';
                     }
 
                     const reader = new FileReader();
+                    const previewContainer = document.querySelector(`#dropZone_${inputId} .img-preview`);
+                    const removeField = document.getElementById(`remove_${inputId}`);
+                    const removeBtn = document.getElementById(`removeBtn_${inputId}`);
 
                     reader.onload = function(e) {
-                        if (preview) {
-                            preview.src = e.target.result;
-                        } else {
-                            const img = document.createElement('img');
-                            img.src = e.target.result;
-                            img.id = 'preview_' + inputId;
-                            const previewContainer = document.querySelector('#dropZone_' + inputId + ' .img-preview');
-                            previewContainer.innerHTML = '';
-                            previewContainer.appendChild(img);
-                        }
+                        // Clear any previous image or placeholder
+                        previewContainer.innerHTML = '';
+                        
+                        // Create and append the new image
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.id = `preview_${inputId}`;
+                        previewContainer.appendChild(img);
+                        
+                        // Reset the remove flag and show remove button
+                        removeField.value = "0";
+                        removeBtn.classList.remove('hidden');
                     }
 
                     reader.readAsDataURL(input.files[0]);
                 }
-
-                const input = document.getElementById(inputId);
-                const dropZone = document.getElementById(`dropZone_${inputId}`);
-
-                // Prevent default drag behaviors
-                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                    dropZone.addEventListener(eventName, preventDefaults, false);
-                });
-
-                function preventDefaults(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
             });
         });
 
-        // Clear image
-        function clearImage(fieldId) {
+        // Remove image (sets hidden flag and clears preview)
+        function removeImage(fieldId) {
+            // Get references to elements
             const input = document.getElementById(fieldId);
-            const preview = document.getElementById('preview_' + fieldId);
-            const previewContainer = document.querySelector('#dropZone_' + fieldId + ' .img-preview');
-
-            input.value = '';
-            if (preview) {
-                previewContainer.innerHTML = `
-                    <div class="flex flex-col items-center justify-center h-full text-gray-400">
-                        <i class="fas fa-image text-4xl mb-2"></i>
-                        <span class="text-sm">No image</span>
-                    </div>
-                `;
+            const previewContainer = document.querySelector(`#dropZone_${fieldId} .img-preview`);
+            const removeField = document.getElementById(`remove_${fieldId}`);
+            const removeBtn = document.getElementById(`removeBtn_${fieldId}`);
+            
+            // Special handling for the main image (product_pic1)
+            if (fieldId === 'product_pic1') {
+                // Check if there is a new image selected to replace it
+                if (!input.files || !input.files[0]) {
+                    return; // Don't proceed with removal
+                }
             }
+            
+            // Clear file input value
+            input.value = '';
+            
+            // Set the remove flag to 1 (true) to tell the backend to remove the image
+            removeField.value = "1";
+            
+            // Clear the preview and add the placeholder
+            const isMainImage = fieldId === 'product_pic1';
+            previewContainer.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-gray-400" id="placeholder_${fieldId}">
+                    <i class="fas fa-image text-4xl mb-2"></i>
+                    <span class="text-sm">${isMainImage ? 'Main image required' : 'Drag and drop or click to upload'}</span>
+                </div>
+            `;
+            
+            // Hide the remove button since there's no longer an image to remove
+            removeBtn.classList.add('hidden');
         }
 
         // Copy to clipboard
@@ -1267,97 +1394,27 @@ require '../headFooter/header.php';
             });
         }
 
-        // Form submission
-        document.getElementById('updateProductForm').addEventListener('submit', function() {
+        // Form submission - validate main image presence
+        document.getElementById('updateProductForm').addEventListener('submit', function(event) {
+            const mainImageField = document.getElementById('product_pic1');
+            const mainImageRemove = document.getElementById('remove_product_pic1');
+            
+            // Check if main image would be removed without replacement
+            if (mainImageRemove.value === '1' && (!mainImageField.files || !mainImageField.files[0])) {
+                event.preventDefault();
+                alert('Main product image (Image 1) is required. Please upload an image before saving.');
+                
+                // Switch to the Images tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.querySelector('[data-tab="images"]').classList.add('active');
+                document.getElementById('images').classList.add('active');
+                
+                return false;
+            }
+            
             document.getElementById('submitSpinner').style.display = 'inline-block';
             document.getElementById('submitBtn').disabled = true;
-        });
-
-        // Image cropper functionality
-        let cropper;
-        let currentImageInput;
-
-        function openCropperModal(input) {
-            const modal = document.getElementById('cropperModal');
-            const cropperImage = document.getElementById('cropperImage');
-
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-
-                reader.onload = function(e) {
-                    cropperImage.src = e.target.result;
-                    currentImageInput = input.id;
-
-                    modal.style.display = 'block';
-
-                    if (cropper) {
-                        cropper.destroy();
-                    }
-
-                    cropper = new Cropper(cropperImage, {
-                        aspectRatio: 1,
-                        viewMode: 1,
-                        dragMode: 'move',
-                        autoCropArea: 0.8,
-                        restore: false,
-                        guides: true,
-                        center: true,
-                        highlight: false,
-                        cropBoxMovable: true,
-                        cropBoxResizable: true,
-                        toggleDragModeOnDblclick: false
-                    });
-                }
-
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        function closeCropperModal() {
-            document.getElementById('cropperModal').style.display = 'none';
-            if (cropper) {
-                cropper.destroy();
-            }
-        }
-
-        document.getElementById('cropImageBtn').addEventListener('click', function() {
-            if (cropper) {
-                const canvas = cropper.getCroppedCanvas({
-                    width: 1000,
-                    height: 1000
-                });
-
-                const preview = document.getElementById('preview_' + currentImageInput);
-                const previewContainer = document.querySelector('#dropZone_' + currentImageInput + ' .img-preview');
-
-                canvas.toBlob(function(blob) {
-                    const url = URL.createObjectURL(blob);
-
-                    if (preview) {
-                        preview.src = url;
-                    } else {
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.id = 'preview_' + currentImageInput;
-                        previewContainer.innerHTML = '';
-                        previewContainer.appendChild(img);
-                    }
-
-                    // Create a File object from the blob
-                    const file = new File([blob], 'cropped.jpg', {
-                        type: 'image/jpeg'
-                    });
-
-                    // Create a FileList-like object
-                    const dataTransfer = new DataTransfer();
-                    dataTransfer.items.add(file);
-
-                    // Set the file to the input
-                    document.getElementById(currentImageInput).files = dataTransfer.files;
-
-                    closeCropperModal();
-                });
-            }
         });
 
         // Drag and drop handlers
@@ -1386,30 +1443,18 @@ require '../headFooter/header.php';
             if (files.length > 0) {
                 const file = files[0];
                 if (validateImage(file, fieldId)) {
-                    input.files = files;
-                    updateImagePreview(file, fieldId);
+                    // Create a FileList-like object
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    
+                    // Set the file input's files property
+                    input.files = dataTransfer.files;
+                    
+                    // Trigger the change event manually
+                    const event = new Event('change', { bubbles: true });
+                    input.dispatchEvent(event);
                 }
             }
-        }
-
-        function updateImagePreview(file, fieldId) {
-            const reader = new FileReader();
-            const preview = document.getElementById(`preview_${fieldId}`);
-            const previewContainer = document.querySelector(`#dropZone_${fieldId} .img-preview`);
-
-            reader.onload = function(e) {
-                if (preview) {
-                    preview.src = e.target.result;
-                } else {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.id = `preview_${fieldId}`;
-                    previewContainer.innerHTML = '';
-                    previewContainer.appendChild(img);
-                }
-            };
-
-            reader.readAsDataURL(file);
         }
 
         function validateImage(file, fieldId) {
@@ -1434,6 +1479,21 @@ require '../headFooter/header.php';
 
             return true;
         }
+
+        // Special handling for main image remove buttons
+        document.querySelectorAll('.main-img-remove-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                const fieldId = this.getAttribute('data-field');
+                const input = document.getElementById(fieldId);
+                
+                // If it's the main image and no replacement is selected, show warning
+                if (fieldId === 'product_pic1' && (!input.files || !input.files[0])) {
+                    e.preventDefault();
+                    alert('Main product image cannot be removed without a replacement image. Please select a new image first.');
+                    return false;
+                }
+            });
+        });
     </script>
 </body>
 

@@ -1,4 +1,7 @@
 <?php
+// Start output buffering at the very beginning
+ob_start();
+
 $_title = 'Insert Product';
 require '../../_base.php';
 auth('admin', 'staff');
@@ -16,11 +19,19 @@ function generateProductId($db)
     $lastId = $lastIdQuery->fetch(PDO::FETCH_COLUMN);
 
     if ($lastId) {
-        $num = (int)substr($lastId, 2) + 1;
+        $num = (int)substr($lastId, 1) + 1;
         return 'P' . str_pad($num, 3, '0', STR_PAD_LEFT);
     } else {
         return 'P001';
     }
+}
+
+// Function to get the next available quantity_id
+function getNextQuantityId($db)
+{
+    $query = $db->query("SELECT MAX(quantity_id) FROM quantity");
+    $maxId = $query->fetch(PDO::FETCH_COLUMN);
+    return ($maxId) ? $maxId + 1 : 1;
 }
 
 // Function to check if product name already exists
@@ -156,14 +167,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'Available' // Default status
             ]);
 
+            // Get the next available quantity_id
+            $next_quantity_id = getNextQuantityId($_db);
+
             // Insert quantity for each size
             foreach ($sizes as $size) {
                 if ($size_quantities[$size] > 0) {
                     $quantity_stmt = $_db->prepare("INSERT INTO quantity (
-                        product_id, size, product_stock, product_sold
-                    ) VALUES (?, ?, ?, ?)");
+                        quantity_id, product_id, size, product_stock, product_sold
+                    ) VALUES (?, ?, ?, ?, ?)");
 
                     $quantity_stmt->execute([
+                        $next_quantity_id++,  // Auto-increment the quantity_id for each insertion
                         $product_id,
                         $size,
                         $size_quantities[$size],
@@ -887,3 +902,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </body>
 
 </html>
+<?php
+// Flush the output buffer at the end of the script
+ob_end_flush();
+?>
