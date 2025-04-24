@@ -88,9 +88,9 @@ if (is_post() && isset($_POST['login']) && !isset($account_locked)) {
                         $token_base = $user->user_id . $user->user_password . 'K&P_ADMIN_SECRET_KEY';
                         $remember_token = hash('sha256', $token_base);
                         
-                        // Store in cookies for 7 days (more secure for admin)
-                        setcookie('admin_user_id', $user->user_id, time() + (7 * 24 * 60 * 60), '/');
-                        setcookie('admin_remember_token', $remember_token, time() + (7 * 24 * 60 * 60), '/');
+                        // Store in cookies for 10s (more secure for admin)
+                        setcookie('admin_user_id', $user->user_id, time() + (10), '/');
+                        setcookie('admin_remember_token', $remember_token, time() + (10), '/');
                     }
 
                     // Update last login timestamp

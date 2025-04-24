@@ -92,33 +92,6 @@ try {
     $total_pages = 0;
 }
 
-// Handle category addition
-if (is_post() && isset($_POST['add_category'])) {
-    $category_id = post('category_id');
-    $category_name = post('category_name');
-    
-    // Simple validation
-    if (empty($category_id) || empty($category_name)) {
-        temp('error', 'Category ID and Name are required');
-    } else {
-        try {
-            // Check if category ID already exists
-            $stmt = $_db->prepare("SELECT COUNT(*) FROM category WHERE category_id = ?");
-            $stmt->execute([$category_id]);
-            if ($stmt->fetchColumn() > 0) {
-                temp('error', 'Category ID already exists');
-            } else {
-                $stmt = $_db->prepare("INSERT INTO category (category_id, category_name) VALUES (?, ?)");
-                $stmt->execute([$category_id, $category_name]);
-                temp('success', 'Category added successfully');
-            }
-        } catch (PDOException $e) {
-            temp('error', 'Error adding category: ' . $e->getMessage());
-        }
-    }
-    redirect('product.php');
-}
-
 // Handle product status update via AJAX
 if (is_post() && isset($_POST['update_status'])) {
     $product_id = post('product_id');
@@ -153,9 +126,9 @@ if (is_post() && isset($_POST['update_status'])) {
                 <a href="Insert_Product.php" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center">
                     <i class="fas fa-plus mr-2"></i> Add New Product
                 </a>
-                <button id="addCategoryBtn" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg flex items-center">
+                <a href="../category/Add_Category.php" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg flex items-center">
                     <i class="fas fa-folder-plus mr-2"></i> Add New Category
-                </button>
+                </a>
             </div>
         </div>
 
@@ -397,13 +370,13 @@ if (is_post() && isset($_POST['update_status'])) {
                             <ul class="pagination flex">
                                 <?php if ($page > 1): ?>
                                     <li class="page-item">
-                                        <a href="?page=1&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= $sort ?>&dir=<?= $dir ?>" 
+                                        <a href="?page=1&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= urlencode($sort) ?>&dir=<?= urlencode($dir) ?>" 
                                            class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1 rounded-l-md">
                                             <i class="fas fa-angle-double-left"></i>
                                         </a>
                                     </li>
                                     <li class="page-item">
-                                        <a href="?page=<?= $page - 1 ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= $sort ?>&dir=<?= $dir ?>" 
+                                        <a href="?page=<?= $page - 1 ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= urlencode($sort) ?>&dir=<?= urlencode($dir) ?>" 
                                            class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1">
                                             <i class="fas fa-angle-left"></i>
                                         </a>
@@ -419,7 +392,7 @@ if (is_post() && isset($_POST['update_status'])) {
                                 for ($i = $start_page; $i <= $end_page; $i++):
                                 ?>
                                     <li class="page-item <?= $i == $page ? 'active' : '' ?>">
-                                        <a href="?page=<?= $i ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= $sort ?>&dir=<?= $dir ?>" 
+                                        <a href="?page=<?= $i ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= urlencode($sort) ?>&dir=<?= urlencode($dir) ?>" 
                                            class="page-link <?= $i == $page ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-100' ?> border border-gray-300 px-3 py-1">
                                             <?= $i ?>
                                         </a>
@@ -428,13 +401,13 @@ if (is_post() && isset($_POST['update_status'])) {
                                 
                                 <?php if ($page < $total_pages): ?>
                                     <li class="page-item">
-                                        <a href="?page=<?= $page + 1 ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= $sort ?>&dir=<?= $dir ?>" 
+                                        <a href="?page=<?= $page + 1 ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= urlencode($sort) ?>&dir=<?= urlencode($dir) ?>" 
                                            class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1">
                                             <i class="fas fa-angle-right"></i>
                                         </a>
                                     </li>
                                     <li class="page-item">
-                                        <a href="?page=<?= $total_pages ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= $sort ?>&dir=<?= $dir ?>" 
+                                        <a href="?page=<?= $total_pages ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= urlencode($sort) ?>&dir=<?= urlencode($dir) ?>" 
                                            class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1 rounded-r-md">
                                             <i class="fas fa-angle-double-right"></i>
                                         </a>
@@ -448,44 +421,6 @@ if (is_post() && isset($_POST['update_status'])) {
         </div>
     </div>
 
-    <!-- Add Category Modal -->
-    <div id="categoryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-800">Add New Category</h3>
-                <button id="closeCategoryModal" class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <form method="post">
-                <div class="mb-4">
-                    <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Category ID</label>
-                    <input type="text" id="category_id" name="category_id" required 
-                           class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                           placeholder="Example: CAT1004">
-                    <p class="text-xs text-gray-500 mt-1">Enter a unique category ID (e.g., CAT1004)</p>
-                </div>
-                
-                <div class="mb-4">
-                    <label for="category_name" class="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
-                    <input type="text" id="category_name" name="category_name" required
-                           class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                           placeholder="Enter category name">
-                </div>
-                
-                <div class="flex justify-end">
-                    <button type="button" id="cancelCategoryBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded-lg mr-2">
-                        Cancel
-                    </button>
-                    <button type="submit" name="add_category" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg">
-                        Add Category
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
     <!-- Stock View Modal -->
     <div id="stockModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6">
@@ -658,24 +593,6 @@ if (is_post() && isset($_POST['update_status'])) {
             });
         });
         
-        // Add Category Modal
-        const categoryModal = document.getElementById('categoryModal');
-        const addCategoryBtn = document.getElementById('addCategoryBtn');
-        const closeCategoryModal = document.getElementById('closeCategoryModal');
-        const cancelCategoryBtn = document.getElementById('cancelCategoryBtn');
-        
-        addCategoryBtn.addEventListener('click', () => {
-            categoryModal.classList.remove('hidden');
-        });
-        
-        closeCategoryModal.addEventListener('click', () => {
-            categoryModal.classList.add('hidden');
-        });
-        
-        cancelCategoryBtn.addEventListener('click', () => {
-            categoryModal.classList.add('hidden');
-        });
-        
         // Stock modal
         const stockModal = document.getElementById('stockModal');
         const closeStockModal = document.getElementById('closeStockModal');
@@ -778,9 +695,6 @@ if (is_post() && isset($_POST['update_status'])) {
         
         // Close modals when clicking outside
         window.addEventListener('click', (event) => {
-            if (event.target === categoryModal) {
-                categoryModal.classList.add('hidden');
-            }
             if (event.target === stockModal) {
                 stockModal.classList.add('hidden');
             }
