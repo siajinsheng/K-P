@@ -5,9 +5,22 @@ ob_start();
 require_once '../../_base.php';
 safe_session_start();
 
-$current_user = json_decode($_SESSION['current_user'], true);
-$photo = isset($current_user['admin_profile_pic']) 
-    ? $current_user['admin_profile_pic'] 
+// Use either direct user object or decode from JSON
+if (isset($_SESSION['user'])) {
+    $user = $_SESSION['user'];
+    // Make sure current_user is also set for backward compatibility
+    if (!isset($_SESSION['current_user'])) {
+        $_SESSION['current_user'] = json_encode($user);
+    }
+} elseif (isset($_SESSION['current_user'])) {
+    $user = json_decode($_SESSION['current_user']);
+} else {
+    // No user is logged in
+    redirect('/admin/loginOut/login.php');
+}
+
+$photo = isset($user->admin_profile_pic) 
+    ? $user->admin_profile_pic 
     : 'default.png';
 
 $photoPath = $_SERVER['DOCUMENT_ROOT'] . '/admin/pic/' . $photo;

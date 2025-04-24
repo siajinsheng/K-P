@@ -107,6 +107,10 @@ function auth(...$roles)
 
     global $_db;
 
+    // Check if we're in admin section to determine correct login path
+    $is_admin = strpos($_SERVER['REQUEST_URI'], '/admin/') !== false;
+    $login_path = $is_admin ? '/admin/loginOut/login.php' : '/user/page/login.php';
+
     // Debug the session data
     error_log("Auth check - Session data: " . (isset($_SESSION['user']) ?
         "User: {$_SESSION['user']->user_name}, ID: {$_SESSION['user']->user_id}" :
@@ -116,7 +120,7 @@ function auth(...$roles)
     if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
         error_log("Auth failed - No user in session or missing user_id");
         temp('info', 'Please log in to access this page');
-        redirect('login.php');
+        redirect($login_path);
     }
 
     // Get the user object from session
@@ -131,17 +135,20 @@ function auth(...$roles)
         if (!$db_user) {
             error_log("Auth failed - User ID {$user->user_id} not found in database");
             temp('info', 'Your account could not be found');
-            logout('login.php');
+            logout($login_path);
         }
 
         if ($db_user->status !== "Active") {
             error_log("Auth failed - User ID {$user->user_id} has non-active status: {$db_user->status}");
             temp('info', 'Your account has been blocked or is inactive');
-            logout('login.php');
+            logout($login_path);
         }
 
         // Update session with latest user data
         $_SESSION['user'] = $db_user;
+        
+        // Also update current_user for backward compatibility
+        $_SESSION['current_user'] = json_encode($db_user);
 
         // If no specific roles are required (empty roles array), any authenticated user is allowed
         if (empty($roles)) {
@@ -161,13 +168,13 @@ function auth(...$roles)
         if (!$hasRequiredRole) {
             error_log("Auth failed - User ID {$user->user_id} role {$db_user->role} does not match required roles");
             temp('info', 'You do not have permission to access this page');
-            redirect('login.php');
+            redirect($login_path);
         }
     } catch (PDOException $e) {
         // Log the error
         error_log("Authentication error: " . $e->getMessage());
         temp('error', 'An authentication error occurred');
-        redirect('login.php');
+        redirect($login_path);
     }
 }
 
