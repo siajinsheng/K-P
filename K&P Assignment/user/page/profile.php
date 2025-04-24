@@ -218,17 +218,6 @@ if (is_post() && isset($_POST['update_profile'])) {
             </div>
         <?php endif; ?>
         
-        <?php if (!empty($error_messages)): ?>
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle"></i> Please correct the following errors:
-                <ul>
-                    <?php foreach ($error_messages as $msg): ?>
-                        <li><?= $msg ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-        <?php endif; ?>
-        
         <div class="profile-layout">
             <!-- Profile Sidebar with Navigation -->
             <div class="profile-sidebar">
