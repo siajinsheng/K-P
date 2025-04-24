@@ -15,7 +15,7 @@ if (!$admin) {
 
 // Update admin details
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $admin_name = $_POST['admin_name'];
+    $admin_name = $_POST['admin _name'];
     $admin_email = $_POST['admin_email'];
     $admin_contact = $_POST['admin_contact'];
     $new_password = $_POST['new_password'];
