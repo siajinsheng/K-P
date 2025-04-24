@@ -5,6 +5,10 @@ ob_start();
 require '../../_base.php';
 auth('admin', 'staff');
 
+// Debug: Log the request method and data
+error_log("Delete category request method: " . $_SERVER['REQUEST_METHOD']);
+error_log("POST data: " . print_r($_POST, true));
+
 if (!is_post()) {
     temp('error', 'Invalid request method');
     redirect('category.php');
@@ -17,8 +21,22 @@ if (empty($category_id)) {
     redirect('category.php');
 }
 
+// Log the category ID being deleted
+error_log("Attempting to delete category ID: " . $category_id);
+
 try {
-    // First check if the category has any products
+    // First check if the category exists
+    $check_exists = "SELECT COUNT(*) FROM category WHERE category_id = ?";
+    $exists_stmt = $_db->prepare($check_exists);
+    $exists_stmt->execute([$category_id]);
+    $category_exists = $exists_stmt->fetchColumn() > 0;
+    
+    if (!$category_exists) {
+        temp('error', 'Category not found');
+        redirect('category.php');
+    }
+    
+    // Then check if the category has any products
     $check_query = "SELECT COUNT(*) FROM product WHERE category_id = ?";
     $check_stmt = $_db->prepare($check_query);
     $check_stmt->execute([$category_id]);
@@ -34,13 +52,17 @@ try {
     $delete_stmt = $_db->prepare($delete_query);
     $delete_stmt->execute([$category_id]);
     
-    if ($delete_stmt->rowCount() > 0) {
+    $rows_affected = $delete_stmt->rowCount();
+    error_log("Rows affected by delete: " . $rows_affected);
+    
+    if ($rows_affected > 0) {
         temp('success', 'Category deleted successfully');
     } else {
-        temp('error', 'Category not found');
+        temp('error', 'Failed to delete category');
     }
     
 } catch (PDOException $e) {
+    error_log("Delete category error: " . $e->getMessage());
     temp('error', 'Database error: ' . $e->getMessage());
 }
 
