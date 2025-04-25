@@ -126,6 +126,35 @@ try {
     redirect('shopping-bag.php');
 }
 
+// Generate IDs for the order
+function getNextOrderID() {
+    global $_db;
+    
+    $stm = $_db->prepare("
+        SELECT MAX(SUBSTRING(order_id, 3)) as max_id 
+        FROM orders 
+        WHERE order_id LIKE 'OR%'
+    ");
+    $stm->execute();
+    $result = $stm->fetch();
+    
+    if ($result && !empty($result->max_id)) {
+        $next_id = intval($result->max_id) + 1;
+    } else {
+        $next_id = 1; // Start from 1 if no previous orders
+    }
+    
+    return 'OR' . str_pad($next_id, 3, '0', STR_PAD_LEFT);
+}
+
+function generatePaymentId() {
+    return 'PAY_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 8);
+}
+
+function generateDeliveryId() {
+    return 'DEL_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 8);
+}
+
 // Handle checkout form submission
 if (is_post() && isset($_POST['place_order'])) {
     $address_id = $_POST['address_id'] ?? '';
@@ -138,7 +167,7 @@ if (is_post() && isset($_POST['place_order'])) {
         $errors[] = 'Please select a delivery address';
     }
     
-    if (empty($payment_method) || !in_array($payment_method, ['Credit Card', 'PayPal', 'Bank Transfer', 'Cash on Delivery'])) {
+    if (empty($payment_method) || !in_array($payment_method, ['Credit Card', 'PayPal'])) {
         $errors[] = 'Please select a valid payment method';
     }
     
@@ -148,11 +177,12 @@ if (is_post() && isset($_POST['place_order'])) {
             // Begin transaction
             $_db->beginTransaction();
             
-            // 1. Generate order ID
-            $order_id = 'ORD_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 8);
+            // 1. Generate order ID and payment ID
+            $order_id = getNextOrderID(); // This will generate ORXXX format
+            $payment_id = generatePaymentId();
             
             // 2. Create delivery record
-            $delivery_id = 'DEL_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 8);
+            $delivery_id = generateDeliveryId();
             $estimated_delivery_date = date('Y-m-d', strtotime('+7 days')); // 7 days from now
             
             $stm = $_db->prepare("
@@ -192,15 +222,12 @@ if (is_post() && isset($_POST['place_order'])) {
                 $update_stock->execute([$item->quantity, $item->quantity, $item->product_id, $item->size]);
             }
             
-            // 5. Create payment record
-            $payment_id = 'PAY_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 8);
-            $payment_status = ($payment_method === 'Cash on Delivery') ? 'Pending' : 'Completed';
-            
+            // 5. Create payment record (with Pending status as we haven't processed payment yet)
             $stm = $_db->prepare("
                 INSERT INTO payment (payment_id, order_id, tax, total_amount, payment_method, payment_status, payment_date)
-                VALUES (?, ?, ?, ?, ?, ?, NOW())
+                VALUES (?, ?, ?, ?, ?, 'Pending', NOW())
             ");
-            $stm->execute([$payment_id, $order_id, $tax, $total, $payment_method, $payment_status]);
+            $stm->execute([$payment_id, $order_id, $tax, $total, $payment_method]);
             
             // 6. Clear user cart
             $stm = $_db->prepare("
@@ -212,8 +239,8 @@ if (is_post() && isset($_POST['place_order'])) {
             // Commit transaction
             $_db->commit();
             
-            // Redirect to order confirmation page
-            redirect('order_confirmation.php?order_id=' . $order_id);
+            // Redirect to payment page
+            redirect('payment.php?order_id=' . $order_id);
             
         } catch (PDOException $e) {
             // Rollback on error
@@ -321,7 +348,7 @@ $info_message = temp('info');
                             
                             <div class="add-address-btn">
                                 <a href="add_address.php?redirect=<?= urlencode($_SERVER['REQUEST_URI']) ?>">
-                                    <i class="fas fa-plus"></i> Add New Address
+                                    <i class="fas fa-plus"></i> Add new address
                                 </a>
                             </div>
                         </div>
@@ -335,11 +362,10 @@ $info_message = temp('info');
                         
                         <div class="payment-methods">
                             <div class="payment-option">
-                                <input type="radio" name="payment_method" id="payment_credit_card" value="Credit Card">
+                                <input type="radio" name="payment_method" id="payment_credit_card" value="Credit Card" checked>
                                 <label for="payment_credit_card">
                                     <div class="payment-icon">
                                         <i class="fab fa-cc-visa"></i>
-                                        <i class="fab fa-cc-mastercard"></i>
                                     </div>
                                     <div class="payment-info">
                                         <span class="payment-name">Credit Card</span>
@@ -360,39 +386,13 @@ $info_message = temp('info');
                                     </div>
                                 </label>
                             </div>
-                            
-                            <div class="payment-option">
-                                <input type="radio" name="payment_method" id="payment_bank_transfer" value="Bank Transfer">
-                                <label for="payment_bank_transfer">
-                                    <div class="payment-icon">
-                                        <i class="fas fa-university"></i>
-                                    </div>
-                                    <div class="payment-info">
-                                        <span class="payment-name">Bank Transfer</span>
-                                        <span class="payment-description">Pay directly from your bank account</span>
-                                    </div>
-                                </label>
-                            </div>
-                            
-                            <div class="payment-option">
-                                <input type="radio" name="payment_method" id="payment_cod" value="Cash on Delivery">
-                                <label for="payment_cod">
-                                    <div class="payment-icon">
-                                        <i class="fas fa-money-bill-wave"></i>
-                                    </div>
-                                    <div class="payment-info">
-                                        <span class="payment-name">Cash on Delivery</span>
-                                        <span class="payment-description">Pay when you receive your order</span>
-                                    </div>
-                                </label>
-                            </div>
                         </div>
                     </div>
                     
                     <!-- Order Review Section -->
                     <div class="checkout-section">
                         <div class="section-header">
-                            <h2><i class="fas fa-shopping-basket"></i> Order Review</h2>
+                            <h2><i class="fas fa-shopping-bag"></i> Your Items</h2>
                         </div>
                         
                         <div class="order-items">
@@ -430,7 +430,7 @@ $info_message = temp('info');
                     </div>
                     
                     <div class="summary-item">
-                        <span class="summary-label">Shipping Fee:</span>
+                        <span class="summary-label">Shipping:</span>
                         <span class="summary-value">
                             <?php if ($shipping_fee > 0): ?>
                                 RM <?= number_format($shipping_fee, 2) ?>
@@ -442,7 +442,7 @@ $info_message = temp('info');
                     
                     <?php if ($shipping_fee > 0): ?>
                         <div class="free-shipping-message">
-                            <i class="fas fa-truck"></i> Spend RM <?= number_format(100 - $subtotal, 2) ?> more for FREE shipping!
+                            <i class="fas fa-truck"></i> Spend RM <?= number_format(100 - $subtotal, 2) ?> more for FREE shipping
                         </div>
                     <?php endif; ?>
                     
@@ -459,25 +459,13 @@ $info_message = temp('info');
                     </div>
                     
                     <button type="submit" form="checkout-form" name="place_order" class="place-order-btn">
-                        <i class="fas fa-check"></i> Place Order
+                        PLACE ORDER
                     </button>
                     
                     <div class="checkout-actions">
                         <a href="shopping-bag.php" class="back-to-cart">
-                            <i class="fas fa-arrow-left"></i> Back to Shopping Bag
+                            <i class="fas fa-arrow-left"></i> Back to shopping bag
                         </a>
-                    </div>
-                    
-                    <div class="secure-checkout">
-                        <div class="secure-checkout-header">
-                            <i class="fas fa-lock"></i> Secure Checkout
-                        </div>
-                        <div class="payment-icons">
-                            <i class="fab fa-cc-visa"></i>
-                            <i class="fab fa-cc-mastercard"></i>
-                            <i class="fab fa-cc-paypal"></i>
-                            <i class="fab fa-cc-amex"></i>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -508,7 +496,11 @@ $info_message = temp('info');
                 return false;
             }
             
-            // Additional validation can be added here
+            // Show loading message
+            const submitBtn = document.querySelector('.place-order-btn');
+            submitBtn.textContent = 'PROCESSING...';
+            submitBtn.disabled = true;
+            
             return true;
         });
     });

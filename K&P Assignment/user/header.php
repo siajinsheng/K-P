@@ -59,7 +59,7 @@ $current_user = isset($_SESSION['user']) ? $_SESSION['user']->user_name : 'Guest
                         <?php
                             $user = $_SESSION['user'];
                             $profilePic = $user->user_profile_pic ?? 'default-profile.jpg';
-                            $profilePicPath = "/admin/Uploaded_profile/{$profilePic}";
+                            $profilePicPath = "/img/{$profilePic}";
                             $userName = $user->user_name ?? 'User';
                         ?>
                         <div class="user-profile">

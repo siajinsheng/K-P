@@ -1,4 +1,3 @@
-/* Profile CSS Styles */
 :root {
     --primary-color: #4a6fa5;
     --secondary-color: #3a5a85;
@@ -16,7 +15,6 @@
     --transition: all 0.3s ease;
 }
 
-/* General Page Styles */
 body {
     font-family: Arial, sans-serif;
     color: var(--text-color);
@@ -39,7 +37,6 @@ body {
     text-align: center;
 }
 
-/* Alerts */
 .alert {
     padding: 15px;
     margin-bottom: 20px;
@@ -76,7 +73,6 @@ body {
     padding-left: 15px;
 }
 
-/* Profile Layout */
 .profile-layout {
     display: flex;
     gap: 30px;
@@ -96,7 +92,6 @@ body {
     flex: 1;
 }
 
-/* Profile Sidebar */
 .profile-sidebar-header {
     padding: 25px;
     text-align: center;
