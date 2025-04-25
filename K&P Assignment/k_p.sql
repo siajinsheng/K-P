@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 24, 2025 at 07:26 AM
+-- Generation Time: Apr 25, 2025 at 02:42 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -61,7 +61,7 @@ INSERT INTO `address` (`address_id`, `user_id`, `address_name`, `recipient_name`
 ('AD008', 'MB247', 'Office', 'Hafiz Rahman', '60193745268', '77 Jalan Putra', 'Residensi Putrajaya', 'Putrajaya', 'Wilayah Persekutuan', '62100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
 ('AD009', 'MB247', 'Home', 'Nadia Izzati', '60182347651', '14 Jalan Bukit', 'Taman Kenari', 'Alor Setar', 'Kedah', '05050', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
 ('AD010', 'MB247', 'Office', 'Zulkifli Osman', '60173452689', '66 Jalan Pantai', 'Pantai Batu Ferringhi', 'George Town', 'Penang', '11100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
-('ADDR_20250423222846_105d5609', 'MB247', 'Home', 'js', '60182250100', 'A-02-13, Mizumi Metro kepong', '', 'kepong', 'Kuala Lumpur', '52100', 'Malaysia', 1, '2025-04-23 14:28:46', '2025-04-23 14:28:46');
+('AD011', 'MB247', 'Home', 'js', '60182250100', 'A-02-13, Mizumi Metro kepong', '', 'kepong', 'Kuala Lumpur', '52100', 'Malaysia', 1, '2025-04-23 14:28:46', '2025-04-25 12:32:46');
 
 -- --------------------------------------------------------
 
@@ -83,10 +83,11 @@ CREATE TABLE `cart` (
 --
 
 INSERT INTO `cart` (`cart_id`, `user_id`, `product_id`, `size`, `quantity`, `added_time`) VALUES
-('CART_20250403005216_b40bb903', 'MB825', 'P015', 'M', 1, '2025-04-02 16:52:16'),
-('CART_20250403005557_c1dacbf4', 'MB825', 'P013', 'M', 4, '2025-04-10 01:20:01'),
-('CART_20250403080228_0143bf4e', 'MB825', 'P020', 'M', 1, '2025-04-03 00:02:28'),
-('CART_20250403080229_015f33ca', 'MB825', 'P021', 'M', 2, '2025-04-10 01:20:05');
+('CART_20250425184622_7fe5c7c5', 'MB247', 'P020', 'M', 1, '2025-04-25 10:46:22'),
+('CART_20250425184623_7ff6b5da', 'MB247', 'P016', 'M', 1, '2025-04-25 10:46:23'),
+('CART_20250425184623_7ffe59db', 'MB247', 'P015', 'M', 1, '2025-04-25 10:46:23'),
+('CART_20250425184624_800594d1', 'MB247', 'P021', 'M', 1, '2025-04-25 10:46:24'),
+('CART_20250425184625_801753d7', 'MB247', 'P018', 'M', 1, '2025-04-25 10:46:25');
 
 -- --------------------------------------------------------
 
@@ -128,7 +129,6 @@ CREATE TABLE `delivery` (
 --
 
 INSERT INTO `delivery` (`delivery_id`, `address_id`, `delivery_fee`, `delivery_status`, `estimated_date`, `delivered_date`) VALUES
-('DEL_20250424112727_2c48b14e', 'ADDR_20250423222846_105d5609', 0, 'Processing', '2025-05-01', NULL),
 ('DV001', 'AD003', 40, 'Delivered', '2025-04-13', '2025-04-16'),
 ('DV002', 'AD009', 40, 'Delivered', '2025-03-23', '2025-03-26'),
 ('DV003', 'AD004', 40, 'Delivered', '2025-04-09', '2025-04-12'),
@@ -265,8 +265,7 @@ INSERT INTO `orders` (`order_id`, `user_id`, `delivery_id`, `order_date`, `order
 ('OR047', 'MB247', 'DV031', '2025-02-27 00:00:00', 'Processing', 246.06, 226.78),
 ('OR048', 'MB247', 'DV039', '2025-04-02 00:00:00', 'Cancelled', 286.21, 287.33),
 ('OR049', 'MB247', 'DV026', '2025-01-03 00:00:00', 'Delivered', 337.19, 349.46),
-('OR050', 'MB247', 'DV018', '2025-01-20 00:00:00', 'Processing', 215.76, 199.88),
-('ORD_20250424112727_7a3f52c1', 'MB247', 'DEL_20250424112727_2c48b14e', '2025-04-24 11:27:27', 'Pending', 569.10, 603.25);
+('OR050', 'MB247', 'DV018', '2025-01-20 00:00:00', 'Processing', 215.76, 199.88);
 
 -- --------------------------------------------------------
 
@@ -384,15 +383,7 @@ INSERT INTO `order_details` (`order_id`, `product_id`, `quantity`, `unit_price`)
 ('OR048', 'P008', 2, 49.90),
 ('OR049', 'P014', 2, 59.90),
 ('OR049', 'P016', 4, 39.90),
-('OR050', 'P005', 4, 79.90),
-('ORD_20250424112727_7a3f52c1', 'P021', 1, 79.90),
-('ORD_20250424112727_7a3f52c1', 'P013', 1, 39.90),
-('ORD_20250424112727_7a3f52c1', 'P022', 2, 79.90),
-('ORD_20250424112727_7a3f52c1', 'P016', 1, 39.90),
-('ORD_20250424112727_7a3f52c1', 'P021', 1, 79.90),
-('ORD_20250424112727_7a3f52c1', 'P015', 1, 49.90),
-('ORD_20250424112727_7a3f52c1', 'P020', 1, 79.90),
-('ORD_20250424112727_7a3f52c1', 'P013', 1, 39.90);
+('OR050', 'P005', 4, 79.90);
 
 -- --------------------------------------------------------
 
@@ -416,7 +407,6 @@ CREATE TABLE `payment` (
 --
 
 INSERT INTO `payment` (`payment_id`, `order_id`, `tax`, `total_amount`, `payment_method`, `payment_status`, `payment_date`, `discount`) VALUES
-('PAY_20250424112727_770f5a7b', 'ORD_20250424112727_7a3f52c1', 34.15, 603.25, 'PayPal', 'Completed', '2025-04-24 11:27:27', NULL),
 ('PM001', 'OR001', 20.63, 322.43, 'Bank Transfer', 'Failed', '2025-02-09 00:00:00', 42.06),
 ('PM002', 'OR002', 27.44, 455.01, 'Credit Card', 'Failed', '2025-04-03 00:00:00', 29.75),
 ('PM003', 'OR003', 7.98, 136.81, 'Credit Card', 'Refunded', '2025-01-04 00:00:00', 4.21),
@@ -467,6 +457,27 @@ INSERT INTO `payment` (`payment_id`, `order_id`, `tax`, `total_amount`, `payment
 ('PM048', 'OR048', 17.17, 287.33, 'Cash on Delivery', 'Refunded', '2025-04-05 00:00:00', 16.05),
 ('PM049', 'OR049', 20.23, 349.46, 'PayPal', 'Completed', '2025-01-05 00:00:00', 7.96),
 ('PM050', 'OR050', 12.95, 199.88, 'Bank Transfer', 'Failed', '2025-01-22 00:00:00', 28.83);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `payment_method`
+--
+
+CREATE TABLE `payment_method` (
+  `method_id` varchar(255) NOT NULL,
+  `user_id` varchar(255) NOT NULL,
+  `method_type` enum('Credit Card','PayPal') NOT NULL,
+  `card_type` varchar(50) DEFAULT NULL,
+  `last_four` varchar(4) DEFAULT NULL,
+  `cardholder_name` varchar(255) DEFAULT NULL,
+  `expiry_month` varchar(2) DEFAULT NULL,
+  `expiry_year` varchar(4) DEFAULT NULL,
+  `paypal_email` varchar(255) DEFAULT NULL,
+  `is_default` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -605,27 +616,27 @@ INSERT INTO `quantity` (`quantity_id`, `product_id`, `size`, `product_stock`, `p
 (59, 'P012', 'XL', 34, 15),
 (60, 'P012', 'XXL', 26, 9),
 (61, 'P013', 'S', 59, 11),
-(62, 'P013', 'M', 67, 7),
+(62, 'P013', 'M', 66, 8),
 (63, 'P013', 'L', 50, 21),
 (64, 'P013', 'XL', 43, 14),
 (65, 'P013', 'XXL', 31, 7),
 (66, 'P014', 'S', 45, 18),
-(67, 'P014', 'M', 57, 9),
+(67, 'P014', 'M', 56, 10),
 (68, 'P014', 'L', 63, 12),
 (69, 'P014', 'XL', 38, 16),
 (70, 'P014', 'XXL', 27, 11),
 (71, 'P015', 'S', 52, 15),
-(72, 'P015', 'M', 48, 23),
+(72, 'P015', 'M', 47, 24),
 (73, 'P015', 'L', 44, 17),
 (74, 'P015', 'XL', 36, 13),
 (75, 'P015', 'XXL', 28, 8),
 (76, 'P016', 'S', 61, 9),
-(77, 'P016', 'M', 54, 15),
+(77, 'P016', 'M', 53, 16),
 (78, 'P016', 'L', 47, 19),
 (79, 'P016', 'XL', 39, 12),
 (80, 'P016', 'XXL', 30, 7),
 (81, 'P017', 'S', 54, 16),
-(82, 'P017', 'M', 62, 8),
+(82, 'P017', 'M', 61, 9),
 (83, 'P017', 'L', 58, 11),
 (84, 'P017', 'XL', 42, 17),
 (85, 'P017', 'XXL', 33, 5),
@@ -635,22 +646,22 @@ INSERT INTO `quantity` (`quantity_id`, `product_id`, `size`, `product_stock`, `p
 (89, 'P018', 'XL', 45, 12),
 (90, 'P018', 'XXL', 29, 9),
 (91, 'P019', 'S', 57, 13),
-(92, 'P019', 'M', 63, 9),
+(92, 'P019', 'M', 62, 10),
 (93, 'P019', 'L', 48, 18),
 (94, 'P019', 'XL', 37, 15),
 (95, 'P019', 'XXL', 26, 11),
 (96, 'P020', 'S', 52, 17),
-(97, 'P020', 'M', 58, 12),
+(97, 'P020', 'M', 57, 13),
 (98, 'P020', 'L', 64, 8),
 (99, 'P020', 'XL', 41, 19),
 (100, 'P020', 'XXL', 34, 6),
 (101, 'P021', 'S', 46, 22),
-(102, 'P021', 'M', 57, 14),
+(102, 'P021', 'M', 55, 16),
 (103, 'P021', 'L', 50, 17),
 (104, 'P021', 'XL', 39, 14),
 (105, 'P021', 'XXL', 28, 9),
 (106, 'P022', 'S', 63, 7),
-(107, 'P022', 'M', 53, 17),
+(107, 'P022', 'M', 52, 18),
 (108, 'P022', 'L', 47, 20),
 (109, 'P022', 'XL', 36, 13),
 (110, 'P022', 'XXL', 29, 8),
@@ -685,7 +696,7 @@ INSERT INTO `quantity` (`quantity_id`, `product_id`, `size`, `product_stock`, `p
 (139, 'P028', 'XL', 39, 12),
 (140, 'P028', 'XXL', 27, 10),
 (141, 'P029', 'S', 55, 15),
-(142, 'P029', 'M', 63, 11),
+(142, 'P029', 'M', 62, 12),
 (143, 'P029', 'L', 57, 13),
 (144, 'P029', 'XL', 46, 14),
 (145, 'P029', 'XXL', 32, 8),
@@ -728,7 +739,8 @@ INSERT INTO `tokens` (`id`, `user_id`, `token`, `type`, `expires_at`, `created_a
 (7, 'MB247', 'c65ebc866921054406c0d4a04b42dfff33ac74935c8b401005210c70a5cead5c', 'password_reset', '2025-04-23 23:35:52', '2025-04-23 14:35:52'),
 (8, 'MB222', '81e5dc3ef3b1f302c3b6362218a66a811aa82fd6719c2bc096e4b99593bbacdf', 'email_verification', '2025-04-25 08:48:52', '2025-04-24 00:48:52'),
 (9, 'MB570', '745531269f215984e938ade2158f7cc7e9f25845a61574b04724504edf672ec9', 'email_verification', '2025-04-25 13:23:14', '2025-04-24 05:23:14'),
-(10, 'MB971', '5fabd6f68d0f30c8dedf2f851a6b2db02260bb0317ab465a61210b90f9d35f62', 'email_verification', '2025-04-25 13:25:11', '2025-04-24 05:25:11');
+(10, 'MB971', '5fabd6f68d0f30c8dedf2f851a6b2db02260bb0317ab465a61210b90f9d35f62', 'email_verification', '2025-04-25 13:25:11', '2025-04-24 05:25:11'),
+(11, 'MB542', '9ebcc3bf44fd1106526dd06762b71b25eb505c5d8d87c96e5dd0f494e9506051', 'email_verification', '2025-04-26 17:28:17', '2025-04-25 09:28:17');
 
 -- --------------------------------------------------------
 
@@ -755,9 +767,9 @@ CREATE TABLE `user` (
 
 INSERT INTO `user` (`user_id`, `user_name`, `user_Email`, `user_password`, `user_gender`, `user_phone`, `user_profile_pic`, `user_update_time`, `status`, `role`) VALUES
 ('MB222', 'kok heng', 'mbsboleh123@gmail.com', '$2y$10$JBqUpxk0cUk.lWCouSynMunVgu.k.0NYhXjbteJM6QTofbwBSs3NO', 'Male', '60161234567', '68098a7497630.jpg', '2025-04-24 05:23:58', 'Inactive', 'member'),
-('MB247', 'wei hong', 'siajinsheng@gmail.com', '$2y$10$fmeUYMCv.FsAx66IAmZo6eD7lRk/xE6tweRx68ieavj7cKEUfEcsO', 'Male', '60182259000', '6808ed336587a.jpg', '2025-04-24 05:22:11', 'Active', 'member'),
+('MB247', 'wei hong', 'siajinsheng@gmail.com', '$2y$10$fmeUYMCv.FsAx66IAmZo6eD7lRk/xE6tweRx68ieavj7cKEUfEcsO', 'Male', '60182259000', '66321976e3099.jpg', '2025-04-25 12:31:31', 'Active', 'member'),
+('MB542', 'js', 'js@gmail.com', '$2y$10$G/Lg5qlPMy7bOWivlX.PeeSh9Rhmz60T53KqIeQ68PGZIjqt4ErR6', 'Male', '60182259156', '680b55b1005d6.jpg', '2025-04-25 09:35:45', 'Active', 'member'),
 ('MB570', 'admin', '1@gmail.com', '$2y$10$.555jOgS0gL3pUeGQBzq0uaYFbl6psE7yrHvrzGt6eFhfK.xdLp5.', 'Male', '60123333333', '6809cac2c296e.jpg', '2025-04-24 05:24:15', 'Active', 'admin'),
-('MB825', 'js', 'js@gmail.com', '80ab77cc7cff350968b0ff75dfca79f776ae2389', 'Male', '60182259156', '67ed4c45ab7b2.jpg', '2025-04-24 02:30:34', 'Active', 'member'),
 ('MB971', 'staff', '2@gmail.com', '$2y$10$jJFfVoWsibiHcf44gVXHWOTPjkGdGOi/6/ltYA4Y6DdNS/a/1X.8.', 'Male', '60121234567', '6809cb3752977.jpg', '2025-04-24 05:25:34', 'Active', 'staff');
 
 -- --------------------------------------------------------
@@ -822,18 +834,18 @@ ALTER TABLE `orders`
   ADD KEY `user_id` (`user_id`);
 
 --
--- Indexes for table `order_details`
---
-ALTER TABLE `order_details`
-  ADD KEY `product_id` (`product_id`),
-  ADD KEY `order_id` (`order_id`);
-
---
 -- Indexes for table `payment`
 --
 ALTER TABLE `payment`
   ADD PRIMARY KEY (`payment_id`),
   ADD KEY `order_id` (`order_id`);
+
+--
+-- Indexes for table `payment_method`
+--
+ALTER TABLE `payment_method`
+  ADD PRIMARY KEY (`method_id`),
+  ADD KEY `user_id` (`user_id`);
 
 --
 -- Indexes for table `product`
@@ -878,7 +890,7 @@ ALTER TABLE `voucher`
 -- AUTO_INCREMENT for table `tokens`
 --
 ALTER TABLE `tokens`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- Constraints for dumped tables
@@ -917,17 +929,16 @@ ALTER TABLE `orders`
   ADD CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`);
 
 --
--- Constraints for table `order_details`
---
-ALTER TABLE `order_details`
-  ADD CONSTRAINT `order_details_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`),
-  ADD CONSTRAINT `order_details_ibfk_2` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`);
-
---
 -- Constraints for table `payment`
 --
 ALTER TABLE `payment`
   ADD CONSTRAINT `payment_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`);
+
+--
+-- Constraints for table `payment_method`
+--
+ALTER TABLE `payment_method`
+  ADD CONSTRAINT `payment_method_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `product`
