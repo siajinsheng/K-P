@@ -4,6 +4,10 @@ require_once '../../_base.php';
 // Start session and ensure user is logged in
 safe_session_start();
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // Check if user is authenticated
 if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
     temp('info', 'Please log in to proceed with checkout');
@@ -11,6 +15,7 @@ if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
 }
 
 $user_id = $_SESSION['user']->user_id;
+$current_timestamp = date('Y-m-d H:i:s'); // Current timestamp: 2025-04-25 14:22:54
 
 // Check if cart is empty
 try {
@@ -126,63 +131,80 @@ try {
     redirect('shopping-bag.php');
 }
 
-// Generate IDs for the order
-function getNextOrderID() {
-    global $_db;
-    
-    $stm = $_db->prepare("
-        SELECT MAX(SUBSTRING(order_id, 3)) as max_id 
-        FROM orders 
-        WHERE order_id LIKE 'OR%'
-    ");
-    $stm->execute();
-    $result = $stm->fetch();
-    
-    if ($result && !empty($result->max_id)) {
-        $next_id = intval($result->max_id) + 1;
-    } else {
-        $next_id = 1; // Start from 1 if no previous orders
-    }
-    
-    return 'OR' . str_pad($next_id, 3, '0', STR_PAD_LEFT);
-}
-
-function generatePaymentId() {
-    return 'PAY_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 8);
-}
-
-function generateDeliveryId() {
-    return 'DEL_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 8);
-}
-
 // Handle checkout form submission
 if (is_post() && isset($_POST['place_order'])) {
+    error_log("PLACE ORDER button clicked by user: " . $user_id . " at " . $current_timestamp);
+    
     $address_id = $_POST['address_id'] ?? '';
-    $payment_method = $_POST['payment_method'] ?? '';
     
     $errors = [];
     
     // Validate inputs
     if (empty($address_id)) {
         $errors[] = 'Please select a delivery address';
-    }
-    
-    if (empty($payment_method) || !in_array($payment_method, ['Credit Card', 'PayPal'])) {
-        $errors[] = 'Please select a valid payment method';
+        error_log("Validation error: No address selected");
     }
     
     // If validation passes, process order
     if (empty($errors)) {
         try {
+            error_log("Beginning transaction to create order");
+            
             // Begin transaction
             $_db->beginTransaction();
             
-            // 1. Generate order ID and payment ID
-            $order_id = getNextOrderID(); // This will generate ORXXX format
-            $payment_id = generatePaymentId();
+            // 1. Generate order ID - ORXXX format
+            $stm = $_db->prepare("
+                SELECT MAX(SUBSTRING(order_id, 3)) as max_id 
+                FROM orders 
+                WHERE order_id LIKE 'OR%'
+            ");
+            $stm->execute();
+            $result = $stm->fetch();
             
-            // 2. Create delivery record
-            $delivery_id = generateDeliveryId();
+            if ($result && !empty($result->max_id)) {
+                $next_order_id = intval($result->max_id) + 1;
+            } else {
+                $next_order_id = 1; // Start from 1 if no previous orders
+            }
+            $order_id = 'OR' . str_pad($next_order_id, 3, '0', STR_PAD_LEFT);
+            error_log("Generated Order ID: " . $order_id);
+            
+            // 2. Generate payment ID - PMXXX format
+            $stm = $_db->prepare("
+                SELECT MAX(SUBSTRING(payment_id, 3)) as max_id 
+                FROM payment 
+                WHERE payment_id LIKE 'PM%'
+            ");
+            $stm->execute();
+            $result = $stm->fetch();
+            
+            if ($result && !empty($result->max_id)) {
+                $next_payment_id = intval($result->max_id) + 1;
+            } else {
+                $next_payment_id = 1; // Start from 1 if no previous payments
+            }
+            $payment_id = 'PM' . str_pad($next_payment_id, 3, '0', STR_PAD_LEFT);
+            error_log("Generated Payment ID: " . $payment_id);
+            
+            // 3. Generate delivery ID - DVXXX format
+            $stm = $_db->prepare("
+                SELECT MAX(SUBSTRING(delivery_id, 3)) as max_id 
+                FROM delivery 
+                WHERE delivery_id LIKE 'DV%'
+            ");
+            $stm->execute();
+            $result = $stm->fetch();
+            
+            if ($result && !empty($result->max_id)) {
+                $next_delivery_id = intval($result->max_id) + 1;
+            } else {
+                $next_delivery_id = 1; // Start from 1 if no previous deliveries
+            }
+            $delivery_id = 'DV' . str_pad($next_delivery_id, 3, '0', STR_PAD_LEFT);
+            error_log("Generated Delivery ID: " . $delivery_id);
+            
+            // 4. Create delivery record
             $estimated_delivery_date = date('Y-m-d', strtotime('+7 days')); // 7 days from now
             
             $stm = $_db->prepare("
@@ -190,15 +212,17 @@ if (is_post() && isset($_POST['place_order'])) {
                 VALUES (?, ?, ?, 'Processing', ?)
             ");
             $stm->execute([$delivery_id, $address_id, $shipping_fee, $estimated_delivery_date]);
+            error_log("Created delivery record");
             
-            // 3. Create order record
+            // 5. Create order record
             $stm = $_db->prepare("
                 INSERT INTO orders (order_id, user_id, delivery_id, order_date, orders_status, order_subtotal, order_total)
                 VALUES (?, ?, ?, NOW(), 'Pending', ?, ?)
             ");
             $stm->execute([$order_id, $user_id, $delivery_id, $subtotal, $total]);
+            error_log("Created order record");
             
-            // 4. Insert order details
+            // 6. Insert order details
             $stm = $_db->prepare("
                 INSERT INTO order_details (order_id, product_id, quantity, unit_price)
                 VALUES (?, ?, ?, ?)
@@ -221,26 +245,37 @@ if (is_post() && isset($_POST['place_order'])) {
                 ");
                 $update_stock->execute([$item->quantity, $item->quantity, $item->product_id, $item->size]);
             }
+            error_log("Created order details and updated stock");
             
-            // 5. Create payment record (with Pending status as we haven't processed payment yet)
+            // 7. Create payment record with placeholder payment method
+            // We'll set 'Pending' as payment status and let the user choose payment method on the next page
             $stm = $_db->prepare("
                 INSERT INTO payment (payment_id, order_id, tax, total_amount, payment_method, payment_status, payment_date)
-                VALUES (?, ?, ?, ?, ?, 'Pending', NOW())
+                VALUES (?, ?, ?, ?, 'Pending', 'Pending', NOW())
             ");
-            $stm->execute([$payment_id, $order_id, $tax, $total, $payment_method]);
+            $stm->execute([$payment_id, $order_id, $tax, $total]);
+            error_log("Created payment record with placeholder payment method");
             
-            // 6. Clear user cart
+            // 8. Clear user cart
             $stm = $_db->prepare("
                 DELETE FROM cart 
                 WHERE user_id = ?
             ");
             $stm->execute([$user_id]);
+            error_log("Cleared user's cart");
             
             // Commit transaction
             $_db->commit();
+            error_log("Transaction committed successfully");
             
-            // Redirect to payment page
-            redirect('payment.php?order_id=' . $order_id);
+            // 9. Redirect to payment page
+            error_log("Redirecting to payment.php?order_id=" . $order_id);
+            
+            // Force immediate redirect with JavaScript
+            echo "<script>window.location.href = 'payment.php?order_id=" . $order_id . "';</script>";
+            // Also set a header redirect as a fallback
+            header("Location: payment.php?order_id=" . $order_id);
+            exit();
             
         } catch (PDOException $e) {
             // Rollback on error
@@ -354,41 +389,6 @@ $info_message = temp('info');
                         </div>
                     </div>
                     
-                    <!-- Payment Method Section -->
-                    <div class="checkout-section">
-                        <div class="section-header">
-                            <h2><i class="fas fa-credit-card"></i> Payment Method</h2>
-                        </div>
-                        
-                        <div class="payment-methods">
-                            <div class="payment-option">
-                                <input type="radio" name="payment_method" id="payment_credit_card" value="Credit Card" checked>
-                                <label for="payment_credit_card">
-                                    <div class="payment-icon">
-                                        <i class="fab fa-cc-visa"></i>
-                                    </div>
-                                    <div class="payment-info">
-                                        <span class="payment-name">Credit Card</span>
-                                        <span class="payment-description">Pay with Visa, Mastercard, or American Express</span>
-                                    </div>
-                                </label>
-                            </div>
-                            
-                            <div class="payment-option">
-                                <input type="radio" name="payment_method" id="payment_paypal" value="PayPal">
-                                <label for="payment_paypal">
-                                    <div class="payment-icon">
-                                        <i class="fab fa-paypal"></i>
-                                    </div>
-                                    <div class="payment-info">
-                                        <span class="payment-name">PayPal</span>
-                                        <span class="payment-description">Pay with your PayPal account</span>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <!-- Order Review Section -->
                     <div class="checkout-section">
                         <div class="section-header">
@@ -458,8 +458,8 @@ $info_message = temp('info');
                         <span class="total-value">RM <?= number_format($total, 2) ?></span>
                     </div>
                     
-                    <button type="submit" form="checkout-form" name="place_order" class="place-order-btn">
-                        PLACE ORDER
+                    <button type="submit" form="checkout-form" name="place_order" id="place-order-btn" class="place-order-btn">
+                        PROCEED TO PAYMENT
                     </button>
                     
                     <div class="checkout-actions">
@@ -478,6 +478,7 @@ $info_message = temp('info');
     document.addEventListener('DOMContentLoaded', function() {
         // Form validation before submission
         const checkoutForm = document.getElementById('checkout-form');
+        const placeOrderBtn = document.getElementById('place-order-btn');
         
         checkoutForm.addEventListener('submit', function(e) {
             // Check if address is selected
@@ -488,18 +489,16 @@ $info_message = temp('info');
                 return false;
             }
             
-            // Check if payment method is selected
-            const paymentSelected = document.querySelector('input[name="payment_method"]:checked');
-            if (!paymentSelected) {
+            // Show loading message
+            placeOrderBtn.textContent = 'PROCESSING...';
+            placeOrderBtn.disabled = true;
+            
+            // Additional check to prevent double submission
+            if (this.submitted) {
                 e.preventDefault();
-                alert('Please select a payment method');
                 return false;
             }
-            
-            // Show loading message
-            const submitBtn = document.querySelector('.place-order-btn');
-            submitBtn.textContent = 'PROCESSING...';
-            submitBtn.disabled = true;
+            this.submitted = true;
             
             return true;
         });
