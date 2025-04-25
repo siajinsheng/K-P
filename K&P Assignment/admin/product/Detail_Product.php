@@ -295,7 +295,7 @@ if ($discount) {
         <!-- Breadcrumb -->
         <div class="breadcrumb">
             <div class="breadcrumb-item">
-                <a href="home.php"><i class="fas fa-home mr-1"></i>Home</a>
+                <a href="../home/home.php"><i class="fas fa-home mr-1"></i>Home</a>
             </div>
             <div class="breadcrumb-item">
                 <a href="product.php">Products</a>
@@ -543,7 +543,7 @@ if ($discount) {
 
             <div class="flex space-x-3">
                 <?php if ($product->product_status != 'Discontinued'): ?>
-                    <a href="add_discount.php?id=<?= $product->product_id ?>" class="bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded flex items-center">
+                    <a href="../discount/add.php?id=<?= $product->product_id ?>" class="bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded flex items-center">
                         <i class="fas fa-percent mr-2"></i> Add Discount
                     </a>
                 <?php endif; ?>
