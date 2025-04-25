@@ -60,7 +60,7 @@ if ($user->role === 'staff' && $isStaffPage) {
     <link rel="stylesheet" href="/admin/headFooter/header.css">
     <link rel="stylesheet" href="/admin/headFooter/footer.css">
     <title>K&P Fashion | Admin Dashboard</title>
-    <script src="/admin/headFooter/header.js"></script>
+    <script src="header.js"></script>
 </head>
 <body>
     <div class="navbar">

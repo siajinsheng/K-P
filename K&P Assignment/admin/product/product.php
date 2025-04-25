@@ -10,6 +10,8 @@ $limit = get('limit', 10);
 $search = get('search', '');
 $filter_category = get('category', '');
 $filter_status = get('status', '');
+$min_price = get('min_price', '');
+$max_price = get('max_price', '');
 $sort = get('sort', 'product_id');
 $dir = get('dir', 'asc');
 $offset = ($page - 1) * $limit;
@@ -20,39 +22,51 @@ try {
     $stmt = $_db->prepare("SELECT COUNT(*) FROM product");
     $stmt->execute();
     $total_products = $stmt->fetchColumn();
-    
+
     // Available products
     $stmt = $_db->prepare("SELECT COUNT(*) FROM product WHERE product_status = 'Available'");
     $stmt->execute();
     $available_products = $stmt->fetchColumn();
-    
+
     // Out of stock products
     $stmt = $_db->prepare("SELECT COUNT(*) FROM product WHERE product_status = 'Out of Stock'");
     $stmt->execute();
     $outofstock_products = $stmt->fetchColumn();
-    
+
     // Discontinued products
     $stmt = $_db->prepare("SELECT COUNT(*) FROM product WHERE product_status = 'Discontinued'");
     $stmt->execute();
     $discontinued_products = $stmt->fetchColumn();
-    
+
     // Total categories
     $stmt = $_db->prepare("SELECT COUNT(*) FROM category");
     $stmt->execute();
     $total_categories = $stmt->fetchColumn();
-    
+
     // Get all categories for dropdown
     $stmt = $_db->prepare("SELECT category_id, category_name FROM category ORDER BY category_name");
     $stmt->execute();
     $categories = $stmt->fetchAll();
-    
+
+    // Check for low stock products (less than 10)
+    $stmt = $_db->prepare("
+        SELECT p.product_id, p.product_name, q.size, q.product_stock 
+        FROM product p 
+        JOIN quantity q ON p.product_id = q.product_id 
+        WHERE q.product_stock < 10 AND p.product_status = 'Available'
+        ORDER BY q.product_stock ASC
+    ");
+    $stmt->execute();
+    $low_stock_products = $stmt->fetchAll();
+    $low_stock_count = count($low_stock_products);
+
     // Build the product query with filters
     $query = "SELECT p.*, c.category_name 
               FROM product p 
               LEFT JOIN category c ON p.category_id = c.category_id 
               WHERE 1=1";
     $params = [];
-    
+
     if (!empty($search)) {
         $query .= " AND (p.product_id LIKE ? OR p.product_name LIKE ? OR c.category_name LIKE ?)";
         $search_param = "%$search%";
@@ -60,43 +74,55 @@ try {
         $params[] = $search_param;
         $params[] = $search_param;
     }
-    
+
     if (!empty($filter_category)) {
         $query .= " AND p.category_id = ?";
         $params[] = $filter_category;
     }
-    
+
     if (!empty($filter_status)) {
         $query .= " AND p.product_status = ?";
         $params[] = $filter_status;
     }
-    
+
+    // Add price range filter
+    if ($min_price !== '' && is_numeric($min_price)) {
+        $query .= " AND p.product_price >= ?";
+        $params[] = $min_price;
+    }
+
+    if ($max_price !== '' && is_numeric($max_price)) {
+        $query .= " AND p.product_price <= ?";
+        $params[] = $max_price;
+    }
+
     // Count total filtered records
     $count_stmt = $_db->prepare("SELECT COUNT(*) FROM ($query) AS filtered");
     $count_stmt->execute($params);
     $total_filtered = $count_stmt->fetchColumn();
-    
+
     // Add sorting and pagination
     $query .= " ORDER BY $sort $dir LIMIT $limit OFFSET $offset";
-    
+
     $stmt = $_db->prepare($query);
     $stmt->execute($params);
     $products = $stmt->fetchAll();
-    
+
     // Calculate total pages
     $total_pages = ceil($total_filtered / $limit);
-    
 } catch (PDOException $e) {
     temp('error', 'Database error: ' . $e->getMessage());
     $products = [];
     $total_pages = 0;
+    $low_stock_products = [];
+    $low_stock_count = 0;
 }
 
 // Handle product status update via AJAX
 if (is_post() && isset($_POST['update_status'])) {
     $product_id = post('product_id');
     $status = post('status');
-    
+
     try {
         $stmt = $_db->prepare("UPDATE product SET product_status = ? WHERE product_id = ?");
         $stmt->execute([$status, $product_id]);
@@ -106,29 +132,226 @@ if (is_post() && isset($_POST['update_status'])) {
     }
     exit;
 }
+
+// Handle batch update via AJAX
+if (is_post() && isset($_POST['batch_update'])) {
+    $product_ids = $_POST['product_ids'] ?? [];
+    $update_type = $_POST['update_type'] ?? '';
+    $update_value = $_POST['update_value'] ?? '';
+    $status_value = $_POST['status_value'] ?? '';
+    $category_value = $_POST['category_value'] ?? '';
+
+    if (empty($product_ids)) {
+        echo json_encode(['success' => false, 'message' => 'No products selected']);
+        exit;
+    }
+
+    try {
+        $success_count = 0;
+
+        // Begin transaction
+        $_db->beginTransaction();
+
+        foreach ($product_ids as $product_id) {
+            switch ($update_type) {
+                case 'increase_price':
+                    // Increase price by percentage
+                    $stmt = $_db->prepare("UPDATE product SET product_price = product_price * (1 + ?/100) WHERE product_id = ?");
+                    $stmt->execute([(float)$update_value, $product_id]);
+                    break;
+
+                case 'decrease_price':
+                    // Decrease price by percentage
+                    $stmt = $_db->prepare("UPDATE product SET product_price = product_price * (1 - ?/100) WHERE product_id = ?");
+                    $stmt->execute([(float)$update_value, $product_id]);
+                    break;
+
+                case 'set_price':
+                    // Set exact price
+                    $stmt = $_db->prepare("UPDATE product SET product_price = ? WHERE product_id = ?");
+                    $stmt->execute([(float)$update_value, $product_id]);
+                    break;
+
+                case 'change_status':
+                    // Update status
+                    $stmt = $_db->prepare("UPDATE product SET product_status = ? WHERE product_id = ?");
+                    $stmt->execute([$status_value, $product_id]);
+                    break;
+
+                case 'change_category':
+                    // Update category
+                    $stmt = $_db->prepare("UPDATE product SET category_id = ? WHERE product_id = ?");
+                    $stmt->execute([$category_value, $product_id]);
+                    break;
+
+                default:
+                    throw new Exception('Invalid update type');
+            }
+
+            $success_count++;
+        }
+
+        // Commit transaction
+        $_db->commit();
+
+        echo json_encode([
+            'success' => true,
+            'message' => "Successfully updated $success_count products"
+        ]);
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        $_db->rollBack();
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// Handle CSV file upload
+if (is_post() && isset($_FILES['csv_file'])) {
+    try {
+        $file = $_FILES['csv_file'];
+
+        // Check for errors
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            throw new Exception('File upload error: ' . $file['error']);
+        }
+
+        // Check file type
+        $allowed_types = ['text/csv', 'application/vnd.ms-excel', 'text/plain'];
+        if (!in_array($file['type'], $allowed_types) && !preg_match('/\.csv$/i', $file['name'])) {
+            throw new Exception('Invalid file type. Please upload a CSV file.');
+        }
+
+        // Read and process CSV file
+        $handle = fopen($file['tmp_name'], 'r');
+        if (!$handle) {
+            throw new Exception('Could not open file for reading.');
+        }
+
+        // Begin transaction
+        $_db->beginTransaction();
+
+        $header = fgetcsv($handle);
+        $expected_columns = ['product_id', 'category_id', 'product_name', 'product_description', 'product_type', 'product_price', 'product_status'];
+        $header = array_map('strtolower', $header);
+
+        // Validate header columns
+        foreach ($expected_columns as $col) {
+            if (!in_array($col, $header)) {
+                throw new Exception("Required column '$col' not found in CSV file.");
+            }
+        }
+
+        $success_count = 0;
+        $row_number = 1; // Header is row 1
+
+        while (($data = fgetcsv($handle)) !== false) {
+            $row_number++;
+
+            if (count($data) !== count($header)) {
+                throw new Exception("Row $row_number has incorrect number of columns.");
+            }
+
+            // Create associative array from CSV data
+            $product_data = array_combine($header, $data);
+
+            // Check if product_id exists
+            $check_stmt = $_db->prepare("SELECT COUNT(*) FROM product WHERE product_id = ?");
+            $check_stmt->execute([$product_data['product_id']]);
+            $product_exists = $check_stmt->fetchColumn() > 0;
+
+            if ($product_exists) {
+                // Update existing product
+                $stmt = $_db->prepare("
+                    UPDATE product SET 
+                        category_id = ?, 
+                        product_name = ?,
+                        product_description = ?, 
+                        product_type = ?,
+                        product_price = ?,
+                        product_status = ?
+                    WHERE product_id = ?
+                ");
+
+                $stmt->execute([
+                    $product_data['category_id'],
+                    $product_data['product_name'],
+                    $product_data['product_description'],
+                    $product_data['product_type'],
+                    $product_data['product_price'],
+                    $product_data['product_status'],
+                    $product_data['product_id']
+                ]);
+            } else {
+                // Insert new product
+                $stmt = $_db->prepare("
+                    INSERT INTO product (
+                        product_id, category_id, product_name, product_description, 
+                        product_type, product_price, product_status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ");
+
+                $stmt->execute([
+                    $product_data['product_id'],
+                    $product_data['category_id'],
+                    $product_data['product_name'],
+                    $product_data['product_description'],
+                    $product_data['product_type'],
+                    $product_data['product_price'],
+                    $product_data['product_status']
+                ]);
+            }
+
+            $success_count++;
+        }
+
+        fclose($handle);
+
+        // Commit transaction
+        $_db->commit();
+
+        temp('success', "Successfully imported $success_count products from CSV");
+        redirect('product.php');
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        if (isset($_db) && $_db->inTransaction()) {
+            $_db->rollBack();
+        }
+        temp('error', $e->getMessage());
+        redirect('product.php');
+    }
+}
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $_title ?></title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="../css/product.css" rel="stylesheet">
+    <link href="product.css" rel="stylesheet">
 </head>
+
 <body class="bg-gray-50">
     <div class="container mx-auto px-4 py-8">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <h1 class="text-3xl font-bold text-gray-800 mb-4 md:mb-0">Product Management</h1>
-            <div class="flex space-x-3">
+            <div class="flex flex-wrap gap-2">
                 <a href="Insert_Product.php" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center">
-                    <i class="fas fa-plus mr-2"></i> Add New Product
+                    <i class="fas fa-plus mr-2"></i> Add Product
                 </a>
                 <a href="../category/Add_Category.php" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg flex items-center">
-                    <i class="fas fa-folder-plus mr-2"></i> Add New Category
+                    <i class="fas fa-folder-plus mr-2"></i> Add Category
                 </a>
+                <button id="batchUploadBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg flex items-center">
+                    <i class="fas fa-file-upload mr-2"></i> Batch Upload
+                </button>
+                <button id="batchUpdateBtn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg flex items-center">
+                    <i class="fas fa-edit mr-2"></i> Batch Update
+                </button>
             </div>
         </div>
 
@@ -194,16 +417,16 @@ if (is_post() && isset($_POST['update_status'])) {
                 </div>
             </div>
 
-            <!-- Categories -->
-            <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden border-l-4 border-blue-500">
+            <!-- Low Stock Alert -->
+            <div id="lowStockCard" class="dashboard-card bg-white rounded-lg shadow overflow-hidden border-l-4 <?= $low_stock_count > 0 ? 'border-red-500 cursor-pointer' : 'border-gray-500' ?>">
                 <div class="p-4">
                     <div class="flex items-center">
-                        <div class="stat-icon bg-blue-100 text-blue-600">
-                            <i class="fas fa-tags"></i>
+                        <div class="stat-icon <?= $low_stock_count > 0 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-gray-100 text-gray-600' ?>">
+                            <i class="fas fa-exclamation-triangle"></i>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-600 mb-1">Categories</p>
-                            <p class="text-2xl font-bold"><?= number_format($total_categories) ?></p>
+                            <p class="text-sm text-gray-600 mb-1">Low Stock Items</p>
+                            <p class="text-2xl font-bold"><?= number_format($low_stock_count) ?></p>
                         </div>
                     </div>
                 </div>
@@ -212,12 +435,12 @@ if (is_post() && isset($_POST['update_status'])) {
 
         <!-- Filter Section -->
         <div class="bg-white shadow rounded-lg p-6 mb-6">
-            <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4" id="filterForm">
+            <form method="get" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4" id="filterForm">
                 <div>
                     <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
                     <input type="text" id="search" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search products..." class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
-                
+
                 <div>
                     <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
                     <select id="category" name="category" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -229,7 +452,7 @@ if (is_post() && isset($_POST['update_status'])) {
                         <?php endforeach; ?>
                     </select>
                 </div>
-                
+
                 <div>
                     <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                     <select id="status" name="status" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -239,7 +462,18 @@ if (is_post() && isset($_POST['update_status'])) {
                         <option value="Discontinued" <?= $filter_status === 'Discontinued' ? 'selected' : '' ?>>Discontinued</option>
                     </select>
                 </div>
-                
+
+                <!-- Price Range Filter -->
+                <div>
+                    <label for="min_price" class="block text-sm font-medium text-gray-700 mb-1">Min Price (RM)</label>
+                    <input type="number" id="min_price" name="min_price" min="0" step="0.01" value="<?= htmlspecialchars($min_price) ?>" placeholder="Min price" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label for="max_price" class="block text-sm font-medium text-gray-700 mb-1">Max Price (RM)</label>
+                    <input type="number" id="max_price" name="max_price" min="0" step="0.01" value="<?= htmlspecialchars($max_price) ?>" placeholder="Max price" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
                 <div class="flex items-end">
                     <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg mr-2">
                         <i class="fas fa-search mr-1"></i> Filter
@@ -264,11 +498,14 @@ if (is_post() && isset($_POST['update_status'])) {
                     </select>
                 </div>
             </div>
-            
+
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
+                            <th class="px-2 py-3 text-center">
+                                <input type="checkbox" id="selectAll" class="form-checkbox h-4 w-4 text-indigo-600 cursor-pointer">
+                            </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="product_id">
                                 ID <i class="fas fa-sort ml-1"></i>
                             </th>
@@ -292,11 +529,14 @@ if (is_post() && isset($_POST['update_status'])) {
                     <tbody class="bg-white divide-y divide-gray-200">
                         <?php if (empty($products)): ?>
                             <tr>
-                                <td colspan="8" class="px-6 py-4 text-center text-gray-500">No products found</td>
+                                <td colspan="9" class="px-6 py-4 text-center text-gray-500">No products found</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($products as $product): ?>
                                 <tr>
+                                    <td class="px-2 py-4 whitespace-nowrap text-center">
+                                        <input type="checkbox" class="product-select form-checkbox h-4 w-4 text-indigo-600 cursor-pointer" value="<?= $product->product_id ?>">
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                         <?= htmlspecialchars($product->product_id) ?>
                                     </td>
@@ -322,18 +562,18 @@ if (is_post() && isset($_POST['update_status'])) {
                                         <?= htmlspecialchars($product->product_type) ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <select class="status-select rounded-full text-xs py-1 px-2 border" 
-                                                data-product-id="<?= $product->product_id ?>">
-                                            <option value="Available" class="bg-green-100 text-green-800" 
-                                                    <?= $product->product_status === 'Available' ? 'selected' : '' ?>>
+                                        <select class="status-select rounded-full text-xs py-1 px-2 border"
+                                            data-product-id="<?= $product->product_id ?>">
+                                            <option value="Available" class="bg-green-100 text-green-800"
+                                                <?= $product->product_status === 'Available' ? 'selected' : '' ?>>
                                                 Available
                                             </option>
-                                            <option value="Out of Stock" class="bg-yellow-100 text-yellow-800" 
-                                                    <?= $product->product_status === 'Out of Stock' ? 'selected' : '' ?>>
+                                            <option value="Out of Stock" class="bg-yellow-100 text-yellow-800"
+                                                <?= $product->product_status === 'Out of Stock' ? 'selected' : '' ?>>
                                                 Out of Stock
                                             </option>
-                                            <option value="Discontinued" class="bg-red-100 text-red-800" 
-                                                    <?= $product->product_status === 'Discontinued' ? 'selected' : '' ?>>
+                                            <option value="Discontinued" class="bg-red-100 text-red-800"
+                                                <?= $product->product_status === 'Discontinued' ? 'selected' : '' ?>>
                                                 Discontinued
                                             </option>
                                         </select>
@@ -345,10 +585,10 @@ if (is_post() && isset($_POST['update_status'])) {
                                         <a href="Update_Product.php?id=<?= $product->product_id ?>" class="text-blue-600 hover:text-blue-900 mx-1" title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <button class="view-stock-btn text-green-600 hover:text-green-900 mx-1" 
-                                                data-product-id="<?= $product->product_id ?>" 
-                                                data-product-name="<?= htmlspecialchars($product->product_name) ?>" 
-                                                title="View Stock">
+                                        <button class="view-stock-btn text-green-600 hover:text-green-900 mx-1"
+                                            data-product-id="<?= $product->product_id ?>"
+                                            data-product-name="<?= htmlspecialchars($product->product_name) ?>"
+                                            title="View Stock">
                                             <i class="fas fa-boxes"></i>
                                         </button>
                                     </td>
@@ -358,7 +598,7 @@ if (is_post() && isset($_POST['update_status'])) {
                     </tbody>
                 </table>
             </div>
-            
+
             <!-- Pagination -->
             <?php if ($total_pages > 1): ?>
                 <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
@@ -370,19 +610,19 @@ if (is_post() && isset($_POST['update_status'])) {
                             <ul class="pagination flex">
                                 <?php if ($page > 1): ?>
                                     <li class="page-item">
-                                        <a href="?page=1&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= urlencode($sort) ?>&dir=<?= urlencode($dir) ?>" 
-                                           class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1 rounded-l-md">
+                                        <a href="?page=1&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&min_price=<?= urlencode($min_price) ?>&max_price=<?= urlencode($max_price) ?>&sort=<?= $sort ?>&dir=<?= $dir ?>"
+                                            class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1 rounded-l-md">
                                             <i class="fas fa-angle-double-left"></i>
                                         </a>
                                     </li>
                                     <li class="page-item">
-                                        <a href="?page=<?= $page - 1 ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= urlencode($sort) ?>&dir=<?= urlencode($dir) ?>" 
-                                           class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1">
+                                        <a href="?page=<?= $page - 1 ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&min_price=<?= urlencode($min_price) ?>&max_price=<?= urlencode($max_price) ?>&sort=<?= $sort ?>&dir=<?= $dir ?>"
+                                            class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1">
                                             <i class="fas fa-angle-left"></i>
                                         </a>
                                     </li>
                                 <?php endif; ?>
-                                
+
                                 <?php
                                 $start_page = max(1, $page - 2);
                                 $end_page = min($start_page + 4, $total_pages);
@@ -392,23 +632,23 @@ if (is_post() && isset($_POST['update_status'])) {
                                 for ($i = $start_page; $i <= $end_page; $i++):
                                 ?>
                                     <li class="page-item <?= $i == $page ? 'active' : '' ?>">
-                                        <a href="?page=<?= $i ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= urlencode($sort) ?>&dir=<?= urlencode($dir) ?>" 
-                                           class="page-link <?= $i == $page ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-100' ?> border border-gray-300 px-3 py-1">
+                                        <a href="?page=<?= $i ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&min_price=<?= urlencode($min_price) ?>&max_price=<?= urlencode($max_price) ?>&sort=<?= $sort ?>&dir=<?= $dir ?>"
+                                            class="page-link <?= $i == $page ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-100' ?> border border-gray-300 px-3 py-1">
                                             <?= $i ?>
                                         </a>
                                     </li>
                                 <?php endfor; ?>
-                                
+
                                 <?php if ($page < $total_pages): ?>
                                     <li class="page-item">
-                                        <a href="?page=<?= $page + 1 ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= urlencode($sort) ?>&dir=<?= urlencode($dir) ?>" 
-                                           class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1">
+                                        <a href="?page=<?= $page + 1 ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&min_price=<?= urlencode($min_price) ?>&max_price=<?= urlencode($max_price) ?>&sort=<?= $sort ?>&dir=<?= $dir ?>"
+                                            class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1">
                                             <i class="fas fa-angle-right"></i>
                                         </a>
                                     </li>
                                     <li class="page-item">
-                                        <a href="?page=<?= $total_pages ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&sort=<?= urlencode($sort) ?>&dir=<?= urlencode($dir) ?>" 
-                                           class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1 rounded-r-md">
+                                        <a href="?page=<?= $total_pages ?>&limit=<?= $limit ?>&search=<?= urlencode($search) ?>&category=<?= urlencode($filter_category) ?>&status=<?= urlencode($filter_status) ?>&min_price=<?= urlencode($min_price) ?>&max_price=<?= urlencode($max_price) ?>&sort=<?= $sort ?>&dir=<?= $dir ?>"
+                                            class="page-link bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-1 rounded-r-md">
                                             <i class="fas fa-angle-double-right"></i>
                                         </a>
                                     </li>
@@ -430,14 +670,14 @@ if (is_post() && isset($_POST['update_status'])) {
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            
+
             <div id="stockContent" class="mb-6">
                 <div class="text-center p-8">
                     <i class="fas fa-spinner fa-spin text-indigo-600 text-3xl"></i>
                     <p class="mt-2 text-gray-500">Loading stock information...</p>
                 </div>
             </div>
-            
+
             <div class="flex justify-end">
                 <button type="button" id="closeStockBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg">
                     Close
@@ -445,9 +685,232 @@ if (is_post() && isset($_POST['update_status'])) {
             </div>
         </div>
     </div>
-    
+
+    <!-- Low Stock Modal -->
+    <div id="lowStockModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-red-600">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    Low Stock Alert
+                </h3>
+                <button id="closeLowStockModal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="mb-6">
+                <?php if (count($low_stock_products) > 0): ?>
+                    <p class="mb-4 text-gray-700">The following products are running low on stock (less than 10 units):</p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Level</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <?php foreach ($low_stock_products as $item): ?>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            <?= htmlspecialchars($item->product_id) ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <?= htmlspecialchars($item->product_name) ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <?= htmlspecialchars($item->size) ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?= $item->product_stock <= 5 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800' ?>">
+                                                <?= $item->product_stock ?> units
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <a href="Update_Product.php?id=<?= $item->product_id ?>" class="text-blue-600 hover:text-blue-900">
+                                                <i class="fas fa-edit mr-1"></i> Update
+                                            </a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php else: ?>
+                    <p class="text-center text-gray-700">No products are currently low in stock.</p>
+                <?php endif; ?>
+            </div>
+
+            <div class="flex justify-end">
+                <button type="button" id="closeLowStockBtn" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Upload Modal -->
+    <div id="batchUploadModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-file-upload mr-2"></i>
+                    Batch Upload Products
+                </h3>
+                <button id="closeBatchUploadModal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form action="product.php" method="post" enctype="multipart/form-data">
+                <div class="mb-6">
+                    <p class="mb-4 text-gray-700">Upload a CSV file containing product information.</p>
+
+                    <div class="mb-4">
+                        <label for="csv_file" class="block text-sm font-medium text-gray-700 mb-1">CSV File</label>
+                        <input type="file" id="csv_file" name="csv_file" accept=".csv,text/csv" required
+                            class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-yellow-700">
+                                    <strong>Important:</strong> CSV file must have the following columns:
+                                </p>
+                                <ul class="mt-1 text-xs text-yellow-700 list-disc list-inside">
+                                    <li>product_id (e.g., P001)</li>
+                                    <li>category_id (e.g., CAT1001)</li>
+                                    <li>product_name</li>
+                                    <li>product_description</li>
+                                    <li>product_type (Unisex, Man, or Women)</li>
+                                    <li>product_price</li>
+                                    <li>product_status (Available, Out of Stock, or Discontinued)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-info-circle text-blue-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-blue-700">
+                                    <a href="product_template.csv" download class="font-medium underline">
+                                        Download CSV Template
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelBatchUpload" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg">
+                        <i class="fas fa-upload mr-1"></i> Upload
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Batch Update Modal -->
+    <div id="batchUpdateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-edit mr-2"></i>
+                    Batch Update Products
+                </h3>
+                <button id="closeBatchUpdateModal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="mb-6">
+                <p id="selectedProductsCount" class="mb-4 text-gray-700">No products selected.</p>
+
+                <div class="mb-4">
+                    <label for="updateType" class="block text-sm font-medium text-gray-700 mb-1">Update Type</label>
+                    <select id="updateType" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">-- Select Action --</option>
+                        <option value="increase_price">Increase Price (%)</option>
+                        <option value="decrease_price">Decrease Price (%)</option>
+                        <option value="set_price">Set Exact Price (RM)</option>
+                        <option value="change_status">Change Status</option>
+                        <option value="change_category">Change Category</option>
+                    </select>
+                </div>
+
+                <!-- Percentage fields (increase/decrease price) -->
+                <div id="percentageFields" class="mb-4 hidden">
+                    <label for="percentValue" class="block text-sm font-medium text-gray-700 mb-1">Percentage Value</label>
+                    <div class="flex items-center">
+                        <input type="number" id="percentValue" min="0.01" step="0.01" max="100"
+                            class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <span class="ml-2">%</span>
+                    </div>
+                </div>
+
+                <!-- Exact price field (set price) -->
+                <div id="exactPriceField" class="mb-4 hidden">
+                    <label for="exactPrice" class="block text-sm font-medium text-gray-700 mb-1">New Price</label>
+                    <div class="flex items-center">
+                        <span class="mr-2">RM</span>
+                        <input type="number" id="exactPrice" min="0.01" step="0.01"
+                            class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Status field -->
+                <div id="statusField" class="mb-4 hidden">
+                    <label for="newStatus" class="block text-sm font-medium text-gray-700 mb-1">New Status</label>
+                    <select id="newStatus" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="Available">Available</option>
+                        <option value="Out of Stock">Out of Stock</option>
+                        <option value="Discontinued">Discontinued</option>
+                    </select>
+                </div>
+
+                <!-- Category field -->
+                <div id="categoryField" class="mb-4 hidden">
+                    <label for="newCategory" class="block text-sm font-medium text-gray-700 mb-1">New Category</label>
+                    <select id="newCategory" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?= $cat->category_id ?>">
+                                <?= htmlspecialchars($cat->category_name) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <button type="button" id="cancelBatchUpdate" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg">
+                    Cancel
+                </button>
+                <button type="button" id="applyBatchUpdate" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg" disabled>
+                    <i class="fas fa-check mr-1"></i> Apply Update
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Alert Messages -->
-    <?php $error = temp('error'); if ($error): ?>
+    <?php $error = temp('error');
+    if ($error): ?>
         <div id="errorAlert" class="fixed top-5 right-5 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md z-50 transform transition-transform duration-500 translate-x-0">
             <div class="flex items-center">
                 <i class="fas fa-exclamation-circle mr-3"></i>
@@ -467,8 +930,9 @@ if (is_post() && isset($_POST['update_status'])) {
             }, 5000);
         </script>
     <?php endif; ?>
-    
-    <?php $success = temp('success'); if ($success): ?>
+
+    <?php $success = temp('success');
+    if ($success): ?>
         <div id="successAlert" class="fixed top-5 right-5 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-md z-50 transform transition-transform duration-500 translate-x-0">
             <div class="flex items-center">
                 <i class="fas fa-check-circle mr-3"></i>
@@ -492,128 +956,373 @@ if (is_post() && isset($_POST['update_status'])) {
     <?php require '../headFooter/footer.php'; ?>
 
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Limit select change handler
-        document.getElementById('limitSelect').addEventListener('change', function() {
-            const url = new URL(window.location.href);
-            url.searchParams.set('limit', this.value);
-            url.searchParams.set('page', 1); // Reset to first page
-            window.location.href = url.toString();
-        });
-        
-        // Sort headers click handler
-        document.querySelectorAll('th[data-sort]').forEach(header => {
-            header.addEventListener('click', function() {
-                const sort = this.getAttribute('data-sort');
-                const currentSort = '<?= $sort ?>';
-                const currentDir = '<?= $dir ?>';
-                
-                let dir = 'asc';
-                if (sort === currentSort) {
-                    dir = currentDir === 'asc' ? 'desc' : 'asc';
-                }
-                
-                const url = new URL(window.location.href);
-                url.searchParams.set('sort', sort);
-                url.searchParams.set('dir', dir);
-                window.location.href = url.toString();
-            });
-        });
-        
-        // Status select change handler
-        document.querySelectorAll('.status-select').forEach(select => {
-            select.addEventListener('change', function() {
-                const productId = this.getAttribute('data-product-id');
-                const newStatus = this.value;
-                
-                // Apply visual styling based on status
-                if (newStatus === 'Available') {
-                    this.className = 'status-select rounded-full text-xs py-1 px-2 border bg-green-100 text-green-800';
-                } else if (newStatus === 'Out of Stock') {
-                    this.className = 'status-select rounded-full text-xs py-1 px-2 border bg-yellow-100 text-yellow-800';
-                } else if (newStatus === 'Discontinued') {
-                    this.className = 'status-select rounded-full text-xs py-1 px-2 border bg-red-100 text-red-800';
-                }
-                
-                // Send AJAX request to update status
-                const formData = new FormData();
-                formData.append('update_status', '1');
-                formData.append('product_id', productId);
-                formData.append('status', newStatus);
-                
-                fetch('product.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Show success notification
-                        const alert = document.createElement('div');
-                        alert.id = 'statusSuccessAlert';
-                        alert.className = 'fixed top-5 right-5 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-md z-50 transform transition-opacity duration-500 opacity-100';
-                        alert.innerHTML = `
-                            <div class="flex items-center">
-                                <i class="fas fa-check-circle mr-3"></i>
-                                <span>Status updated successfully</span>
-                            </div>
-                            <button class="absolute top-1 right-1 text-green-500 hover:text-green-700" onclick="this.parentElement.remove()">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        `;
-                        document.body.appendChild(alert);
-                        
-                        setTimeout(() => {
-                            alert.classList.replace('opacity-100', 'opacity-0');
-                            setTimeout(() => alert.remove(), 500);
-                        }, 3000);
-                    } else {
-                        // Show error notification
-                        const alert = document.createElement('div');
-                        alert.id = 'statusErrorAlert';
-                        alert.className = 'fixed top-5 right-5 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md z-50';
-                        alert.innerHTML = `
-                            <div class="flex items-center">
-                                <i class="fas fa-exclamation-circle mr-3"></i>
-                                <span>Error updating status: ${data.message}</span>
-                            </div>
-                            <button class="absolute top-1 right-1 text-red-500 hover:text-red-700" onclick="this.parentElement.remove()">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        `;
-                        document.body.appendChild(alert);
-                        
-                        setTimeout(() => {
-                            alert.classList.add('opacity-0');
-                            setTimeout(() => alert.remove(), 500);
-                        }, 5000);
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show low stock alert on page load if there are low stock items
+            const lowStockCount = <?= $low_stock_count ?>;
+            if (lowStockCount > 0) {
+                showNotification('Low Stock Alert', `${lowStockCount} products are running low on stock.`, 'warning');
+            }
+
+            // Low stock modal
+            const lowStockCard = document.getElementById('lowStockCard');
+            const lowStockModal = document.getElementById('lowStockModal');
+            const closeLowStockModal = document.getElementById('closeLowStockModal');
+            const closeLowStockBtn = document.getElementById('closeLowStockBtn');
+
+            if (lowStockCard) {
+                lowStockCard.addEventListener('click', function() {
+                    lowStockModal.classList.remove('hidden');
+                });
+            }
+
+            if (closeLowStockModal) {
+                closeLowStockModal.addEventListener('click', function() {
+                    lowStockModal.classList.add('hidden');
+                });
+            }
+
+            if (closeLowStockBtn) {
+                closeLowStockBtn.addEventListener('click', function() {
+                    lowStockModal.classList.add('hidden');
+                });
+            }
+
+            // Batch upload modal
+            const batchUploadBtn = document.getElementById('batchUploadBtn');
+            const batchUploadModal = document.getElementById('batchUploadModal');
+            const closeBatchUploadModal = document.getElementById('closeBatchUploadModal');
+            const cancelBatchUpload = document.getElementById('cancelBatchUpload');
+
+            if (batchUploadBtn) {
+                batchUploadBtn.addEventListener('click', function() {
+                    batchUploadModal.classList.remove('hidden');
+                });
+            }
+
+            if (closeBatchUploadModal) {
+                closeBatchUploadModal.addEventListener('click', function() {
+                    batchUploadModal.classList.add('hidden');
+                });
+            }
+
+            if (cancelBatchUpload) {
+                cancelBatchUpload.addEventListener('click', function() {
+                    batchUploadModal.classList.add('hidden');
+                });
+            }
+
+            // Batch update modal
+            const batchUpdateBtn = document.getElementById('batchUpdateBtn');
+            const batchUpdateModal = document.getElementById('batchUpdateModal');
+            const closeBatchUpdateModal = document.getElementById('closeBatchUpdateModal');
+            const cancelBatchUpdate = document.getElementById('cancelBatchUpdate');
+            const applyBatchUpdate = document.getElementById('applyBatchUpdate');
+            const updateType = document.getElementById('updateType');
+            const selectedProductsCount = document.getElementById('selectedProductsCount');
+            const percentageFields = document.getElementById('percentageFields');
+            const exactPriceField = document.getElementById('exactPriceField');
+            const statusField = document.getElementById('statusField');
+            const categoryField = document.getElementById('categoryField');
+
+            if (batchUpdateBtn) {
+                batchUpdateBtn.addEventListener('click', function() {
+                    const selectedProducts = getSelectedProducts();
+                    if (selectedProducts.length === 0) {
+                        showNotification('No Products Selected', 'Please select products to update.', 'error');
+                        return;
                     }
-                })
-                .catch(error => console.error('Error:', error));
-            });
-        });
-        
-        // Stock modal
-        const stockModal = document.getElementById('stockModal');
-        const closeStockModal = document.getElementById('closeStockModal');
-        const closeStockBtn = document.getElementById('closeStockBtn');
-        const stockModalTitle = document.getElementById('stockModalTitle');
-        const stockContent = document.getElementById('stockContent');
-        
-        document.querySelectorAll('.view-stock-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const productId = this.getAttribute('data-product-id');
-                const productName = this.getAttribute('data-product-name');
-                
-                stockModalTitle.textContent = 'Stock Levels: ' + productName;
-                stockModal.classList.remove('hidden');
-                
-                // Fetch stock information
-                fetch(`get_stock.php?product_id=${productId}`)
+
+                    selectedProductsCount.textContent = `${selectedProducts.length} products selected.`;
+                    updateType.value = '';
+                    hideAllUpdateFields();
+                    applyBatchUpdate.disabled = true;
+
+                    batchUpdateModal.classList.remove('hidden');
+                });
+            }
+
+            if (updateType) {
+                updateType.addEventListener('change', function() {
+                    hideAllUpdateFields();
+                    applyBatchUpdate.disabled = false;
+
+                    switch (this.value) {
+                        case 'increase_price':
+                        case 'decrease_price':
+                            percentageFields.classList.remove('hidden');
+                            break;
+                        case 'set_price':
+                            exactPriceField.classList.remove('hidden');
+                            break;
+                        case 'change_status':
+                            statusField.classList.remove('hidden');
+                            break;
+                        case 'change_category':
+                            categoryField.classList.remove('hidden');
+                            break;
+                        default:
+                            applyBatchUpdate.disabled = true;
+                            break;
+                    }
+                });
+            }
+
+            if (closeBatchUpdateModal) {
+                closeBatchUpdateModal.addEventListener('click', function() {
+                    batchUpdateModal.classList.add('hidden');
+                });
+            }
+
+            if (cancelBatchUpdate) {
+                cancelBatchUpdate.addEventListener('click', function() {
+                    batchUpdateModal.classList.add('hidden');
+                });
+            }
+
+            if (applyBatchUpdate) {
+                applyBatchUpdate.addEventListener('click', function() {
+                    const selectedProducts = getSelectedProducts();
+                    const updateTypeValue = updateType.value;
+
+                    if (selectedProducts.length === 0) {
+                        showNotification('No Products Selected', 'Please select products to update.', 'error');
+                        return;
+                    }
+
+                    if (!updateTypeValue) {
+                        showNotification('No Update Type', 'Please select an update type.', 'error');
+                        return;
+                    }
+
+                    let updateValue = '';
+                    let statusValue = '';
+                    let categoryValue = '';
+
+                    switch (updateTypeValue) {
+                        case 'increase_price':
+                        case 'decrease_price':
+                            updateValue = document.getElementById('percentValue').value;
+                            if (!updateValue || isNaN(updateValue) || updateValue <= 0 || updateValue > 100) {
+                                showNotification('Invalid Value', 'Please enter a valid percentage between 0.01 and 100.', 'error');
+                                return;
+                            }
+                            break;
+                        case 'set_price':
+                            updateValue = document.getElementById('exactPrice').value;
+                            if (!updateValue || isNaN(updateValue) || updateValue <= 0) {
+                                showNotification('Invalid Value', 'Please enter a valid price greater than 0.', 'error');
+                                return;
+                            }
+                            break;
+                        case 'change_status':
+                            statusValue = document.getElementById('newStatus').value;
+                            if (!statusValue) {
+                                showNotification('Invalid Status', 'Please select a valid status.', 'error');
+                                return;
+                            }
+                            break;
+                        case 'change_category':
+                            categoryValue = document.getElementById('newCategory').value;
+                            if (!categoryValue) {
+                                showNotification('Invalid Category', 'Please select a valid category.', 'error');
+                                return;
+                            }
+                            break;
+                    }
+
+                    // Confirmation dialog
+                    let confirmMessage = '';
+                    switch (updateTypeValue) {
+                        case 'increase_price':
+                            confirmMessage = `Are you sure you want to increase the price of ${selectedProducts.length} products by ${updateValue}%?`;
+                            break;
+                        case 'decrease_price':
+                            confirmMessage = `Are you sure you want to decrease the price of ${selectedProducts.length} products by ${updateValue}%?`;
+                            break;
+                        case 'set_price':
+                            confirmMessage = `Are you sure you want to set the price of ${selectedProducts.length} products to RM ${updateValue}?`;
+                            break;
+                        case 'change_status':
+                            confirmMessage = `Are you sure you want to change the status of ${selectedProducts.length} products to ${statusValue}?`;
+                            break;
+                        case 'change_category':
+                            const categoryName = document.getElementById('newCategory').options[document.getElementById('newCategory').selectedIndex].text;
+                            confirmMessage = `Are you sure you want to change the category of ${selectedProducts.length} products to ${categoryName}?`;
+                            break;
+                    }
+
+                    if (confirm(confirmMessage)) {
+                        processBatchUpdate(selectedProducts, updateTypeValue, updateValue, statusValue, categoryValue);
+                    }
+                });
+            }
+
+            // Function to process batch updates
+            function processBatchUpdate(productIds, updateType, updateValue = '', statusValue = '', categoryValue = '') {
+                // Show loading indicator
+                showNotification('Processing...', 'Updating products, please wait.', 'info');
+
+                // Create form data to send
+                const formData = new FormData();
+                formData.append('batch_update', '1');
+                formData.append('update_type', updateType);
+                formData.append('update_value', updateValue);
+                formData.append('status_value', statusValue);
+                formData.append('category_value', categoryValue);
+
+                // Append all product IDs
+                productIds.forEach(productId => {
+                    formData.append('product_ids[]', productId);
+                });
+
+                // Send AJAX request
+                fetch('product.php', {
+                        method: 'POST',
+                        body: formData
+                    })
                     .then(response => response.json())
                     .then(data => {
-                        if (data.success && data.stock.length > 0) {
-                            let stockHtml = `
+                        batchUpdateModal.classList.add('hidden');
+
+                        if (data.success) {
+                            showNotification('Success', data.message, 'success');
+                            // Reload page after a short delay
+                            setTimeout(() => {
+                                location.reload();
+                            }, 1500);
+                        } else {
+                            showNotification('Error', data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('Error', 'An error occurred while processing the update.', 'error');
+                    });
+            }
+
+            // Helper function to hide all update fields
+            function hideAllUpdateFields() {
+                percentageFields.classList.add('hidden');
+                exactPriceField.classList.add('hidden');
+                statusField.classList.add('hidden');
+                categoryField.classList.add('hidden');
+            }
+
+            // Helper function to get selected products
+            function getSelectedProducts() {
+                const checkboxes = document.querySelectorAll('.product-select:checked');
+                return Array.from(checkboxes).map(checkbox => checkbox.value);
+            }
+
+            // Select all checkbox functionality
+            const selectAllCheckbox = document.getElementById('selectAll');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function() {
+                    const checkboxes = document.querySelectorAll('.product-select');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = this.checked;
+                    });
+                });
+
+                // Update selectAll checkbox state when individual checkboxes change
+                document.addEventListener('change', function(e) {
+                    if (e.target && e.target.classList.contains('product-select')) {
+                        const allCheckboxes = document.querySelectorAll('.product-select');
+                        const checkedCheckboxes = document.querySelectorAll('.product-select:checked');
+                        selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+                        selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+                    }
+                });
+            }
+
+            // Limit select change handler
+            document.getElementById('limitSelect').addEventListener('change', function() {
+                const url = new URL(window.location.href);
+                url.searchParams.set('limit', this.value);
+                url.searchParams.set('page', 1); // Reset to first page
+                window.location.href = url.toString();
+            });
+
+            // Sort headers click handler
+            document.querySelectorAll('th[data-sort]').forEach(header => {
+                header.addEventListener('click', function() {
+                    const sort = this.getAttribute('data-sort');
+                    const currentSort = '<?= $sort ?>';
+                    const currentDir = '<?= $dir ?>';
+
+                    let dir = 'asc';
+                    if (sort === currentSort) {
+                        dir = currentDir === 'asc' ? 'desc' : 'asc';
+                    }
+
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('sort', sort);
+                    url.searchParams.set('dir', dir);
+                    window.location.href = url.toString();
+                });
+            });
+
+            // Status select change handler
+            document.querySelectorAll('.status-select').forEach(select => {
+                select.addEventListener('change', function() {
+                    const productId = this.getAttribute('data-product-id');
+                    const newStatus = this.value;
+
+                    // Apply visual styling based on status
+                    if (newStatus === 'Available') {
+                        this.className = 'status-select rounded-full text-xs py-1 px-2 border bg-green-100 text-green-800';
+                    } else if (newStatus === 'Out of Stock') {
+                        this.className = 'status-select rounded-full text-xs py-1 px-2 border bg-yellow-100 text-yellow-800';
+                    } else if (newStatus === 'Discontinued') {
+                        this.className = 'status-select rounded-full text-xs py-1 px-2 border bg-red-100 text-red-800';
+                    }
+
+                    // Send AJAX request to update status
+                    const formData = new FormData();
+                    formData.append('update_status', '1');
+                    formData.append('product_id', productId);
+                    formData.append('status', newStatus);
+
+                    fetch('product.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showNotification('Success', 'Product status updated successfully.', 'success');
+                            } else {
+                                showNotification('Error', 'Error updating product status: ' + data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showNotification('Error', 'An error occurred while updating status.', 'error');
+                        });
+                });
+            });
+
+            // Stock modal
+            const stockModal = document.getElementById('stockModal');
+            const closeStockModal = document.getElementById('closeStockModal');
+            const closeStockBtn = document.getElementById('closeStockBtn');
+            const stockModalTitle = document.getElementById('stockModalTitle');
+            const stockContent = document.getElementById('stockContent');
+
+            document.querySelectorAll('.view-stock-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const productId = this.getAttribute('data-product-id');
+                    const productName = this.getAttribute('data-product-name');
+
+                    stockModalTitle.textContent = 'Stock Levels: ' + productName;
+                    stockModal.classList.remove('hidden');
+
+                    // Fetch stock information
+                    fetch(`get_stock.php?product_id=${productId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.stock.length > 0) {
+                                let stockHtml = `
                                 <table class="min-w-full divide-y divide-gray-200">
                                     <thead class="bg-gray-50">
                                         <tr>
@@ -624,27 +1333,27 @@ if (is_post() && isset($_POST['update_status'])) {
                                     </thead>
                                     <tbody class="bg-white divide-y divide-gray-200">
                             `;
-                            
-                            data.stock.forEach(item => {
-                                // Set color class based on stock level
-                                let stockColorClass = 'text-green-600';
-                                if (item.product_stock < 10) {
-                                    stockColorClass = 'text-yellow-600';
-                                }
-                                if (item.product_stock <= 5) {
-                                    stockColorClass = 'text-red-600';
-                                }
-                                
-                                stockHtml += `
+
+                                data.stock.forEach(item => {
+                                    // Set color class based on stock level
+                                    let stockColorClass = 'text-green-600';
+                                    if (item.product_stock < 10) {
+                                        stockColorClass = 'text-yellow-600';
+                                    }
+                                    if (item.product_stock <= 5) {
+                                        stockColorClass = 'text-red-600';
+                                    }
+
+                                    stockHtml += `
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.size}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${stockColorClass}">${item.product_stock}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.product_sold}</td>
                                     </tr>
                                 `;
-                            });
-                            
-                            stockHtml += `
+                                });
+
+                                stockHtml += `
                                     </tbody>
                                 </table>
                                 <div class="mt-4 text-sm text-gray-500">
@@ -662,44 +1371,112 @@ if (is_post() && isset($_POST['update_status'])) {
                                     </div>
                                 </div>
                             `;
-                            
-                            stockContent.innerHTML = stockHtml;
-                        } else {
-                            stockContent.innerHTML = `
+
+                                stockContent.innerHTML = stockHtml;
+                            } else {
+                                stockContent.innerHTML = `
                                 <div class="p-6 text-center text-gray-500">
                                     <i class="fas fa-exclamation-circle text-3xl mb-3"></i>
                                     <p>No stock information available for this product.</p>
                                 </div>
                             `;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error fetching stock data:', error);
-                        stockContent.innerHTML = `
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching stock data:', error);
+                            stockContent.innerHTML = `
                             <div class="p-6 text-center text-red-500">
                                 <i class="fas fa-exclamation-triangle text-3xl mb-3"></i>
                                 <p>Error loading stock information. Please try again.</p>
                             </div>
                         `;
-                    });
+                        });
+                });
+            });
+
+            closeStockModal.addEventListener('click', () => {
+                stockModal.classList.add('hidden');
+            });
+
+            closeStockBtn.addEventListener('click', () => {
+                stockModal.classList.add('hidden');
+            });
+
+            // Helper function to show notifications
+            function showNotification(title, message, type = 'info') {
+                const id = 'notification-' + Date.now();
+
+                let bgColor, textColor, borderColor, icon;
+                switch (type) {
+                    case 'success':
+                        bgColor = 'bg-green-100';
+                        textColor = 'text-green-700';
+                        borderColor = 'border-green-500';
+                        icon = 'fa-check-circle';
+                        break;
+                    case 'error':
+                        bgColor = 'bg-red-100';
+                        textColor = 'text-red-700';
+                        borderColor = 'border-red-500';
+                        icon = 'fa-exclamation-circle';
+                        break;
+                    case 'warning':
+                        bgColor = 'bg-yellow-100';
+                        textColor = 'text-yellow-700';
+                        borderColor = 'border-yellow-500';
+                        icon = 'fa-exclamation-triangle';
+                        break;
+                    default: // info
+                        bgColor = 'bg-blue-100';
+                        textColor = 'text-blue-700';
+                        borderColor = 'border-blue-500';
+                        icon = 'fa-info-circle';
+                }
+
+                const notification = document.createElement('div');
+                notification.id = id;
+                notification.className = `fixed top-5 right-5 ${bgColor} border-l-4 ${borderColor} ${textColor} p-4 rounded shadow-md z-50 transform transition-transform duration-500 translate-x-0`;
+                notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${icon} mr-3"></i>
+                    <div>
+                        <div class="font-bold">${title}</div>
+                        <div>${message}</div>
+                    </div>
+                </div>
+                <button class="absolute top-1 right-1 ${textColor} hover:${textColor}" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    const alert = document.getElementById(id);
+                    if (alert) {
+                        alert.classList.add('translate-x-full');
+                        setTimeout(() => alert.remove(), 500);
+                    }
+                }, 5000);
+            }
+
+            // Close modals when clicking outside
+            window.addEventListener('click', (event) => {
+                if (event.target === stockModal) {
+                    stockModal.classList.add('hidden');
+                }
+                if (event.target === lowStockModal) {
+                    lowStockModal.classList.add('hidden');
+                }
+                if (event.target === batchUploadModal) {
+                    batchUploadModal.classList.add('hidden');
+                }
+                if (event.target === batchUpdateModal) {
+                    batchUpdateModal.classList.add('hidden');
+                }
             });
         });
-        
-        closeStockModal.addEventListener('click', () => {
-            stockModal.classList.add('hidden');
-        });
-        
-        closeStockBtn.addEventListener('click', () => {
-            stockModal.classList.add('hidden');
-        });
-        
-        // Close modals when clicking outside
-        window.addEventListener('click', (event) => {
-            if (event.target === stockModal) {
-                stockModal.classList.add('hidden');
-            }
-        });
-    });
     </script>
 </body>
+
 </html>

@@ -1,0 +1,3 @@
+product_id,category_id,product_name,product_description,product_type,product_price,product_status
+P100,CAT1001,Example T-shirt,This is an example product description,Unisex,49.90,Available
+P101,CAT1002,Example Long T-shirt,This is another example product,Man,59.90,Available

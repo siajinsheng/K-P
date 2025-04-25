@@ -378,6 +378,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             opacity: 1;
         }
 
+        /* NEW: Image editing toolbar */
+        .image-edit-toolbar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.25rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .drop-zone-preview:hover .image-edit-toolbar {
+            opacity: 1;
+        }
+
+        .edit-tool {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            width: 1.75rem;
+            height: 1.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: #333;
+            transition: all 0.2s;
+        }
+
+        .edit-tool:hover {
+            background: white;
+            transform: scale(1.1);
+        }
+
+        .edit-tool.loading {
+            pointer-events: none;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.6;
+            }
+        }
+
         .size-quantity {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
@@ -600,6 +655,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </p>
                     </div>
                     <div id="dropZonePreviews" class="drop-zone-previews"></div>
+                    
+                    <!-- NEW: Image Processing Tips -->
+                    <div class="bg-blue-50 p-3 rounded-lg mt-4">
+                        <h3 class="text-sm font-medium text-blue-800 flex items-center mb-2">
+                            <i class="fas fa-lightbulb text-blue-600 mr-2"></i>
+                            Image Editing Tips
+                        </h3>
+                        <p class="text-xs text-blue-700">
+                            After uploading, hover over any image to reveal editing options. You can rotate and flip images to get the perfect product shot.
+                        </p>
+                    </div>
                 </div>
 
                 <div class="flex justify-center space-x-4 pt-6">
@@ -751,8 +817,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             deleteUploadedFile(uniqueFileName);
                         });
 
+                        // NEW: Add image editing toolbar
+                        const toolbar = document.createElement('div');
+                        toolbar.classList.add('image-edit-toolbar');
+                        
+                        // Rotate left button
+                        const rotateLeftBtn = document.createElement('div');
+                        rotateLeftBtn.classList.add('edit-tool');
+                        rotateLeftBtn.innerHTML = '<i class="fas fa-undo"></i>';
+                        rotateLeftBtn.title = "Rotate Left";
+                        rotateLeftBtn.addEventListener('click', () => {
+                            processImage(uniqueFileName, 'rotate_left', img, rotateLeftBtn);
+                        });
+                        
+                        // Rotate right button
+                        const rotateRightBtn = document.createElement('div');
+                        rotateRightBtn.classList.add('edit-tool');
+                        rotateRightBtn.innerHTML = '<i class="fas fa-redo"></i>';
+                        rotateRightBtn.title = "Rotate Right";
+                        rotateRightBtn.addEventListener('click', () => {
+                            processImage(uniqueFileName, 'rotate_right', img, rotateRightBtn);
+                        });
+                        
+                        // Flip horizontal button
+                        const flipHBtn = document.createElement('div');
+                        flipHBtn.classList.add('edit-tool');
+                        flipHBtn.innerHTML = '<i class="fas fa-arrows-alt-h"></i>';
+                        flipHBtn.title = "Flip Horizontal";
+                        flipHBtn.addEventListener('click', () => {
+                            processImage(uniqueFileName, 'flip_horizontal', img, flipHBtn);
+                        });
+                        
+                        // Flip vertical button
+                        const flipVBtn = document.createElement('div');
+                        flipVBtn.classList.add('edit-tool');
+                        flipVBtn.innerHTML = '<i class="fas fa-arrows-alt-v"></i>';
+                        flipVBtn.title = "Flip Vertical";
+                        flipVBtn.addEventListener('click', () => {
+                            processImage(uniqueFileName, 'flip_vertical', img, flipVBtn);
+                        });
+                        
+                        // Add all buttons to the toolbar
+                        toolbar.appendChild(rotateLeftBtn);
+                        toolbar.appendChild(rotateRightBtn);
+                        toolbar.appendChild(flipHBtn);
+                        toolbar.appendChild(flipVBtn);
+
                         previewDiv.appendChild(img);
                         previewDiv.appendChild(removeBtn);
+                        previewDiv.appendChild(toolbar);
                         dropZonePreviews.appendChild(previewDiv);
 
                         // Upload file via AJAX
@@ -763,6 +876,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Clear file input
                 if (fileInput.value) fileInput.value = '';
+            }
+
+            function processImage(filename, operation, imgElement, buttonElement) {
+                // Show loading state
+                buttonElement.classList.add('loading');
+                
+                // Prepare request data
+                const requestData = {
+                    filename: filename,
+                    operation: operation
+                };
+                
+                // Send request to process image
+                fetch('process_image.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    // Remove loading state
+                    buttonElement.classList.remove('loading');
+                    
+                    if (result.success) {
+                        // Update image with new version (add timestamp to prevent caching)
+                        imgElement.src = `../../img/${result.updated_url}`;
+                        
+                        // Add a temporary highlight effect
+                        const preview = imgElement.closest('.drop-zone-preview');
+                        preview.style.boxShadow = '0 0 0 3px rgba(79, 70, 229, 0.6)';
+                        setTimeout(() => {
+                            preview.style.boxShadow = '';
+                        }, 1000);
+                    } else {
+                        console.error('Error processing image:', result.message);
+                        alert('Error processing image: ' + result.message);
+                    }
+                })
+                .catch(error => {
+                    // Remove loading state
+                    buttonElement.classList.remove('loading');
+                    console.error('Error:', error);
+                    alert('An error occurred while processing the image');
+                });
             }
 
             function uploadFile(file, uniqueFileName) {

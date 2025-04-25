@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $check_pic1_query = "SELECT product_pic1 FROM product WHERE product_id = ? AND product_pic1 IS NOT NULL";
             $check_pic1_stmt = $_db->prepare($check_pic1_query);
             $check_pic1_stmt->execute([$product_id]);
-            
+
             // If trying to remove the main image without a replacement, throw an exception
             if ($check_pic1_stmt->fetch()) {
                 throw new Exception("Main product image (Image 1) cannot be removed without a replacement");
@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($field === 'product_pic1' && empty($_FILES['product_pic1']['name'])) {
                     continue; // Skip this iteration
                 }
-                
+
                 // Get the old filename before removing it
                 $old_filename_query = "SELECT $field FROM product WHERE product_id = ?";
                 $old_filename_stmt = $_db->prepare($old_filename_query);
@@ -424,6 +424,7 @@ $error_message = temp('error');
             justify-content: center;
             overflow: hidden;
             transition: all 0.2s;
+            position: relative;
         }
 
         .img-preview:hover {
@@ -434,6 +435,65 @@ $error_message = temp('error');
             max-width: 100%;
             max-height: 100%;
         }
+
+        /* NEW: Image toolbar */
+        .img-toolbar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.25rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .img-preview:hover .img-toolbar {
+            opacity: 1;
+        }
+
+        .img-tool {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            width: 1.75rem;
+            height: 1.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: #333;
+            transition: all 0.2s;
+        }
+
+        .img-tool:hover {
+            background: white;
+            transform: scale(1.1);
+        }
+
+        .img-tool.loading {
+            pointer-events: none;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.6;
+            }
+        }
+
+        /* END NEW */
 
         .drop-zone {
             border: 2px dashed #D1D5DB;
@@ -913,22 +973,22 @@ $error_message = temp('error');
 
         <!-- Success Message -->
         <?php if ($success_message): ?>
-        <div class="alert alert-success mb-4">
-            <div class="flex items-center">
-                <i class="fas fa-check-circle mr-2"></i>
-                <strong><?= $success_message ?></strong>
+            <div class="alert alert-success mb-4">
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    <strong><?= $success_message ?></strong>
+                </div>
             </div>
-        </div>
         <?php endif; ?>
 
         <!-- Error Message -->
         <?php if ($error_message): ?>
-        <div class="alert alert-error mb-4">
-            <div class="flex items-center">
-                <i class="fas fa-exclamation-circle mr-2"></i>
-                <strong><?= $error_message ?></strong>
+            <div class="alert alert-error mb-4">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <strong><?= $error_message ?></strong>
+                </div>
             </div>
-        </div>
         <?php endif; ?>
 
         <!-- Header with Actions -->
@@ -1045,6 +1105,24 @@ $error_message = temp('error');
                     <!-- Images Tab -->
                     <div class="tab-content" id="images">
                         <h2 class="text-xl font-semibold mb-4">Product Images</h2>
+
+                        <!-- Image Processing Tips Box -->
+                        <div class="bg-blue-50 p-3 rounded-lg mb-6 border border-blue-200">
+                            <h3 class="text-sm font-medium text-blue-800 flex items-center mb-2">
+                                <i class="fas fa-lightbulb text-blue-600 mr-2"></i>
+                                Image Editing Features
+                            </h3>
+                            <p class="text-xs text-blue-700 mb-2">
+                                Hover over any product image to reveal editing tools. You can rotate and flip images to get the perfect product shot.
+                            </p>
+                            <div class="flex items-center gap-4 text-xs text-blue-700">
+                                <span><i class="fas fa-undo"></i> Rotate Left</span>
+                                <span><i class="fas fa-redo"></i> Rotate Right</span>
+                                <span><i class="fas fa-arrows-alt-h"></i> Flip Horizontally</span>
+                                <span><i class="fas fa-arrows-alt-v"></i> Flip Vertically</span>
+                            </div>
+                        </div>
+
                         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                             <?php
                             $image_fields = ['product_pic1', 'product_pic2', 'product_pic3'];
@@ -1063,6 +1141,22 @@ $error_message = temp('error');
                                         <div class="img-preview mb-3 mx-auto">
                                             <?php if (!empty($image_url)): ?>
                                                 <img src="<?= $image_url ?>" alt="<?= $image_labels[$index] ?>" id="preview_<?= $field ?>">
+
+                                                <!-- Image toolbar -->
+                                                <div class="img-toolbar">
+                                                    <div class="img-tool" title="Rotate Left" onclick="processImage('<?= basename($image_url) ?>', 'rotate_left', '<?= $field ?>', this)">
+                                                        <i class="fas fa-undo"></i>
+                                                    </div>
+                                                    <div class="img-tool" title="Rotate Right" onclick="processImage('<?= basename($image_url) ?>', 'rotate_right', '<?= $field ?>', this)">
+                                                        <i class="fas fa-redo"></i>
+                                                    </div>
+                                                    <div class="img-tool" title="Flip Horizontal" onclick="processImage('<?= basename($image_url) ?>', 'flip_horizontal', '<?= $field ?>', this)">
+                                                        <i class="fas fa-arrows-alt-h"></i>
+                                                    </div>
+                                                    <div class="img-tool" title="Flip Vertical" onclick="processImage('<?= basename($image_url) ?>', 'flip_vertical', '<?= $field ?>', this)">
+                                                        <i class="fas fa-arrows-alt-v"></i>
+                                                    </div>
+                                                </div>
                                             <?php else: ?>
                                                 <div class="flex flex-col items-center justify-center h-full text-gray-400" id="placeholder_<?= $field ?>">
                                                     <i class="fas fa-image text-4xl mb-2"></i>
@@ -1078,13 +1172,13 @@ $error_message = temp('error');
                                                 <i class="fas fa-upload mr-2"></i>Choose File
                                             </button>
                                             <?php if (!empty($image_url)): ?>
-                                                <button type="button" class="btn btn-danger mt-2 ml-2 <?= $is_required ? 'main-img-remove-btn' : '' ?>" id="removeBtn_<?= $field ?>" 
+                                                <button type="button" class="btn btn-danger mt-2 ml-2 <?= $is_required ? 'main-img-remove-btn' : '' ?>" id="removeBtn_<?= $field ?>"
                                                     <?= $is_required ? 'data-field="' . $field . '"' : '' ?>
                                                     onclick="removeImage('<?= $field ?>')">
                                                     <i class="fas fa-trash-alt mr-2"></i>Remove
                                                 </button>
                                             <?php else: ?>
-                                                <button type="button" class="btn btn-danger mt-2 ml-2 hidden <?= $is_required ? 'main-img-remove-btn' : '' ?>" id="removeBtn_<?= $field ?>" 
+                                                <button type="button" class="btn btn-danger mt-2 ml-2 hidden <?= $is_required ? 'main-img-remove-btn' : '' ?>" id="removeBtn_<?= $field ?>"
                                                     <?= $is_required ? 'data-field="' . $field . '"' : '' ?>
                                                     onclick="removeImage('<?= $field ?>')">
                                                     <i class="fas fa-trash-alt mr-2"></i>Remove
@@ -1094,7 +1188,7 @@ $error_message = temp('error');
                                         <div class="text-xs text-gray-500 mt-2">
                                             <p>Max file size: 5MB. Allowed formats: JPG, JPEG, PNG, GIF</p>
                                             <?php if ($is_required): ?>
-                                            <p class="text-red-500 font-semibold mt-1">Main image is required</p>
+                                                <p class="text-red-500 font-semibold mt-1">Main image is required</p>
                                             <?php endif; ?>
                                         </div>
                                     </div>
@@ -1211,6 +1305,17 @@ $error_message = temp('error');
                         <li>Image format: JPG, JPEG, PNG, or GIF</li>
                         <li>Maximum file size: 5MB</li>
                         <li>Recommended dimensions: 1000x1000 pixels</li>
+                        <li><strong>NEW:</strong> Use the image editing tools to rotate and flip images</li>
+                    </ul>
+                </div>
+                <div class="help-item">
+                    <h3>Image Editing Tools</h3>
+                    <p>Hover over any uploaded image to see the editing toolbar:</p>
+                    <ul class="list-disc ml-5 mt-2 text-sm">
+                        <li><i class="fas fa-undo"></i> <strong>Rotate Left:</strong> Rotates the image 90° counterclockwise</li>
+                        <li><i class="fas fa-redo"></i> <strong>Rotate Right:</strong> Rotates the image 90° clockwise</li>
+                        <li><i class="fas fa-arrows-alt-h"></i> <strong>Flip Horizontally:</strong> Mirrors the image left to right</li>
+                        <li><i class="fas fa-arrows-alt-v"></i> <strong>Flip Vertically:</strong> Mirrors the image top to bottom</li>
                     </ul>
                 </div>
                 <div class="help-item">
@@ -1312,12 +1417,60 @@ $error_message = temp('error');
             }
         }
 
+        // NEW: Process image function for rotate/flip operations
+        function processImage(filename, operation, fieldId, buttonElement) {
+            // Show loading state
+            buttonElement.classList.add('loading');
+
+            // Prepare request data
+            const requestData = {
+                filename: filename,
+                operation: operation
+            };
+
+            // Send request to process image
+            fetch('process_image.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    // Remove loading state
+                    buttonElement.classList.remove('loading');
+
+                    if (result.success) {
+                        // Update image with new version (add timestamp to prevent caching)
+                        const imgElement = document.getElementById(`preview_${fieldId}`);
+                        imgElement.src = `../../img/${result.updated_url}`;
+
+                        // Add a temporary highlight effect
+                        const preview = buttonElement.closest('.img-preview');
+                        preview.style.boxShadow = '0 0 0 3px rgba(79, 70, 229, 0.6)';
+                        setTimeout(() => {
+                            preview.style.boxShadow = '';
+                        }, 1000);
+                    } else {
+                        console.error('Error processing image:', result.message);
+                        alert('Error processing image: ' + result.message);
+                    }
+                })
+                .catch(error => {
+                    // Remove loading state
+                    buttonElement.classList.remove('loading');
+                    console.error('Error:', error);
+                    alert('An error occurred while processing the image');
+                });
+        }
+
         // Image preview functionality
         const imageInputs = ['product_pic1', 'product_pic2', 'product_pic3'];
 
         imageInputs.forEach(inputId => {
             const input = document.getElementById(inputId);
-            
+
             input.addEventListener('change', function() {
                 if (input.files && input.files[0]) {
                     if (!validateImage(input.files[0], inputId)) {
@@ -1333,13 +1486,33 @@ $error_message = temp('error');
                     reader.onload = function(e) {
                         // Clear any previous image or placeholder
                         previewContainer.innerHTML = '';
-                        
+
                         // Create and append the new image
                         const img = document.createElement('img');
                         img.src = e.target.result;
                         img.id = `preview_${inputId}`;
+
+                        // Create image toolbar for the new image
+                        const toolbar = document.createElement('div');
+                        toolbar.className = 'img-toolbar';
+                        toolbar.innerHTML = `
+                            <div class="img-tool" title="Rotate Left" onclick="processImage('${input.files[0].name}', 'rotate_left', '${inputId}', this)">
+                                <i class="fas fa-undo"></i>
+                            </div>
+                            <div class="img-tool" title="Rotate Right" onclick="processImage('${input.files[0].name}', 'rotate_right', '${inputId}', this)">
+                                <i class="fas fa-redo"></i>
+                            </div>
+                            <div class="img-tool" title="Flip Horizontal" onclick="processImage('${input.files[0].name}', 'flip_horizontal', '${inputId}', this)">
+                                <i class="fas fa-arrows-alt-h"></i>
+                            </div>
+                            <div class="img-tool" title="Flip Vertical" onclick="processImage('${input.files[0].name}', 'flip_vertical', '${inputId}', this)">
+                                <i class="fas fa-arrows-alt-v"></i>
+                            </div>
+                        `;
+
                         previewContainer.appendChild(img);
-                        
+                        previewContainer.appendChild(toolbar);
+
                         // Reset the remove flag and show remove button
                         removeField.value = "0";
                         removeBtn.classList.remove('hidden');
@@ -1357,21 +1530,22 @@ $error_message = temp('error');
             const previewContainer = document.querySelector(`#dropZone_${fieldId} .img-preview`);
             const removeField = document.getElementById(`remove_${fieldId}`);
             const removeBtn = document.getElementById(`removeBtn_${fieldId}`);
-            
+
             // Special handling for the main image (product_pic1)
             if (fieldId === 'product_pic1') {
                 // Check if there is a new image selected to replace it
                 if (!input.files || !input.files[0]) {
+                    alert('Main product image (Image 1) cannot be removed without a replacement. Please select a new image first.');
                     return; // Don't proceed with removal
                 }
             }
-            
+
             // Clear file input value
             input.value = '';
-            
+
             // Set the remove flag to 1 (true) to tell the backend to remove the image
             removeField.value = "1";
-            
+
             // Clear the preview and add the placeholder
             const isMainImage = fieldId === 'product_pic1';
             previewContainer.innerHTML = `
@@ -1380,7 +1554,7 @@ $error_message = temp('error');
                     <span class="text-sm">${isMainImage ? 'Main image required' : 'Drag and drop or click to upload'}</span>
                 </div>
             `;
-            
+
             // Hide the remove button since there's no longer an image to remove
             removeBtn.classList.add('hidden');
         }
@@ -1398,21 +1572,21 @@ $error_message = temp('error');
         document.getElementById('updateProductForm').addEventListener('submit', function(event) {
             const mainImageField = document.getElementById('product_pic1');
             const mainImageRemove = document.getElementById('remove_product_pic1');
-            
+
             // Check if main image would be removed without replacement
             if (mainImageRemove.value === '1' && (!mainImageField.files || !mainImageField.files[0])) {
                 event.preventDefault();
                 alert('Main product image (Image 1) is required. Please upload an image before saving.');
-                
+
                 // Switch to the Images tab
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
                 document.querySelector('[data-tab="images"]').classList.add('active');
                 document.getElementById('images').classList.add('active');
-                
+
                 return false;
             }
-            
+
             document.getElementById('submitSpinner').style.display = 'inline-block';
             document.getElementById('submitBtn').disabled = true;
         });
@@ -1446,12 +1620,14 @@ $error_message = temp('error');
                     // Create a FileList-like object
                     const dataTransfer = new DataTransfer();
                     dataTransfer.items.add(file);
-                    
+
                     // Set the file input's files property
                     input.files = dataTransfer.files;
-                    
+
                     // Trigger the change event manually
-                    const event = new Event('change', { bubbles: true });
+                    const event = new Event('change', {
+                        bubbles: true
+                    });
                     input.dispatchEvent(event);
                 }
             }
@@ -1485,7 +1661,7 @@ $error_message = temp('error');
             btn.addEventListener('click', function(e) {
                 const fieldId = this.getAttribute('data-field');
                 const input = document.getElementById(fieldId);
-                
+
                 // If it's the main image and no replacement is selected, show warning
                 if (fieldId === 'product_pic1' && (!input.files || !input.files[0])) {
                     e.preventDefault();
@@ -1493,6 +1669,30 @@ $error_message = temp('error');
                     return false;
                 }
             });
+        });
+
+        // Display current date and time in user's timezone
+        function getCurrentDateTime() {
+            const now = new Date();
+            const options = {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            return now.toLocaleString('en-US', options);
+        }
+
+        // Show last updated info when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentDateTime = getCurrentDateTime();
+            const userInfo = document.createElement('div');
+            userInfo.className = 'text-xs text-gray-500 text-center mt-4';
+            userInfo.innerHTML = `Last updated: ${currentDateTime} by GINWEI22`;
+            document.querySelector('.sticky-actions').before(userInfo);
         });
     </script>
 </body>
