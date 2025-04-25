@@ -7,7 +7,7 @@ require '../headFooter/header.php';
 // Get filter parameters
 $view = get('view', 'sales'); // Default view is sales
 $period = get('period', 'monthly'); // Default period is monthly
-$start_date = get('start_date', date('Y-m-d', strtotime('-30 days')));
+$start_date = get('start_date', date('Y-m-d', strtotime('-365 days')));
 $end_date = get('end_date', date('Y-m-d'));
 $category = get('category', '');
 

@@ -6,8 +6,8 @@
             <h3>Visit Our Store</h3>
             <div class="map-container">
                 <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3983.786880529544!2d101.61542180000001!3d3.1508396000000043!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31cc4ed53[...]"
-                    width="100%"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3983.786880529544!2d101.61542180000001!3d3.1508396000000043!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31cc4ed533e1825f%3A0x7c8be57d07706be!2s1%20Utama%20Shopping%20Centre%20(New%20Wing)%2C%20Bandar%20Utama%2C%2047800%20Petaling%20Jaya%2C%20Selangor!5e0!3m2!1sen!2smy!4v1745455844950!5m2!1sen!2smy"
+                width="100%"
                     height="250"
                     style="border:0;"
                     allowfullscreen=""
