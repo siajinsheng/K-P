@@ -387,12 +387,7 @@ $current_time = date('Y-m-d H:i:s');
                             <i class="fab fa-cc-visa"></i>
                             <i class="fab fa-cc-mastercard"></i>
                             <i class="fab fa-cc-paypal"></i>
-                            <i class="fab fa-cc-amex"></i>
                         </div>
-                    </div>
-                    
-                    <div class="cart-timestamp">
-                        Last updated: <?= $current_time ?>
                     </div>
                 </div>
             </div>

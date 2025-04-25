@@ -126,6 +126,47 @@ try {
     redirect('shopping-bag.php');
 }
 
+// Get next order ID and payment ID
+function getNextOrderID() {
+    global $_db;
+    
+    $stm = $_db->prepare("
+        SELECT MAX(SUBSTRING(order_id, 3)) as max_id 
+        FROM orders 
+        WHERE order_id LIKE 'OR%'
+    ");
+    $stm->execute();
+    $result = $stm->fetch();
+    
+    if ($result && !empty($result->max_id)) {
+        $next_id = intval($result->max_id) + 1;
+    } else {
+        $next_id = 1; // Start from 1 if no previous orders
+    }
+    
+    return 'OR' . str_pad($next_id, 3, '0', STR_PAD_LEFT);
+}
+
+function getNextPaymentID() {
+    global $_db;
+    
+    $stm = $_db->prepare("
+        SELECT MAX(SUBSTRING(payment_id, 3)) as max_id 
+        FROM payment 
+        WHERE payment_id LIKE 'PM%'
+    ");
+    $stm->execute();
+    $result = $stm->fetch();
+    
+    if ($result && !empty($result->max_id)) {
+        $next_id = intval($result->max_id) + 1;
+    } else {
+        $next_id = 1; // Start from 1 if no previous payments
+    }
+    
+    return 'PM' . str_pad($next_id, 3, '0', STR_PAD_LEFT);
+}
+
 // Handle checkout form submission
 if (is_post() && isset($_POST['place_order'])) {
     $address_id = $_POST['address_id'] ?? '';
@@ -148,11 +189,12 @@ if (is_post() && isset($_POST['place_order'])) {
             // Begin transaction
             $_db->beginTransaction();
             
-            // 1. Generate order ID
-            $order_id = 'ORD_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 8);
+            // 1. Generate order ID and payment ID
+            $order_id = getNextOrderID();
+            $payment_id = getNextPaymentID();
             
             // 2. Create delivery record
-            $delivery_id = 'DEL_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 8);
+            $delivery_id = 'DEL' . date('YmdHis') . substr(md5(uniqid()), 0, 5);
             $estimated_delivery_date = date('Y-m-d', strtotime('+7 days')); // 7 days from now
             
             $stm = $_db->prepare("
@@ -193,7 +235,6 @@ if (is_post() && isset($_POST['place_order'])) {
             }
             
             // 5. Create payment record
-            $payment_id = 'PAY_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 8);
             $payment_status = ($payment_method === 'Cash on Delivery') ? 'Pending' : 'Completed';
             
             $stm = $_db->prepare("
@@ -212,8 +253,23 @@ if (is_post() && isset($_POST['place_order'])) {
             // Commit transaction
             $_db->commit();
             
-            // Redirect to order confirmation page
-            redirect('order_confirmation.php?order_id=' . $order_id);
+            // Redirect based on payment method
+            switch($payment_method) {
+                case 'Credit Card':
+                    redirect('payment/credit_card.php?order_id=' . $order_id);
+                    break;
+                case 'PayPal':
+                    redirect('payment/paypal.php?order_id=' . $order_id);
+                    break;
+                case 'Bank Transfer':
+                    redirect('payment/bank_transfer.php?order_id=' . $order_id);
+                    break;
+                case 'Cash on Delivery':
+                    redirect('order_confirmation.php?order_id=' . $order_id);
+                    break;
+                default:
+                    redirect('order_confirmation.php?order_id=' . $order_id);
+            }
             
         } catch (PDOException $e) {
             // Rollback on error
@@ -508,7 +564,11 @@ $info_message = temp('info');
                 return false;
             }
             
-            // Additional validation can be added here
+            // Show loading message
+            const submitBtn = document.querySelector('.place-order-btn');
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            submitBtn.disabled = true;
+            
             return true;
         });
     });
