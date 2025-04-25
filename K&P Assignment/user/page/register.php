@@ -87,7 +87,7 @@ if (is_post()) {
             // Save profile picture
             $profilePicPath = null;
             if ($profilePic) {
-                $profilePicPath = save_photo_user($profilePic, '../../admin/Uploaded_profile', 300, 300);
+                $profilePicPath = save_photo_user($profilePic, '../../img', 300, 300);
             } else {
                 $profilePicPath = 'default-profile.jpg'; // Default profile image
             }

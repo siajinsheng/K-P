@@ -1,64 +1,72 @@
 <?php
 require_once '../../_base.php';
-// Set page variables
-$page_title = "Products";
-$gender = req('gender', 'Man'); // Default to Man if no gender specified
 
-// Get category filter if any
-$category_id = req('category', '');
+// Start session
+safe_session_start();
 
-// Get sorting parameter (if any)
-$sort = req('sort', ''); // Default to no specific sorting
+// Get category filter if exists
+$category_filter = isset($_GET['category']) ? $_GET['category'] : null;
+$search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
 
-// Build query to get products based on filters
-$sql = "SELECT p.product_id, p.product_name, p.product_price, p.product_pic1, 
-               c.category_name, c.category_id 
-        FROM product p 
-        JOIN category c ON p.category_id = c.category_id
-        WHERE p.product_status = 'Available'";
+// Get sorting option
+$sort_by = isset($_GET['sort']) ? $_GET['sort'] : 'newest';
 
-// Apply filters for gender and category
-$params = [];
-$conditions = [];
-
-// Add gender condition
-$conditions[] = "p.product_type = ?";
-$params[] = $gender;
-
-// Add category condition if specified
-if ($category_id) {
-    $conditions[] = "p.category_id = ?";
-    $params[] = $category_id;
+// Prepare the SQL query for products
+try {
+    $params = [];
+    
+    // Simplified SQL query
+    $sql = "SELECT * FROM product WHERE product_status = 'Available'";
+    
+    // Add category filter if selected
+    if ($category_filter) {
+        $sql .= " AND product_category = ?";
+        $params[] = $category_filter;
+    }
+    
+    // Add search query if provided
+    if (!empty($search_query)) {
+        $sql .= " AND (product_name LIKE ? OR product_description LIKE ?)";
+        $params[] = "%$search_query%";
+        $params[] = "%$search_query%";
+    }
+    
+    // Add sorting
+    switch($sort_by) {
+        case 'price_low':
+            $sql .= " ORDER BY product_price ASC";
+            break;
+        case 'price_high':
+            $sql .= " ORDER BY product_price DESC";
+            break;
+        case 'newest':
+        default:
+            $sql .= " ORDER BY created_at DESC";
+            break;
+    }
+    
+    $stm = $_db->prepare($sql);
+    $stm->execute($params);
+    $products = $stm->fetchAll();
+    
+    // Log the result
+    error_log("Products query returned " . count($products) . " results");
+    
+    // Get all categories for the filter
+    $stm = $_db->prepare("SELECT DISTINCT product_category FROM product WHERE product_status = 'Available'");
+    $stm->execute();
+    $categories = $stm->fetchAll(PDO::FETCH_COLUMN);
+    
+} catch (PDOException $e) {
+    error_log("Error fetching products: " . $e->getMessage());
+    $products = [];
+    $categories = [];
+    temp('error', 'An error occurred while retrieving products. Please try again.');
 }
 
-// Add conditions to SQL query
-if (!empty($conditions)) {
-    $sql .= " AND " . implode(" AND ", $conditions);
-}
-
-// Apply sorting
-switch ($sort) {
-    case 'price_asc':
-        $sql .= " ORDER BY p.product_price ASC";
-        break;
-    case 'price_desc':
-        $sql .= " ORDER BY p.product_price DESC";
-        break;
-    default:
-        // Default sorting (e.g., by product name or ID)
-        $sql .= " ORDER BY p.product_name ASC";
-        break;
-}
-
-// Prepare and execute query
-$stm = $_db->prepare($sql);
-$stm->execute($params);
-$products = $stm->fetchAll();
-
-// Get categories for filter menu
-$cat_stm = $_db->prepare("SELECT * FROM category");
-$cat_stm->execute();
-$categories = $cat_stm->fetchAll();
+// Get any messages from session
+$success_message = temp('success');
+$error_message = temp('error');
 ?>
 
 <!DOCTYPE html>
@@ -66,94 +74,141 @@ $categories = $cat_stm->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>K&P - <?= $page_title ?></title>
+    <title>K&P - Products</title>
     <link rel="stylesheet" href="../css/products.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <?php include('../header.php'); ?>
 
-    <div class="product-hero">
-        <div class="hero-content">
-            <h1>Our Collection</h1>
-            <p>Quality fashion for every style</p>
-        </div>
-    </div>
-
     <div class="container">
-        <div class="product-filters">
-            <div class="gender-filter">
-                <h3>Gender</h3>
-                <div class="gender-options">
-                    <label class="gender-option <?= $gender === 'Man' ? 'active' : '' ?>">
-                        <input type="radio" name="gender" value="Man" <?= $gender === 'Man' ? 'checked' : '' ?>>
-                        <span>Men</span>
-                    </label>
-                    <label class="gender-option <?= $gender === 'Women' ? 'active' : '' ?>">
-                        <input type="radio" name="gender" value="Women" <?= $gender === 'Women' ? 'checked' : '' ?>>
-                        <span>Women</span>
-                    </label>
+        <div class="search-bar-container">
+            <form method="get" action="products.php" class="search-form">
+                <div class="search-input-container">
+                    <input 
+                        type="text" 
+                        name="search" 
+                        placeholder="Search products..." 
+                        value="<?= htmlspecialchars($search_query) ?>"
+                        class="search-input"
+                    >
+                    <button type="submit" class="search-button">
+                        <i class="fas fa-search"></i>
+                    </button>
                 </div>
-            </div>
-            
-            <div class="category-filter">
-                <h3>Categories</h3>
-                <ul>
-                    <li><a href="?gender=<?= $gender ?>&sort=<?= $sort ?>" class="<?= $category_id === '' ? 'active' : '' ?>">All Products</a></li>
-                    <?php foreach ($categories as $category): ?>
-                    <li>
-                        <a href="?gender=<?= $gender ?>&category=<?= $category->category_id ?>&sort=<?= $sort ?>" 
-                           class="<?= $category_id === $category->category_id ? 'active' : '' ?>">
-                            <?= $category->category_name ?>
-                        </a>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-            
-            <div class="sort-filter">
-                <h3>Sort By</h3>
-                <div class="sort-options">
-                    <select id="sort-select" class="sort-select">
-                        <option value="">Default</option>
-                        <option value="price_asc" <?= $sort === 'price_asc' ? 'selected' : '' ?>>Price: Low to High</option>
-                        <option value="price_desc" <?= $sort === 'price_desc' ? 'selected' : '' ?>>Price: High to Low</option>
-                    </select>
-                </div>
-            </div>
+                
+                <?php if (!empty($search_query)): ?>
+                    <div class="search-results-info">
+                        Showing results for: <strong>"<?= htmlspecialchars($search_query) ?>"</strong>
+                        <a href="products.php" class="clear-search">Clear</a>
+                    </div>
+                <?php endif; ?>
+            </form>
         </div>
+        
+        <?php if ($success_message): ?>
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> <?= $success_message ?>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($error_message): ?>
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i> <?= $error_message ?>
+            </div>
+        <?php endif; ?>
 
-        <div class="product-grid">
-            <?php if (count($products) > 0): ?>
-                <?php foreach ($products as $product): ?>
-                    <div class="product-card">
-                        <div class="product-image">
-                            <img src="../../img/<?= $product->product_pic1 ?>" alt="<?= $product->product_name ?>">
-                            <div class="product-overlay">
-                                <a href="product-details.php?id=<?= $product->product_id ?>" class="view-details">
-                                    <i class="fas fa-eye"></i> View Details
+        <div class="products-container">
+            <div class="filters-container">
+                <h2>Filters</h2>
+                
+                <div class="filter-section">
+                    <h3>Categories</h3>
+                    <ul class="category-filter">
+                        <li class="<?= !$category_filter ? 'active' : '' ?>">
+                            <a href="products.php<?= $search_query ? "?search=".urlencode($search_query) : "" ?>">All Categories</a>
+                        </li>
+                        <?php foreach($categories as $category): ?>
+                            <li class="<?= $category_filter == $category ? 'active' : '' ?>">
+                                <a href="products.php?category=<?= urlencode($category) ?><?= $search_query ? "&search=".urlencode($search_query) : "" ?>">
+                                    <?= htmlspecialchars($category) ?>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+                
+                <div class="filter-section">
+                    <h3>Sort By</h3>
+                    <ul class="sort-options">
+                        <li class="<?= $sort_by == 'newest' ? 'active' : '' ?>">
+                            <a href="products.php?sort=newest<?= $category_filter ? "&category=".urlencode($category_filter) : "" ?><?= $search_query ? "&search=".urlencode($search_query) : "" ?>">Newest</a>
+                        </li>
+                        <li class="<?= $sort_by == 'price_low' ? 'active' : '' ?>">
+                            <a href="products.php?sort=price_low<?= $category_filter ? "&category=".urlencode($category_filter) : "" ?><?= $search_query ? "&search=".urlencode($search_query) : "" ?>">Price: Low to High</a>
+                        </li>
+                        <li class="<?= $sort_by == 'price_high' ? 'active' : '' ?>">
+                            <a href="products.php?sort=price_high<?= $category_filter ? "&category=".urlencode($category_filter) : "" ?><?= $search_query ? "&search=".urlencode($search_query) : "" ?>">Price: High to Low</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="products-grid">
+                <?php if (empty($products)): ?>
+                    <div class="no-products-found">
+                        <i class="fas fa-search"></i>
+                        <h3>No products found</h3>
+                        <?php if ($search_query || $category_filter): ?>
+                            <p>Try adjusting your search or filter criteria</p>
+                            <a href="products.php" class="reset-filters-btn">Reset All Filters</a>
+                        <?php else: ?>
+                            <p>We'll be adding new products soon!</p>
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <?php foreach($products as $product): ?>
+                        <div class="product-card">
+                            <div class="product-image">
+                                <a href="product-details.php?id=<?= $product->product_id ?>">
+                                    <img src="../../img/<?= $product->product_pic1 ?>" alt="<?= htmlspecialchars($product->product_name) ?>">
                                 </a>
                             </div>
+                            <div class="product-info">
+                                <h3 class="product-name">
+                                    <a href="product-details.php?id=<?= $product->product_id ?>"><?= htmlspecialchars($product->product_name) ?></a>
+                                </h3>
+                                <div class="product-category"><?= htmlspecialchars($product->product_category) ?></div>
+                                <div class="product-price">RM <?= number_format($product->product_price, 2) ?></div>
+                                <a href="product-details.php?id=<?= $product->product_id ?>" class="view-product-btn">View Product</a>
+                            </div>
                         </div>
-                        <div class="product-info">
-                            <h3 class="product-name"><?= $product->product_name ?></h3>
-                            <p class="product-price">RM <?= number_format($product->product_price, 2) ?></p>
-                            <button class="add-to-cart" data-product="<?= $product->product_id ?>">
-                                <i class="fas fa-shopping-cart"></i> Add to Cart
-                            </button>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <div class="no-products">
-                    <p>No products found in this category.</p>
-                </div>
-            <?php endif; ?>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
     
     <?php include('../footer.php'); ?>
 
-    <script src="../js/products.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mobile filters toggle
+        const filterToggle = document.querySelector('.filter-toggle');
+        if (filterToggle) {
+            filterToggle.addEventListener('click', function() {
+                const filtersContainer = document.querySelector('.filters-container');
+                filtersContainer.classList.toggle('active');
+                
+                // Change icon and text
+                if (filtersContainer.classList.contains('active')) {
+                    this.innerHTML = '<i class="fas fa-times"></i> Close Filters';
+                } else {
+                    this.innerHTML = '<i class="fas fa-filter"></i> Show Filters';
+                }
+            });
+        }
+    });
+    </script>
 </body>
 </html>

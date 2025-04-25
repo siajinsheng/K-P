@@ -211,7 +211,7 @@ $current_time = date('Y-m-d H:i:s');
     <?php include('../header.php'); ?>
 
     <div class="container">
-        <h1 class="page-title">Your Shopping Bag</h1>
+        <h1 class="page-title">Shopping Bag</h1>
         
         <?php if ($success_message): ?>
             <div class="alert alert-success">
@@ -231,21 +231,13 @@ $current_time = date('Y-m-d H:i:s');
                     <i class="fas fa-shopping-bag"></i>
                 </div>
                 <h2>Your shopping bag is empty</h2>
-                <p>Looks like you haven't added any products to your bag yet.</p>
-                <a href="products.php" class="continue-shopping-btn">Continue Shopping</a>
+                <p>Looks like you haven't added anything to your bag yet.</p>
+                <a href="products.php" class="continue-shopping-btn">CONTINUE SHOPPING</a>
             </div>
         <?php else: ?>
             <div class="shopping-bag-container">
                 <div class="cart-items">
                     <form method="post" id="update-cart-form">
-                        <div class="cart-header">
-                            <div class="cart-item-header">Product</div>
-                            <div class="cart-price-header">Price</div>
-                            <div class="cart-quantity-header">Quantity</div>
-                            <div class="cart-total-header">Total</div>
-                            <div class="cart-actions-header"></div>
-                        </div>
-                        
                         <?php foreach ($cart_items as $item): ?>
                             <?php 
                             $item_total = $item->product_price * $item->quantity;
@@ -261,34 +253,24 @@ $current_time = date('Y-m-d H:i:s');
                             }
                             ?>
                             <div class="cart-item <?= $has_issue ? 'has-issue' : '' ?>">
-                                <div class="cart-item-info">
-                                    <div class="cart-item-image">
+                                <div class="cart-item-image">
+                                    <a href="product-details.php?id=<?= $item->product_id ?>">
+                                        <img src="../../img/<?= $item->product_pic1 ?>" alt="<?= htmlspecialchars($item->product_name) ?>">
+                                    </a>
+                                </div>
+                                <div class="cart-item-details">
+                                    <h3 class="cart-item-name">
                                         <a href="product-details.php?id=<?= $item->product_id ?>">
-                                            <img src="../../img/<?= $item->product_pic1 ?>" alt="<?= htmlspecialchars($item->product_name) ?>">
+                                            <?= htmlspecialchars($item->product_name) ?>
                                         </a>
+                                    </h3>
+                                    <p class="cart-item-meta">Size: <?= $item->size ?></p>
+                                    <p class="cart-item-meta">Product ID: <?= $item->product_id ?></p>
+                                    
+                                    <div class="cart-item-price">
+                                        RM <?= number_format($item->product_price, 2) ?>
                                     </div>
-                                    <div class="cart-item-details">
-                                        <h3 class="cart-item-name">
-                                            <a href="product-details.php?id=<?= $item->product_id ?>">
-                                                <?= htmlspecialchars($item->product_name) ?>
-                                            </a>
-                                        </h3>
-                                        <p class="cart-item-meta">Size: <?= $item->size ?></p>
-                                        <p class="cart-item-meta">Product ID: <?= $item->product_id ?></p>
-                                        <p class="cart-item-meta">Added: <?= date('M d, Y H:i', strtotime($item->added_time)) ?></p>
-                                        <?php if ($has_issue): ?>
-                                            <p class="cart-item-issue">
-                                                <i class="fas fa-exclamation-triangle"></i> <?= $issue_message ?>
-                                            </p>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                                
-                                <div class="cart-item-price" data-label="Price:">
-                                    RM <?= number_format($item->product_price, 2) ?>
-                                </div>
-                                
-                                <div class="cart-item-quantity" data-label="Quantity:">
+                                    
                                     <div class="quantity-controls">
                                         <button type="button" class="quantity-btn minus" data-input="quantity_<?= $item->cart_id ?>">
                                             <i class="fas fa-minus"></i>
@@ -304,10 +286,12 @@ $current_time = date('Y-m-d H:i:s');
                                             <i class="fas fa-plus"></i>
                                         </button>
                                     </div>
-                                </div>
-                                
-                                <div class="cart-item-total" data-label="Total:">
-                                    RM <?= number_format($item_total, 2) ?>
+                                    
+                                    <?php if ($has_issue): ?>
+                                        <p class="cart-item-issue">
+                                            <i class="fas fa-exclamation-triangle"></i> <?= $issue_message ?>
+                                        </p>
+                                    <?php endif; ?>
                                 </div>
                                 
                                 <div class="cart-item-actions">
@@ -316,7 +300,7 @@ $current_time = date('Y-m-d H:i:s');
                                        title="Remove item"
                                        data-product="<?= htmlspecialchars($item->product_name) ?>"
                                        onclick="return confirmRemove(this)">
-                                        <i class="fas fa-trash"></i>
+                                        <i class="fas fa-times"></i>
                                     </a>
                                 </div>
                             </div>
@@ -324,7 +308,7 @@ $current_time = date('Y-m-d H:i:s');
                         
                         <div class="cart-update">
                             <button type="submit" name="update_cart" value="1" class="update-cart-btn">
-                                <i class="fas fa-sync-alt"></i> Update Cart
+                                <i class="fas fa-sync-alt"></i> UPDATE BAG
                             </button>
                         </div>
                     </form>
@@ -351,7 +335,7 @@ $current_time = date('Y-m-d H:i:s');
                     
                     <?php if ($shipping_fee > 0): ?>
                         <div class="free-shipping-message">
-                            <i class="fas fa-truck"></i> Spend RM <?= number_format(100 - $subtotal, 2) ?> more for FREE shipping!
+                            <i class="fas fa-truck"></i> Spend RM <?= number_format(100 - $subtotal, 2) ?> more for FREE shipping
                         </div>
                     <?php endif; ?>
                     
@@ -363,31 +347,20 @@ $current_time = date('Y-m-d H:i:s');
                     </div>
                     
                     <a href="checkout.php" class="checkout-btn" <?= !empty($items_with_issues) ? 'disabled' : '' ?>>
-                        <i class="fas fa-lock"></i> Proceed to Checkout
+                        CONTINUE TO CHECKOUT
                     </a>
                     
                     <?php if (!empty($items_with_issues)): ?>
                         <div class="checkout-warning">
                             <i class="fas fa-exclamation-triangle"></i>
-                            Please resolve the issues with your cart items before proceeding to checkout.
+                            Please resolve the issues with your items before proceeding
                         </div>
                     <?php endif; ?>
                     
                     <div class="continue-shopping">
                         <a href="products.php" class="continue-shopping-link">
-                            <i class="fas fa-arrow-left"></i> Continue Shopping
+                            <i class="fas fa-arrow-left"></i> Continue shopping
                         </a>
-                    </div>
-                    
-                    <div class="secure-checkout">
-                        <div class="secure-checkout-header">
-                            <i class="fas fa-shield-alt"></i> Secure Checkout
-                        </div>
-                        <div class="payment-methods">
-                            <i class="fab fa-cc-visa"></i>
-                            <i class="fab fa-cc-mastercard"></i>
-                            <i class="fab fa-cc-paypal"></i>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -417,13 +390,6 @@ $current_time = date('Y-m-d H:i:s');
                 // Trigger change event to update form
                 const event = new Event('change', { bubbles: true });
                 input.dispatchEvent(event);
-                
-                // Highlight changed row
-                const cartItem = input.closest('.cart-item');
-                cartItem.classList.add('quantity-changed');
-                setTimeout(() => {
-                    cartItem.classList.remove('quantity-changed');
-                }, 2000);
             });
         });
         
@@ -458,7 +424,7 @@ $current_time = date('Y-m-d H:i:s');
     // Confirm remove item
     function confirmRemove(link) {
         const productName = link.getAttribute('data-product');
-        return confirm(`Are you sure you want to remove "${productName}" from your shopping bag?`);
+        return confirm(`Remove "${productName}" from your shopping bag?`);
     }
     </script>
 </body>
