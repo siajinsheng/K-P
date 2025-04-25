@@ -958,7 +958,7 @@ $error_message = temp('error');
         <!-- Breadcrumb -->
         <div class="breadcrumb">
             <div class="breadcrumb-item">
-                <a href="home.php"><i class="fas fa-home mr-1"></i>Home</a>
+                <a href="../home/home.php"><i class="fas fa-home mr-1"></i>Home</a>
             </div>
             <div class="breadcrumb-item">
                 <a href="product.php">Products</a>
@@ -1691,7 +1691,7 @@ $error_message = temp('error');
             const currentDateTime = getCurrentDateTime();
             const userInfo = document.createElement('div');
             userInfo.className = 'text-xs text-gray-500 text-center mt-4';
-            userInfo.innerHTML = `Last updated: ${currentDateTime} by GINWEI22`;
+            userInfo.innerHTML = `Last updated: ${currentDateTime}`;
             document.querySelector('.sticky-actions').before(userInfo);
         });
     </script>
