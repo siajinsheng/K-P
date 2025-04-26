@@ -139,7 +139,7 @@ if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_check
             INSERT INTO delivery (
                 delivery_id, address_id, delivery_fee, 
                 delivery_status, estimated_date
-            ) VALUES (?, ?, ?, 'Pending', ?)
+            ) VALUES (?, ?, ?, 'Processing', ?)
         ");
         $stm->execute([$delivery_id, $address_id, $delivery_fee, $estimated_date]);
         

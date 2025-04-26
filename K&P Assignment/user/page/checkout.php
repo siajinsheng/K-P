@@ -103,6 +103,14 @@ if (is_post() && isset($_POST['complete_checkout'])) {
         $stm = $_db->prepare("UPDATE orders SET orders_status = 'Confirmed' WHERE order_id = ?");
         $stm->execute([$order_id]);
         
+        // Update status in delivery
+        $stm = $_db->prepare("UPDATE delivery SET delivery_status = 'Processing' WHERE delivery_id = ?");
+        $stm->execute([$delivery_id]);
+        
+        // Update status in payment
+        $stm = $_db->prepare("UPDATE payment SET payment_status = 'Completed' WHERE payment_id = ?");
+        $stm->execute([$payment_id]);
+        
         // Update stock quantities
         $stm = $_db->prepare("
             SELECT od.product_id, od.quantity, od.size 
@@ -132,7 +140,6 @@ if (is_post() && isset($_POST['complete_checkout'])) {
         unset($_SESSION['checkout_order_id']);
         unset($_SESSION['checkout_payment_id']);
         unset($_SESSION['checkout_delivery_id']);
-        unset($_SESSION['checkout_all_addresses']);
         
         // Log the successful order
         error_log("User $username ($user_id) completed checkout. Order ID: $order_id, Payment method: $payment_method");
@@ -170,7 +177,7 @@ try {
     
     // Get order items
     $stm = $_db->prepare("
-        SELECT od.*, p.product_name, p.product_pic1
+        SELECT od.*, p.product_name, p.product_pic1, p.product_price, od.size
         FROM order_details od
         JOIN product p ON od.product_id = p.product_id
         WHERE od.order_id = ?
@@ -212,6 +219,321 @@ $error_message = temp('error');
     <title>K&P - Checkout</title>
     <link rel="stylesheet" href="../css/checkout.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .checkout-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .checkout-steps {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+            width: 120px;
+        }
+        .step-number {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: #f0f0f0;
+            color: #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .step.active .step-number {
+            background-color: #000;
+            color: #fff;
+        }
+        .step.completed .step-number {
+            background-color: #4caf50;
+            color: #fff;
+        }
+        .step-text {
+            font-size: 14px;
+            color: #666;
+        }
+        .step.active .step-text,
+        .step.completed .step-text {
+            color: #000;
+            font-weight: 500;
+        }
+        .step-connector {
+            height: 2px;
+            background-color: #e0e0e0;
+            flex-grow: 1;
+            margin-top: 17px;
+            z-index: 1;
+            width: 100px;
+        }
+        .checkout-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+        }
+        @media (max-width: 768px) {
+            .checkout-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .checkout-main {
+            background-color: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .checkout-sidebar {
+            align-self: start;
+        }
+        .order-summary {
+            background-color: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 25px;
+        }
+        .summary-title {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 500;
+        }
+        .checkout-section {
+            margin-bottom: 30px;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 30px;
+        }
+        .checkout-section:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+        .section-title {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 500;
+        }
+        .section-title i {
+            margin-right: 10px;
+            color: #555;
+        }
+        .address-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .address-option input[type="radio"] {
+            display: none;
+        }
+        .address-card {
+            display: block;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+        .address-card.selected {
+            border-color: #000;
+            background-color: #f9f9f9;
+        }
+        .address-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .address-name {
+            font-weight: 500;
+        }
+        .default-badge {
+            background-color: #f0f0f0;
+            padding: 2px 8px;
+            border-radius: 2px;
+            font-size: 12px;
+            color: #666;
+        }
+        .address-details p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #555;
+        }
+        .add-new-address {
+            margin-top: 15px;
+        }
+        .add-address-btn {
+            display: inline-flex;
+            align-items: center;
+            color: #000;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 8px 0;
+        }
+        .add-address-btn:hover {
+            text-decoration: underline;
+        }
+        .add-address-btn i {
+            margin-right: 8px;
+        }
+        .payment-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .payment-option input[type="radio"] {
+            display: none;
+        }
+        .payment-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            height: 100px;
+        }
+        .payment-card.selected {
+            border-color: #000;
+            background-color: #f9f9f9;
+        }
+        .payment-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        .order-items {
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .order-item {
+            display: flex;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .order-item:last-child {
+            border-bottom: none;
+        }
+        .item-image {
+            width: 60px;
+            height: 60px;
+            position: relative;
+            margin-right: 15px;
+        }
+        .item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .item-quantity {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: #000;
+            color: #fff;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        .item-details {
+            flex-grow: 1;
+        }
+        .item-name {
+            margin: 0 0 5px;
+            font-size: 14px;
+            font-weight: normal;
+        }
+        .item-price {
+            color: #000;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .cost-summary {
+            margin-bottom: 20px;
+        }
+        .cost-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .cost-item.discount {
+            color: #e53935;
+        }
+        .total-cost {
+            display: flex;
+            justify-content: space-between;
+            font-size: 16px;
+            font-weight: 500;
+            margin: 20px 0;
+        }
+        .order-id {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            padding-top: 10px;
+        }
+        .checkout-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 30px;
+        }
+        .back-to-bag {
+            color: #666;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+        }
+        .back-to-bag:hover {
+            text-decoration: underline;
+            color: #000;
+        }
+        .back-to-bag i {
+            margin-right: 8px;
+        }
+        .place-order-btn {
+            background-color: #000;
+            color: #fff;
+            border: none;
+            padding: 12px 25px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            transition: background-color 0.2s;
+        }
+        .place-order-btn:hover {
+            background-color: #333;
+        }
+        .place-order-btn i {
+            margin-left: 8px;
+        }
+        .shipping-fee {
+            display: block;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #666;
+        }
+        /* Additional responsive styles */
+        @media (max-width: 992px) {
+            .address-options, .payment-options {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
     <?php include('../header.php'); ?>
@@ -265,7 +587,7 @@ $error_message = temp('error');
                                                id="address_<?= $address->address_id ?>" 
                                                value="<?= $address->address_id ?>"
                                                <?= $address->address_id == $order->address_id ? 'checked' : '' ?>>
-                                        <label for="address_<?= $address->address_id ?>" class="address-card">
+                                        <label for="address_<?= $address->address_id ?>" class="address-card <?= $address->address_id == $order->address_id ? 'selected' : '' ?>">
                                             <div class="address-header">
                                                 <span class="address-name"><?= htmlspecialchars($address->address_name) ?></span>
                                                 <?php if ($address->is_default): ?>
@@ -296,12 +618,12 @@ $error_message = temp('error');
                                         </label>
                                     </div>
                                 <?php endforeach; ?>
-                                
-                                <div class="add-new-address">
-                                    <a href="address.php?redirect=checkout.php" class="add-address-btn">
-                                        <i class="fas fa-plus-circle"></i> Add New Address
-                                    </a>
-                                </div>
+                            </div>
+                            
+                            <div class="add-new-address">
+                                <a href="address.php?redirect=checkout.php" class="add-address-btn">
+                                    <i class="fas fa-plus-circle"></i> Add New Address
+                                </a>
                             </div>
                         </div>
                         
@@ -313,7 +635,7 @@ $error_message = temp('error');
                             <div class="payment-options">
                                 <div class="payment-option">
                                     <input type="radio" name="payment_method" id="payment_cod" value="Cash on Delivery" checked>
-                                    <label for="payment_cod" class="payment-card">
+                                    <label for="payment_cod" class="payment-card selected">
                                         <i class="fas fa-money-bill-wave payment-icon"></i>
                                         <span>Cash on Delivery</span>
                                     </label>
@@ -369,6 +691,7 @@ $error_message = temp('error');
                                     </div>
                                     <div class="item-details">
                                         <h3 class="item-name"><?= htmlspecialchars($item->product_name) ?></h3>
+                                        <p class="item-size">Size: <?= $item->size ?></p>
                                         <div class="item-price">RM <?= number_format($item->unit_price, 2) ?></div>
                                     </div>
                                 </div>
@@ -433,11 +756,6 @@ $error_message = temp('error');
                     this.parentElement.querySelector('.address-card').classList.add('selected');
                 }
             });
-            
-            // Initialize selected class
-            if (radio.checked) {
-                radio.parentElement.querySelector('.address-card').classList.add('selected');
-            }
         });
         
         // Toggle payment method selection
@@ -452,11 +770,6 @@ $error_message = temp('error');
                     this.parentElement.querySelector('.payment-card').classList.add('selected');
                 }
             });
-            
-            // Initialize selected class
-            if (radio.checked) {
-                radio.parentElement.querySelector('.payment-card').classList.add('selected');
-            }
         });
     });
     </script>
