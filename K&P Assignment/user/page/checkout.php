@@ -20,107 +20,137 @@ $username = $_SESSION['user']->user_name;
 
 error_log("Checkout - User authenticated: $username (ID: $user_id)");
 
-// Verify checkout session data exists
-if (!isset($_SESSION['checkout_order_id']) || 
-    !isset($_SESSION['checkout_payment_id']) || 
-    !isset($_SESSION['checkout_delivery_id'])) {
-    
-    error_log("Checkout - Missing checkout session data for user $user_id");
-    temp('error', 'Invalid checkout session. Please try again.');
+// Check if checkout data exists in session
+if (!isset($_SESSION['checkout_data'])) {
+    error_log("Checkout - Missing checkout data for user $user_id");
+    temp('error', 'Please review your shopping bag first');
     redirect('shopping-bag.php');
     exit;
 }
 
 // Get checkout data from session
-$order_id = $_SESSION['checkout_order_id'];
-$payment_id = $_SESSION['checkout_payment_id'];
-$delivery_id = $_SESSION['checkout_delivery_id'];
+$checkout_data = $_SESSION['checkout_data'];
+$cart_items = $checkout_data['cart_items'];
+$address_id = $checkout_data['address_id'];
+$subtotal = $checkout_data['subtotal'];
+$tax = $checkout_data['tax'];
+$delivery_fee = $checkout_data['delivery_fee'];
+$total = $checkout_data['total'];
+
+// Helper function to generate sequential IDs in the format XXnnn
+function generate_id($table, $id_field, $prefix, $pad_length = 3) {
+    global $_db;
+    
+    $stm = $_db->prepare("SELECT $id_field FROM $table ORDER BY $id_field DESC LIMIT 1");
+    $stm->execute();
+    $last_id = $stm->fetchColumn();
+    
+    if ($last_id && preg_match('/' . $prefix . '(\d+)/', $last_id, $matches)) {
+        $next_num = (int)$matches[1] + 1;
+    } else {
+        $next_num = 1;
+    }
+    
+    return sprintf('%s%0' . $pad_length . 'd', $prefix, $next_num);
+}
 
 // Handle form submission to complete checkout
 if (is_post() && isset($_POST['complete_checkout'])) {
     try {
         $_db->beginTransaction();
         
-        // Update payment method
+        // Generate IDs in required format
+        $order_id = generate_id('orders', 'order_id', 'OR');
+        $payment_id = generate_id('payment', 'payment_id', 'PM');
+        $delivery_id = generate_id('delivery', 'delivery_id', 'DV');
+        
+        error_log("Generated IDs - Order: $order_id, Payment: $payment_id, Delivery: $delivery_id");
+        
+        // Get payment method from form
         $payment_method = $_POST['payment_method'];
         if (!in_array($payment_method, ['Credit Card', 'Online Banking', 'Cash on Delivery', 'E-Wallet'])) {
             throw new Exception("Invalid payment method");
         }
         
-        $stm = $_db->prepare("UPDATE payment SET payment_method = ? WHERE payment_id = ?");
-        $stm->execute([$payment_method, $payment_id]);
-        
         // Update delivery address if changed
         if (isset($_POST['address_id']) && !empty($_POST['address_id'])) {
-            $address_id = $_POST['address_id'];
+            $selected_address_id = $_POST['address_id'];
             
             // Verify address belongs to user
             $stm = $_db->prepare("SELECT * FROM address WHERE address_id = ? AND user_id = ?");
-            $stm->execute([$address_id, $user_id]);
+            $stm->execute([$selected_address_id, $user_id]);
             $address = $stm->fetch();
             
             if (!$address) {
                 throw new Exception("Invalid address selected");
             }
             
-            // Update delivery record with new address
-            $stm = $_db->prepare("UPDATE delivery SET address_id = ? WHERE delivery_id = ?");
-            $stm->execute([$address_id, $delivery_id]);
-            
-            // Recalculate delivery fee based on state
+            // Use selected address and recalculate delivery fee if needed
+            $address_id = $selected_address_id;
             $delivery_fee = in_array($address->state, ['Sabah', 'Sarawak', 'Labuan']) ? 40 : 20;
-            
-            $stm = $_db->prepare("UPDATE delivery SET delivery_fee = ? WHERE delivery_id = ?");
-            $stm->execute([$delivery_fee, $delivery_id]);
-            
-            // Update order total with new delivery fee
-            $stm = $_db->prepare("
-                SELECT order_subtotal FROM orders WHERE order_id = ?
-            ");
-            $stm->execute([$order_id]);
-            $order_subtotal = $stm->fetchColumn();
-            
-            $stm = $_db->prepare("
-                SELECT tax FROM payment WHERE payment_id = ?
-            ");
-            $stm->execute([$payment_id]);
-            $tax = $stm->fetchColumn();
-            
-            $new_total = $order_subtotal + $tax + $delivery_fee;
-            
-            $stm = $_db->prepare("
-                UPDATE orders SET order_total = ? WHERE order_id = ?
-            ");
-            $stm->execute([$new_total, $order_id]);
-            
-            $stm = $_db->prepare("
-                UPDATE payment SET total_amount = ? WHERE payment_id = ?
-            ");
-            $stm->execute([$new_total, $payment_id]);
+            $total = $subtotal + $tax + $delivery_fee;
         }
         
-        // Update order status
-        $stm = $_db->prepare("UPDATE orders SET orders_status = 'Confirmed' WHERE order_id = ?");
-        $stm->execute([$order_id]);
+        // Set estimated delivery date (3 days from now)
+        $estimated_date = date('Y-m-d', strtotime('+3 days'));
         
-        // Update status in delivery
-        $stm = $_db->prepare("UPDATE delivery SET delivery_status = 'Processing' WHERE delivery_id = ?");
-        $stm->execute([$delivery_id]);
-        
-        // Update status in payment
-        $stm = $_db->prepare("UPDATE payment SET payment_status = 'Completed' WHERE payment_id = ?");
-        $stm->execute([$payment_id]);
-        
-        // Update stock quantities
+        // Insert delivery record
         $stm = $_db->prepare("
-            SELECT od.product_id, od.quantity, od.size 
-            FROM order_details od 
-            WHERE od.order_id = ?
+            INSERT INTO delivery (
+                delivery_id, address_id, delivery_fee, 
+                delivery_status, estimated_date
+            ) VALUES (?, ?, ?, 'Processing', ?)
         ");
-        $stm->execute([$order_id]);
-        $items = $stm->fetchAll();
+        $stm->execute([$delivery_id, $address_id, $delivery_fee, $estimated_date]);
         
-        foreach ($items as $item) {
+        // Insert order record
+        $stm = $_db->prepare("
+            INSERT INTO orders (
+                order_id, user_id, delivery_id, 
+                order_date, orders_status, order_subtotal, order_total
+            ) VALUES (?, ?, ?, NOW(), 'Confirmed', ?, ?)
+        ");
+        $stm->execute([
+            $order_id, 
+            $user_id, 
+            $delivery_id, 
+            $subtotal,
+            $total
+        ]);
+        
+        // Insert payment record with selected payment method
+        $stm = $_db->prepare("
+            INSERT INTO payment (
+                payment_id, order_id, tax, 
+                total_amount, payment_method, payment_status, 
+                payment_date, discount
+            ) VALUES (?, ?, ?, ?, ?, 'Completed', NOW(), ?)
+        ");
+        $stm->execute([
+            $payment_id,
+            $order_id,
+            $tax,
+            $total,
+            $payment_method,
+            0 // Discount (not implemented)
+        ]);
+        
+        // Insert order details for each cart item
+        foreach ($cart_items as $item) {
+            $stm = $_db->prepare("
+                INSERT INTO order_details (
+                    order_id, product_id, quantity, unit_price, size
+                ) VALUES (?, ?, ?, ?, ?)
+            ");
+            $stm->execute([
+                $order_id,
+                $item->product_id,
+                $item->quantity,
+                $item->product_price,
+                $item->size
+            ]);
+            
+            // Update stock quantity
             $stm = $_db->prepare("
                 UPDATE quantity 
                 SET product_stock = product_stock - ? 
@@ -129,17 +159,15 @@ if (is_post() && isset($_POST['complete_checkout'])) {
             $stm->execute([$item->quantity, $item->product_id, $item->size]);
         }
         
-        // Clear cart items if any remain
+        // Clear cart items
         $stm = $_db->prepare("DELETE FROM cart WHERE user_id = ?");
         $stm->execute([$user_id]);
         
         // Commit all database changes
         $_db->commit();
         
-        // Clear checkout session data
-        unset($_SESSION['checkout_order_id']);
-        unset($_SESSION['checkout_payment_id']);
-        unset($_SESSION['checkout_delivery_id']);
+        // Clear checkout data from session
+        unset($_SESSION['checkout_data']);
         
         // Log the successful order
         error_log("User $username ($user_id) completed checkout. Order ID: $order_id, Payment method: $payment_method");
@@ -156,36 +184,8 @@ if (is_post() && isset($_POST['complete_checkout'])) {
     }
 }
 
-// Get order details
+// Get user addresses
 try {
-    $stm = $_db->prepare("
-        SELECT o.*, d.delivery_id, d.address_id, d.delivery_fee,
-               d.delivery_status, d.estimated_date,
-               p.payment_id, p.tax, p.total_amount, p.payment_method,
-               p.payment_status, p.discount
-        FROM orders o
-        JOIN delivery d ON o.delivery_id = d.delivery_id
-        JOIN payment p ON o.order_id = p.order_id
-        WHERE o.order_id = ? AND o.user_id = ?
-    ");
-    $stm->execute([$order_id, $user_id]);
-    $order = $stm->fetch();
-    
-    if (!$order) {
-        throw new Exception("Order not found");
-    }
-    
-    // Get order items
-    $stm = $_db->prepare("
-        SELECT od.*, p.product_name, p.product_pic1, p.product_price, od.size
-        FROM order_details od
-        JOIN product p ON od.product_id = p.product_id
-        WHERE od.order_id = ?
-    ");
-    $stm->execute([$order_id]);
-    $order_items = $stm->fetchAll();
-    
-    // Get user addresses
     $stm = $_db->prepare("
         SELECT * FROM address WHERE user_id = ? ORDER BY is_default DESC
     ");
@@ -196,7 +196,7 @@ try {
     $stm = $_db->prepare("
         SELECT * FROM address WHERE address_id = ?
     ");
-    $stm->execute([$order->address_id]);
+    $stm->execute([$address_id]);
     $delivery_address = $stm->fetch();
     
 } catch (Exception $e) {
@@ -219,321 +219,6 @@ $error_message = temp('error');
     <title>K&P - Checkout</title>
     <link rel="stylesheet" href="../css/checkout.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        .checkout-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .checkout-steps {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 40px;
-            position: relative;
-        }
-        .step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            z-index: 2;
-            width: 120px;
-        }
-        .step-number {
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            background-color: #f0f0f0;
-            color: #999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-        .step.active .step-number {
-            background-color: #000;
-            color: #fff;
-        }
-        .step.completed .step-number {
-            background-color: #4caf50;
-            color: #fff;
-        }
-        .step-text {
-            font-size: 14px;
-            color: #666;
-        }
-        .step.active .step-text,
-        .step.completed .step-text {
-            color: #000;
-            font-weight: 500;
-        }
-        .step-connector {
-            height: 2px;
-            background-color: #e0e0e0;
-            flex-grow: 1;
-            margin-top: 17px;
-            z-index: 1;
-            width: 100px;
-        }
-        .checkout-grid {
-            display: grid;
-            grid-template-columns: 1fr 350px;
-            gap: 30px;
-        }
-        @media (max-width: 768px) {
-            .checkout-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        .checkout-main {
-            background-color: #fff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            padding: 30px;
-        }
-        .checkout-sidebar {
-            align-self: start;
-        }
-        .order-summary {
-            background-color: #fff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            padding: 25px;
-        }
-        .summary-title {
-            margin-top: 0;
-            margin-bottom: 20px;
-            font-size: 18px;
-            font-weight: 500;
-        }
-        .checkout-section {
-            margin-bottom: 30px;
-            border-bottom: 1px solid #f0f0f0;
-            padding-bottom: 30px;
-        }
-        .checkout-section:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
-            margin-bottom: 0;
-        }
-        .section-title {
-            margin-top: 0;
-            margin-bottom: 20px;
-            font-size: 18px;
-            font-weight: 500;
-        }
-        .section-title i {
-            margin-right: 10px;
-            color: #555;
-        }
-        .address-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 15px;
-        }
-        .address-option input[type="radio"] {
-            display: none;
-        }
-        .address-card {
-            display: block;
-            border: 1px solid #e0e0e0;
-            padding: 15px;
-            cursor: pointer;
-            position: relative;
-            transition: all 0.2s;
-        }
-        .address-card.selected {
-            border-color: #000;
-            background-color: #f9f9f9;
-        }
-        .address-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .address-name {
-            font-weight: 500;
-        }
-        .default-badge {
-            background-color: #f0f0f0;
-            padding: 2px 8px;
-            border-radius: 2px;
-            font-size: 12px;
-            color: #666;
-        }
-        .address-details p {
-            margin: 5px 0;
-            font-size: 14px;
-            color: #555;
-        }
-        .add-new-address {
-            margin-top: 15px;
-        }
-        .add-address-btn {
-            display: inline-flex;
-            align-items: center;
-            color: #000;
-            text-decoration: none;
-            font-size: 14px;
-            padding: 8px 0;
-        }
-        .add-address-btn:hover {
-            text-decoration: underline;
-        }
-        .add-address-btn i {
-            margin-right: 8px;
-        }
-        .payment-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        .payment-option input[type="radio"] {
-            display: none;
-        }
-        .payment-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #e0e0e0;
-            padding: 15px;
-            cursor: pointer;
-            transition: all 0.2s;
-            height: 100px;
-        }
-        .payment-card.selected {
-            border-color: #000;
-            background-color: #f9f9f9;
-        }
-        .payment-icon {
-            font-size: 24px;
-            margin-bottom: 10px;
-            color: #555;
-        }
-        .order-items {
-            margin-bottom: 20px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .order-item {
-            display: flex;
-            padding: 10px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .order-item:last-child {
-            border-bottom: none;
-        }
-        .item-image {
-            width: 60px;
-            height: 60px;
-            position: relative;
-            margin-right: 15px;
-        }
-        .item-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .item-quantity {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background-color: #000;
-            color: #fff;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-        }
-        .item-details {
-            flex-grow: 1;
-        }
-        .item-name {
-            margin: 0 0 5px;
-            font-size: 14px;
-            font-weight: normal;
-        }
-        .item-price {
-            color: #000;
-            font-weight: 500;
-            font-size: 14px;
-        }
-        .cost-summary {
-            margin-bottom: 20px;
-        }
-        .cost-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            font-size: 14px;
-        }
-        .cost-item.discount {
-            color: #e53935;
-        }
-        .total-cost {
-            display: flex;
-            justify-content: space-between;
-            font-size: 16px;
-            font-weight: 500;
-            margin: 20px 0;
-        }
-        .order-id {
-            text-align: center;
-            font-size: 12px;
-            color: #666;
-            padding-top: 10px;
-        }
-        .checkout-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 30px;
-        }
-        .back-to-bag {
-            color: #666;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-        }
-        .back-to-bag:hover {
-            text-decoration: underline;
-            color: #000;
-        }
-        .back-to-bag i {
-            margin-right: 8px;
-        }
-        .place-order-btn {
-            background-color: #000;
-            color: #fff;
-            border: none;
-            padding: 12px 25px;
-            cursor: pointer;
-            text-transform: uppercase;
-            font-size: 14px;
-            letter-spacing: 0.5px;
-            transition: background-color 0.2s;
-        }
-        .place-order-btn:hover {
-            background-color: #333;
-        }
-        .place-order-btn i {
-            margin-left: 8px;
-        }
-        .shipping-fee {
-            display: block;
-            margin-top: 10px;
-            font-size: 13px;
-            color: #666;
-        }
-        /* Additional responsive styles */
-        @media (max-width: 992px) {
-            .address-options, .payment-options {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
 </head>
 <body>
     <?php include('../header.php'); ?>
@@ -586,8 +271,8 @@ $error_message = temp('error');
                                                name="address_id" 
                                                id="address_<?= $address->address_id ?>" 
                                                value="<?= $address->address_id ?>"
-                                               <?= $address->address_id == $order->address_id ? 'checked' : '' ?>>
-                                        <label for="address_<?= $address->address_id ?>" class="address-card <?= $address->address_id == $order->address_id ? 'selected' : '' ?>">
+                                               <?= $address->address_id == $address_id ? 'checked' : '' ?>>
+                                        <label for="address_<?= $address->address_id ?>" class="address-card <?= $address->address_id == $address_id ? 'selected' : '' ?>">
                                             <div class="address-header">
                                                 <span class="address-name"><?= htmlspecialchars($address->address_name) ?></span>
                                                 <?php if ($address->is_default): ?>
@@ -648,22 +333,6 @@ $error_message = temp('error');
                                         <span>Credit Card</span>
                                     </label>
                                 </div>
-                                
-                                <div class="payment-option">
-                                    <input type="radio" name="payment_method" id="payment_banking" value="Online Banking">
-                                    <label for="payment_banking" class="payment-card">
-                                        <i class="fas fa-university payment-icon"></i>
-                                        <span>Online Banking</span>
-                                    </label>
-                                </div>
-                                
-                                <div class="payment-option">
-                                    <input type="radio" name="payment_method" id="payment_ewallet" value="E-Wallet">
-                                    <label for="payment_ewallet" class="payment-card">
-                                        <i class="fas fa-wallet payment-icon"></i>
-                                        <span>E-Wallet</span>
-                                    </label>
-                                </div>
                             </div>
                         </div>
                         
@@ -683,7 +352,7 @@ $error_message = temp('error');
                         <h2 class="summary-title">Order Summary</h2>
                         
                         <div class="order-items">
-                            <?php foreach ($order_items as $item): ?>
+                            <?php foreach ($cart_items as $item): ?>
                                 <div class="order-item">
                                     <div class="item-image">
                                         <img src="../../img/<?= $item->product_pic1 ?>" alt="<?= htmlspecialchars($item->product_name) ?>">
@@ -692,7 +361,7 @@ $error_message = temp('error');
                                     <div class="item-details">
                                         <h3 class="item-name"><?= htmlspecialchars($item->product_name) ?></h3>
                                         <p class="item-size">Size: <?= $item->size ?></p>
-                                        <div class="item-price">RM <?= number_format($item->unit_price, 2) ?></div>
+                                        <div class="item-price">RM <?= number_format($item->product_price, 2) ?></div>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -703,36 +372,25 @@ $error_message = temp('error');
                         <div class="cost-summary">
                             <div class="cost-item">
                                 <span class="cost-label">Subtotal:</span>
-                                <span class="cost-value">RM <?= number_format($order->order_subtotal, 2) ?></span>
+                                <span class="cost-value">RM <?= number_format($subtotal, 2) ?></span>
                             </div>
                             
                             <div class="cost-item">
                                 <span class="cost-label">Shipping:</span>
-                                <span class="cost-value">RM <?= number_format($order->delivery_fee, 2) ?></span>
+                                <span class="cost-value">RM <?= number_format($delivery_fee, 2) ?></span>
                             </div>
                             
                             <div class="cost-item">
                                 <span class="cost-label">Tax (6%):</span>
-                                <span class="cost-value">RM <?= number_format($order->tax, 2) ?></span>
+                                <span class="cost-value">RM <?= number_format($tax, 2) ?></span>
                             </div>
-                            
-                            <?php if ($order->discount > 0): ?>
-                                <div class="cost-item discount">
-                                    <span class="cost-label">Discount:</span>
-                                    <span class="cost-value">-RM <?= number_format($order->discount, 2) ?></span>
-                                </div>
-                            <?php endif; ?>
                         </div>
                         
                         <div class="summary-divider"></div>
                         
                         <div class="total-cost">
                             <span class="total-label">Total:</span>
-                            <span class="total-value">RM <?= number_format($order->total_amount, 2) ?></span>
-                        </div>
-                        
-                        <div class="order-id">
-                            Order #<?= $order_id ?>
+                            <span id="total-value" class="total-value">RM <?= number_format($total, 2) ?></span>
                         </div>
                     </div>
                 </div>
@@ -746,6 +404,10 @@ $error_message = temp('error');
     document.addEventListener('DOMContentLoaded', function() {
         // Toggle address selection
         const addressRadios = document.querySelectorAll('input[name="address_id"]');
+        const totalValueElem = document.getElementById('total-value');
+        const subtotal = <?= $subtotal ?>;
+        const tax = <?= $tax ?>;
+        
         addressRadios.forEach(radio => {
             radio.addEventListener('change', function() {
                 document.querySelectorAll('.address-card').forEach(card => {
@@ -753,7 +415,20 @@ $error_message = temp('error');
                 });
                 
                 if (this.checked) {
-                    this.parentElement.querySelector('.address-card').classList.add('selected');
+                    const card = this.parentElement.querySelector('.address-card');
+                    card.classList.add('selected');
+                    
+                    // Update shipping cost based on selected address
+                    const shippingInfo = card.querySelector('.shipping-fee').textContent;
+                    let shippingCost = 20; // Default West Malaysia
+                    
+                    if (shippingInfo.includes('40.00')) {
+                        shippingCost = 40; // East Malaysia
+                    }
+                    
+                    // Update total
+                    const newTotal = subtotal + tax + shippingCost;
+                    totalValueElem.textContent = 'RM ' + newTotal.toFixed(2);
                 }
             });
         });

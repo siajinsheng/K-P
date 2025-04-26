@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 25, 2025 at 02:42 PM
+-- Generation Time: Apr 26, 2025 at 03:29 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -51,16 +51,16 @@ CREATE TABLE `address` (
 --
 
 INSERT INTO `address` (`address_id`, `user_id`, `address_name`, `recipient_name`, `phone`, `address_line1`, `address_line2`, `city`, `state`, `post_code`, `country`, `is_default`, `created_at`, `updated_at`) VALUES
-('AD001', 'MB247', 'Home', 'Aiman Hakim', '60192837465', '12 Jalan Damai', 'Taman Sentosa', 'Kuala Lumpur', 'Wilayah Persekutuan', '50450', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
+('AD001', 'MB542', 'Home', 'Aiman Hakim', '60192837465', '12 Jalan Damai', 'Taman Sentosa', 'Kuala Lumpur', 'Wilayah Persekutuan', '50450', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:03:23'),
 ('AD002', 'MB247', 'Office', 'Nurul Aisyah', '60162384921', '18A Jalan Ampang', 'Menara Prisma', 'Kuala Lumpur', 'Wilayah Persekutuan', '50450', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
-('AD003', 'MB247', 'Home', 'Ahmad Faizal', '60173458722', '27 Lorong Mawar', 'Taman Sri Andalas', 'Klang', 'Selangor', '41200', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
-('AD004', 'MB247', 'Office', 'Siti Mariam', '60194587230', '9 Jalan Tanjung', 'Desa Sri Hartamas', 'Petaling Jaya', 'Selangor', '47800', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
-('AD005', 'MB247', 'Home', 'Mohd Zulhilmi', '60125348971', '56 Jalan Seri', 'Taman Mutiara', 'Johor Bahru', 'Johor', '81100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
-('AD006', 'MB247', 'Office', 'Farah Nadia', '60184739215', '33 Jalan Lagenda', 'Taman Bukit Indah', 'Ipoh', 'Perak', '31400', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
-('AD007', 'MB247', 'Home', 'Syafiq Ikhwan', '60162198374', '21 Jalan Semarak', 'Kawasan Perindustrian', 'Shah Alam', 'Selangor', '40100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
-('AD008', 'MB247', 'Office', 'Hafiz Rahman', '60193745268', '77 Jalan Putra', 'Residensi Putrajaya', 'Putrajaya', 'Wilayah Persekutuan', '62100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
-('AD009', 'MB247', 'Home', 'Nadia Izzati', '60182347651', '14 Jalan Bukit', 'Taman Kenari', 'Alor Setar', 'Kedah', '05050', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
-('AD010', 'MB247', 'Office', 'Zulkifli Osman', '60173452689', '66 Jalan Pantai', 'Pantai Batu Ferringhi', 'George Town', 'Penang', '11100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
+('AD003', 'MB542', 'Home', 'Ahmad Faizal', '60173458722', '27 Lorong Mawar', 'Taman Sri Andalas', 'Klang', 'Selangor', '41200', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:03:28'),
+('AD004', 'MB542', 'Office', 'Siti Mariam', '60194587230', '9 Jalan Tanjung', 'Desa Sri Hartamas', 'Petaling Jaya', 'Selangor', '47800', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:04:37'),
+('AD005', 'MB542', 'Home', 'Mohd Zulhilmi', '60125348971', '56 Jalan Seri', 'Taman Mutiara', 'Johor Bahru', 'Johor', '81100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:03:39'),
+('AD006', 'MB542', 'Home', 'Farah Nadia', '60184739215', '33 Jalan Lagenda', 'Taman Bukit Indah', 'Ipoh', 'Perak', '31400', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:04:49'),
+('AD007', 'MB542', 'Home', 'Syafiq Ikhwan', '60162198374', '21 Jalan Semarak', 'Kawasan Perindustrian', 'Shah Alam', 'Selangor', '40100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:03:55'),
+('AD008', 'MB542', 'Office', 'Hafiz Rahman', '60193745268', '77 Jalan Putra', 'Residensi Putrajaya', 'Putrajaya', 'Wilayah Persekutuan', '62100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:03:46'),
+('AD009', 'MB542', 'Home', 'Nadia Izzati', '60182347651', '14 Jalan Bukit', 'Taman Kenari', 'Alor Setar', 'Kedah', '05050', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:03:42'),
+('AD010', 'MB542', 'Office', 'Zulkifli Osman', '60173452689', '66 Jalan Pantai', 'Pantai Batu Ferringhi', 'George Town', 'Penang', '11100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:04:33'),
 ('AD011', 'MB247', 'Home', 'js', '60182250100', 'A-02-13, Mizumi Metro kepong', '', 'kepong', 'Kuala Lumpur', '52100', 'Malaysia', 1, '2025-04-23 14:28:46', '2025-04-25 12:32:46');
 
 -- --------------------------------------------------------
@@ -73,21 +73,10 @@ CREATE TABLE `cart` (
   `cart_id` varchar(255) NOT NULL,
   `user_id` varchar(255) NOT NULL,
   `product_id` varchar(255) NOT NULL,
-  `size` enum('S','M','L','XL','XXL') DEFAULT NULL,
+  `quantity_id` int(11) NOT NULL,
   `quantity` int(11) NOT NULL,
   `added_time` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `cart`
---
-
-INSERT INTO `cart` (`cart_id`, `user_id`, `product_id`, `size`, `quantity`, `added_time`) VALUES
-('CART_20250425184622_7fe5c7c5', 'MB247', 'P020', 'M', 1, '2025-04-25 10:46:22'),
-('CART_20250425184623_7ff6b5da', 'MB247', 'P016', 'M', 1, '2025-04-25 10:46:23'),
-('CART_20250425184623_7ffe59db', 'MB247', 'P015', 'M', 1, '2025-04-25 10:46:23'),
-('CART_20250425184624_800594d1', 'MB247', 'P021', 'M', 1, '2025-04-25 10:46:24'),
-('CART_20250425184625_801753d7', 'MB247', 'P018', 'M', 1, '2025-04-25 10:46:25');
 
 -- --------------------------------------------------------
 
@@ -178,7 +167,11 @@ INSERT INTO `delivery` (`delivery_id`, `address_id`, `delivery_fee`, `delivery_s
 ('DV047', 'AD001', 20, 'Delivered', '2025-01-19', '2025-01-22'),
 ('DV048', 'AD002', 20, 'Delivered', '2025-02-14', '2025-02-17'),
 ('DV049', 'AD001', 20, 'Delivered', '2025-01-11', '2025-01-14'),
-('DV050', 'AD002', 20, 'Delivered', '2025-03-20', '2025-03-23');
+('DV050', 'AD002', 20, 'Delivered', '2025-03-20', '2025-03-23'),
+('DV051', 'AD011', 20, '', '2025-04-29', NULL),
+('DV052', 'AD011', 20, '', '2025-04-29', NULL),
+('DV053', 'AD011', 20, 'Processing', '2025-04-29', NULL),
+('DV054', 'AD011', 20, 'Processing', '2025-04-29', NULL);
 
 -- --------------------------------------------------------
 
@@ -265,7 +258,11 @@ INSERT INTO `orders` (`order_id`, `user_id`, `delivery_id`, `order_date`, `order
 ('OR047', 'MB247', 'DV031', '2025-02-27 00:00:00', 'Processing', 246.06, 226.78),
 ('OR048', 'MB247', 'DV039', '2025-04-02 00:00:00', 'Cancelled', 286.21, 287.33),
 ('OR049', 'MB247', 'DV026', '2025-01-03 00:00:00', 'Delivered', 337.19, 349.46),
-('OR050', 'MB247', 'DV018', '2025-01-20 00:00:00', 'Processing', 215.76, 199.88);
+('OR050', 'MB247', 'DV018', '2025-01-20 00:00:00', 'Processing', 215.76, 199.88),
+('OR051', 'MB247', 'DV051', '2025-04-26 11:02:26', 'Pending', 469.30, 517.46),
+('OR052', 'MB247', 'DV052', '2025-04-26 11:12:13', 'Pending', 199.70, 231.68),
+('OR053', 'MB247', 'DV053', '2025-04-26 11:16:56', 'Pending', 249.60, 284.58),
+('OR054', 'MB247', 'DV054', '2025-04-26 20:50:40', 'Pending', 159.80, 189.39);
 
 -- --------------------------------------------------------
 
@@ -276,6 +273,7 @@ INSERT INTO `orders` (`order_id`, `user_id`, `delivery_id`, `order_date`, `order
 CREATE TABLE `order_details` (
   `order_id` varchar(255) DEFAULT NULL,
   `product_id` varchar(255) DEFAULT NULL,
+  `quantity_id` int(11) DEFAULT NULL,
   `quantity` int(11) NOT NULL,
   `unit_price` decimal(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -284,106 +282,106 @@ CREATE TABLE `order_details` (
 -- Dumping data for table `order_details`
 --
 
-INSERT INTO `order_details` (`order_id`, `product_id`, `quantity`, `unit_price`) VALUES
-('OR001', 'P013', 3, 39.90),
-('OR001', 'P010', 1, 59.90),
-('OR002', 'P003', 1, 59.90),
-('OR003', 'P009', 5, 79.90),
-('OR003', 'P014', 5, 59.90),
-('OR004', 'P012', 4, 759.90),
-('OR004', 'P010', 2, 59.90),
-('OR004', 'P018', 2, 59.90),
-('OR005', 'P017', 1, 59.90),
-('OR006', 'P005', 4, 79.90),
-('OR007', 'P013', 2, 39.90),
-('OR007', 'P013', 3, 39.90),
-('OR007', 'P016', 3, 39.90),
-('OR008', 'P002', 3, 49.90),
-('OR009', 'P007', 3, 39.90),
-('OR010', 'P019', 2, 79.90),
-('OR010', 'P003', 1, 59.90),
-('OR010', 'P007', 2, 39.90),
-('OR011', 'P018', 1, 59.90),
-('OR011', 'P019', 3, 79.90),
-('OR012', 'P018', 5, 59.90),
-('OR012', 'P011', 3, 49.90),
-('OR012', 'P003', 4, 59.90),
-('OR013', 'P014', 2, 59.90),
-('OR013', 'P009', 5, 79.90),
-('OR014', 'P005', 3, 79.90),
-('OR014', 'P014', 5, 59.90),
-('OR014', 'P019', 3, 79.90),
-('OR015', 'P020', 4, 79.90),
-('OR015', 'P020', 4, 79.90),
-('OR016', 'P013', 1, 39.90),
-('OR017', 'P010', 5, 59.90),
-('OR017', 'P012', 3, 759.90),
-('OR018', 'P018', 3, 59.90),
-('OR019', 'P011', 5, 49.90),
-('OR019', 'P020', 4, 79.90),
-('OR020', 'P002', 1, 49.90),
-('OR020', 'P008', 5, 49.90),
-('OR021', 'P006', 5, 59.90),
-('OR021', 'P006', 5, 59.90),
-('OR021', 'P004', 5, 79.90),
-('OR022', 'P002', 4, 49.90),
-('OR023', 'P007', 2, 39.90),
-('OR023', 'P018', 1, 59.90),
-('OR023', 'P002', 2, 49.90),
-('OR024', 'P009', 3, 79.90),
-('OR025', 'P012', 3, 759.90),
-('OR025', 'P001', 5, 49.90),
-('OR026', 'P004', 4, 79.90),
-('OR027', 'P005', 4, 79.90),
-('OR027', 'P006', 4, 59.90),
-('OR027', 'P017', 2, 59.90),
-('OR028', 'P013', 5, 39.90),
-('OR029', 'P003', 5, 59.90),
-('OR029', 'P014', 1, 59.90),
-('OR029', 'P002', 3, 49.90),
-('OR030', 'P003', 4, 59.90),
-('OR030', 'P019', 2, 79.90),
-('OR031', 'P010', 4, 59.90),
-('OR031', 'P014', 4, 59.90),
-('OR031', 'P017', 4, 59.90),
-('OR032', 'P016', 1, 39.90),
-('OR033', 'P008', 4, 49.90),
-('OR033', 'P006', 5, 59.90),
-('OR033', 'P009', 1, 79.90),
-('OR034', 'P006', 5, 59.90),
-('OR034', 'P003', 3, 59.90),
-('OR034', 'P017', 5, 59.90),
-('OR035', 'P013', 5, 39.90),
-('OR035', 'P004', 1, 79.90),
-('OR036', 'P020', 2, 79.90),
-('OR037', 'P017', 3, 59.90),
-('OR037', 'P011', 3, 49.90),
-('OR038', 'P003', 5, 59.90),
-('OR038', 'P007', 1, 39.90),
-('OR038', 'P008', 1, 49.90),
-('OR039', 'P010', 5, 59.90),
-('OR039', 'P007', 4, 39.90),
-('OR039', 'P008', 3, 49.90),
-('OR040', 'P008', 5, 49.90),
-('OR040', 'P019', 4, 79.90),
-('OR040', 'P002', 5, 49.90),
-('OR041', 'P003', 5, 59.90),
-('OR041', 'P002', 5, 49.90),
-('OR042', 'P009', 1, 79.90),
-('OR042', 'P012', 5, 759.90),
-('OR043', 'P019', 4, 79.90),
-('OR044', 'P005', 1, 79.90),
-('OR045', 'P012', 5, 759.90),
-('OR045', 'P020', 4, 79.90),
-('OR046', 'P009', 4, 79.90),
-('OR046', 'P016', 1, 39.90),
-('OR047', 'P002', 5, 49.90),
-('OR048', 'P017', 1, 59.90),
-('OR048', 'P003', 4, 59.90),
-('OR048', 'P008', 2, 49.90),
-('OR049', 'P014', 2, 59.90),
-('OR049', 'P016', 4, 39.90),
-('OR050', 'P005', 4, 79.90);
+INSERT INTO `order_details` (`order_id`, `product_id`, `quantity_id`, `quantity`, `unit_price`) VALUES
+('OR001', 'P013', 61, 3, 39.90),
+('OR001', 'P010', 46, 1, 59.90),
+('OR002', 'P003', 11, 1, 59.90),
+('OR003', 'P009', 41, 5, 79.90),
+('OR003', 'P014', 66, 5, 59.90),
+('OR004', 'P012', 56, 4, 759.90),
+('OR004', 'P010', 47, 2, 59.90),
+('OR004', 'P018', 86, 2, 59.90),
+('OR005', 'P017', 81, 1, 59.90),
+('OR006', 'P005', 21, 4, 79.90),
+('OR007', 'P013', 62, 2, 39.90),
+('OR007', 'P013', 63, 3, 39.90),
+('OR007', 'P016', 76, 3, 39.90),
+('OR008', 'P002', 6, 3, 49.90),
+('OR009', 'P007', 31, 3, 39.90),
+('OR010', 'P019', 91, 2, 79.90),
+('OR010', 'P003', 12, 1, 59.90),
+('OR010', 'P007', 32, 2, 39.90),
+('OR011', 'P018', 86, 1, 59.90),
+('OR011', 'P019', 91, 1, 79.90),
+('OR012', 'P018', 90, 1, 59.90),
+('OR012', 'P011', 51, 1, 49.90),
+('OR012', 'P003', 13, 1, 59.90),
+('OR013', 'P014', 66, 1, 59.90),
+('OR013', 'P009', 41, 1, 79.90),
+('OR014', 'P005', 21, 1, 79.90),
+('OR014', 'P014', 67, 1, 59.90),
+('OR014', 'P019', 91, 1, 79.90),
+('OR015', 'P020', 96, 1, 79.90),
+('OR015', 'P020', 97, 1, 79.90),
+('OR016', 'P013', 61, 1, 39.90),
+('OR017', 'P010', 46, 1, 59.90),
+('OR017', 'P012', 56, 1, 759.90),
+('OR018', 'P018', 86, 1, 59.90),
+('OR019', 'P011', 51, 1, 49.90),
+('OR019', 'P020', 96, 1, 79.90),
+('OR020', 'P002', 6, 1, 49.90),
+('OR020', 'P008', 36, 1, 49.90),
+('OR021', 'P006', 26, 1, 59.90),
+('OR021', 'P006', 26, 1, 59.90),
+('OR021', 'P004', 16, 1, 79.90),
+('OR022', 'P002', 7, 1, 49.90),
+('OR023', 'P007', 32, 1, 39.90),
+('OR023', 'P018', 86, 1, 59.90),
+('OR023', 'P002', 7, 1, 49.90),
+('OR024', 'P009', 42, 1, 79.90),
+('OR025', 'P012', 56, 1, 759.90),
+('OR025', 'P001', 5, 1, 49.90),
+('OR026', 'P004', 17, 1, 79.90),
+('OR027', 'P005', 22, 1, 79.90),
+('OR027', 'P006', 27, 1, 59.90),
+('OR027', 'P017', 82, 1, 59.90),
+('OR028', 'P013', 62, 1, 39.90),
+('OR029', 'P003', 13, 1, 59.90),
+('OR029', 'P014', 66, 1, 59.90),
+('OR029', 'P002', 8, 1, 49.90),
+('OR030', 'P003', 14, 1, 59.90),
+('OR030', 'P019', 92, 1, 79.90),
+('OR031', 'P010', 47, 1, 59.90),
+('OR031', 'P014', 67, 1, 59.90),
+('OR031', 'P017', 82, 1, 59.90),
+('OR032', 'P016', 76, 1, 39.90),
+('OR033', 'P008', 37, 1, 49.90),
+('OR033', 'P006', 27, 1, 59.90),
+('OR033', 'P009', 42, 1, 79.90),
+('OR034', 'P006', 27, 1, 59.90),
+('OR034', 'P003', 12, 1, 59.90),
+('OR034', 'P017', 81, 1, 59.90),
+('OR035', 'P013', 63, 1, 39.90),
+('OR035', 'P004', 17, 1, 79.90),
+('OR036', 'P020', 97, 1, 79.90),
+('OR037', 'P017', 82, 1, 59.90),
+('OR037', 'P011', 52, 1, 49.90),
+('OR038', 'P003', 13, 1, 59.90),
+('OR038', 'P007', 31, 1, 39.90),
+('OR038', 'P008', 36, 1, 49.90),
+('OR039', 'P010', 48, 1, 59.90),
+('OR039', 'P007', 32, 1, 39.90),
+('OR039', 'P008', 37, 1, 49.90),
+('OR040', 'P008', 38, 1, 49.90),
+('OR040', 'P019', 92, 1, 79.90),
+('OR040', 'P002', 9, 1, 49.90),
+('OR041', 'P003', 13, 1, 59.90),
+('OR041', 'P002', 8, 1, 49.90),
+('OR042', 'P009', 43, 1, 79.90),
+('OR042', 'P012', 57, 1, 759.90),
+('OR043', 'P019', 92, 1, 79.90),
+('OR044', 'P005', 22, 1, 79.90),
+('OR045', 'P012', 57, 1, 759.90),
+('OR045', 'P020', 97, 1, 79.90),
+('OR046', 'P009', 43, 1, 79.90),
+('OR046', 'P016', 77, 1, 39.90),
+('OR047', 'P002', 9, 1, 49.90),
+('OR048', 'P017', 81, 1, 59.90),
+('OR048', 'P003', 12, 1, 59.90),
+('OR048', 'P008', 36, 1, 49.90),
+('OR049', 'P014', 67, 1, 59.90),
+('OR049', 'P016', 77, 1, 39.90),
+('OR050', 'P005', 22, 1, 79.90);
 
 -- --------------------------------------------------------
 
@@ -456,7 +454,11 @@ INSERT INTO `payment` (`payment_id`, `order_id`, `tax`, `total_amount`, `payment
 ('PM047', 'OR047', 14.76, 226.78, 'PayPal', 'Failed', '2025-02-28 00:00:00', 34.04),
 ('PM048', 'OR048', 17.17, 287.33, 'Cash on Delivery', 'Refunded', '2025-04-05 00:00:00', 16.05),
 ('PM049', 'OR049', 20.23, 349.46, 'PayPal', 'Completed', '2025-01-05 00:00:00', 7.96),
-('PM050', 'OR050', 12.95, 199.88, 'Bank Transfer', 'Failed', '2025-01-22 00:00:00', 28.83);
+('PM050', 'OR050', 12.95, 199.88, 'Bank Transfer', 'Failed', '2025-01-22 00:00:00', 28.83),
+('PM051', 'OR051', 28.16, 517.46, '', 'Pending', '2025-04-26 11:02:26', 0.00),
+('PM052', 'OR052', 11.98, 231.68, '', 'Pending', '2025-04-26 11:12:13', 0.00),
+('PM053', 'OR053', 14.98, 284.58, '', 'Pending', '2025-04-26 11:16:56', 0.00),
+('PM054', 'OR054', 9.59, 189.39, '', 'Pending', '2025-04-26 20:50:40', 0.00);
 
 -- --------------------------------------------------------
 
@@ -767,9 +769,9 @@ CREATE TABLE `user` (
 
 INSERT INTO `user` (`user_id`, `user_name`, `user_Email`, `user_password`, `user_gender`, `user_phone`, `user_profile_pic`, `user_update_time`, `status`, `role`) VALUES
 ('MB222', 'kok heng', 'mbsboleh123@gmail.com', '$2y$10$JBqUpxk0cUk.lWCouSynMunVgu.k.0NYhXjbteJM6QTofbwBSs3NO', 'Male', '60161234567', '68098a7497630.jpg', '2025-04-24 05:23:58', 'Inactive', 'member'),
-('MB247', 'wei hong', 'siajinsheng@gmail.com', '$2y$10$fmeUYMCv.FsAx66IAmZo6eD7lRk/xE6tweRx68ieavj7cKEUfEcsO', 'Male', '60182259000', '66321976e3099.jpg', '2025-04-25 12:31:31', 'Active', 'member'),
+('MB247', 'wei hong', 'siajinsheng@gmail.com', '$2y$10$fmeUYMCv.FsAx66IAmZo6eD7lRk/xE6tweRx68ieavj7cKEUfEcsO', 'Male', '60182259000', '66321976e3099.jpg', '2025-04-26 12:50:33', 'Active', 'member'),
 ('MB542', 'js', 'js@gmail.com', '$2y$10$G/Lg5qlPMy7bOWivlX.PeeSh9Rhmz60T53KqIeQ68PGZIjqt4ErR6', 'Male', '60182259156', '680b55b1005d6.jpg', '2025-04-25 09:35:45', 'Active', 'member'),
-('MB570', 'admin', '1@gmail.com', '$2y$10$.555jOgS0gL3pUeGQBzq0uaYFbl6psE7yrHvrzGt6eFhfK.xdLp5.', 'Male', '60123333333', '6809cac2c296e.jpg', '2025-04-24 05:24:15', 'Active', 'admin'),
+('MB570', 'admin', '1@gmail.com', '$2y$10$.555jOgS0gL3pUeGQBzq0uaYFbl6psE7yrHvrzGt6eFhfK.xdLp5.', 'Male', '60123333333', '6809cac2c296e.jpg', '2025-04-26 01:15:53', 'Active', 'admin'),
 ('MB971', 'staff', '2@gmail.com', '$2y$10$jJFfVoWsibiHcf44gVXHWOTPjkGdGOi/6/ltYA4Y6DdNS/a/1X.8.', 'Male', '60121234567', '6809cb3752977.jpg', '2025-04-24 05:25:34', 'Active', 'staff');
 
 -- --------------------------------------------------------
@@ -802,6 +804,7 @@ ALTER TABLE `address`
 --
 ALTER TABLE `cart`
   ADD PRIMARY KEY (`cart_id`),
+  ADD KEY `quantity_id` (`quantity_id`),
   ADD KEY `user_id` (`user_id`),
   ADD KEY `product_id` (`product_id`);
 
@@ -832,6 +835,14 @@ ALTER TABLE `orders`
   ADD PRIMARY KEY (`order_id`),
   ADD KEY `delivery_id` (`delivery_id`),
   ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `order_details`
+--
+ALTER TABLE `order_details`
+  ADD KEY `quantity_id` (`quantity_id`),
+  ADD KEY `product_id` (`product_id`),
+  ADD KEY `order_id` (`order_id`);
 
 --
 -- Indexes for table `payment`
@@ -906,8 +917,9 @@ ALTER TABLE `address`
 -- Constraints for table `cart`
 --
 ALTER TABLE `cart`
-  ADD CONSTRAINT `cart_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`),
-  ADD CONSTRAINT `cart_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`);
+  ADD CONSTRAINT `cart_ibfk_1` FOREIGN KEY (`quantity_id`) REFERENCES `quantity` (`quantity_id`),
+  ADD CONSTRAINT `cart_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`),
+  ADD CONSTRAINT `cart_ibfk_3` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`);
 
 --
 -- Constraints for table `delivery`
@@ -927,6 +939,14 @@ ALTER TABLE `discount`
 ALTER TABLE `orders`
   ADD CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`delivery_id`) REFERENCES `delivery` (`delivery_id`),
   ADD CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`);
+
+--
+-- Constraints for table `order_details`
+--
+ALTER TABLE `order_details`
+  ADD CONSTRAINT `order_details_ibfk_1` FOREIGN KEY (`quantity_id`) REFERENCES `quantity` (`quantity_id`),
+  ADD CONSTRAINT `order_details_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`),
+  ADD CONSTRAINT `order_details_ibfk_3` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`);
 
 --
 -- Constraints for table `payment`
