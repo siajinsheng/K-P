@@ -4,7 +4,7 @@ require '../../_base.php';
 
 // Check if user is already logged in
 if (isset($_SESSION['user'])) {
-    redirect('/index.php'); // Redirect to homepage or dashboard if already logged in
+    redirect('../../index.php'); // Redirect to homepage or dashboard if already logged in
 }
 
 // Handle resend verification email
