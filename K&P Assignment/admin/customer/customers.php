@@ -89,13 +89,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <td><?= htmlspecialchars($c->user_name) ?></td>
         <td><?= htmlspecialchars($c->user_gender) ?></td>
         <td>
-          <img src="/admin/pic/<?= $c->user_profile_pic ?: 'default.png' ?>"
-               onerror="this.src='/admin/pic/default.png';"
+          <img src="../../img/<?= $c->user_profile_pic ?: 'default.png' ?>"
+               onerror="this.src='../../img/default.png';"
                class="popup" />
         </td>
         <td class="status-<?= strtolower($c->status) ?>">
           <?= $user_status[$c->status] ?? 'Unknown' ?>
-        </td>
+        </td>`
         <td class="actions">
           <form method="post">
             <input type="hidden" name="user_id" value="<?= $c->user_id ?>">
