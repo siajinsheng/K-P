@@ -161,7 +161,7 @@ require '../headFooter/header.php';
           <td><?= htmlspecialchars($s->user_Email) ?></td>
           <td><?= htmlspecialchars($s->user_name) ?></td>
           <td><?= htmlspecialchars($s->user_gender) ?></td>
-          <td><img class="popup" src="/admin/pic/<?= $s->user_profile_pic ?: 'default.png' ?>"></td>
+          <td><img class="popup" src="../../img/<?= $s->user_profile_pic ?: 'default.png' ?>"></td>
           <td><?= htmlspecialchars($s->user_update_time) ?></td>
           <td class="status-<?= strtolower($s->status) ?>"><?= htmlspecialchars($s->status) ?></td>
           <td><?= htmlspecialchars($s->role) ?></td>
