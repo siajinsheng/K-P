@@ -346,9 +346,9 @@ if (is_post() && isset($_FILES['csv_file'])) {
                 <a href="../category/Add_Category.php" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg flex items-center">
                     <i class="fas fa-folder-plus mr-2"></i> Add Category
                 </a>
-                <button id="batchUploadBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg flex items-center">
+                <a href="product_csv_upload.php" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg flex items-center">
                     <i class="fas fa-file-upload mr-2"></i> Batch Upload
-                </button>
+                </a>
                 <button id="batchUpdateBtn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg flex items-center">
                     <i class="fas fa-edit mr-2"></i> Batch Update
                 </button>
@@ -1000,30 +1000,6 @@ if (is_post() && isset($_FILES['csv_file'])) {
             if (closeLowStockBtn) {
                 closeLowStockBtn.addEventListener('click', function() {
                     lowStockModal.classList.add('hidden');
-                });
-            }
-
-            // Batch upload modal
-            const batchUploadBtn = document.getElementById('batchUploadBtn');
-            const batchUploadModal = document.getElementById('batchUploadModal');
-            const closeBatchUploadModal = document.getElementById('closeBatchUploadModal');
-            const cancelBatchUpload = document.getElementById('cancelBatchUpload');
-
-            if (batchUploadBtn) {
-                batchUploadBtn.addEventListener('click', function() {
-                    batchUploadModal.classList.remove('hidden');
-                });
-            }
-
-            if (closeBatchUploadModal) {
-                closeBatchUploadModal.addEventListener('click', function() {
-                    batchUploadModal.classList.add('hidden');
-                });
-            }
-
-            if (cancelBatchUpload) {
-                cancelBatchUpload.addEventListener('click', function() {
-                    batchUploadModal.classList.add('hidden');
                 });
             }
 
