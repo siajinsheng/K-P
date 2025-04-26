@@ -4,10 +4,6 @@ require_once '../../_base.php';
 // Start session and ensure user is logged in
 safe_session_start();
 
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 // Check if user is authenticated
 if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
     temp('info', 'Please log in to proceed with payment');
@@ -15,7 +11,6 @@ if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
 }
 
 $user_id = $_SESSION['user']->user_id;
-$current_timestamp = date('Y-m-d H:i:s'); // Current timestamp: 2025-04-25 14:22:54
 
 // Check if order ID is provided
 if (!isset($_GET['order_id']) || empty($_GET['order_id'])) {
@@ -24,8 +19,6 @@ if (!isset($_GET['order_id']) || empty($_GET['order_id'])) {
 }
 
 $order_id = $_GET['order_id'];
-$payment_method = isset($_POST['payment_method']) ? $_POST['payment_method'] : '';
-$payment_step = isset($_GET['step']) ? $_GET['step'] : 'select'; // Default to payment method selection
 
 // Verify that this order belongs to the current user
 try {
@@ -56,43 +49,8 @@ try {
     redirect('shopping-bag.php');
 }
 
-// Handle payment method selection
-if (is_post() && isset($_POST['select_payment_method'])) {
-    $selected_payment_method = $_POST['payment_method'] ?? '';
-    
-    if (empty($selected_payment_method) || !in_array($selected_payment_method, ['Credit Card', 'PayPal'])) {
-        $errors[] = 'Please select a valid payment method';
-    } else {
-        // Update the payment method in the database
-        try {
-            $_db->beginTransaction();
-            
-            $stm = $_db->prepare("
-                UPDATE payment 
-                SET payment_method = ? 
-                WHERE payment_id = ?
-            ");
-            $stm->execute([$selected_payment_method, $order->payment_id]);
-            
-            $_db->commit();
-            
-            // Redirect to the payment details step
-            redirect('payment.php?order_id=' . $order_id . '&step=details');
-            
-        } catch (PDOException $e) {
-            if ($_db->inTransaction()) {
-                $_db->rollBack();
-            }
-            error_log("Error updating payment method: " . $e->getMessage());
-            $errors[] = 'An error occurred while updating your payment method. Please try again.';
-        }
-    }
-}
-
-// Handle payment processing
+// Handle payment form submission
 if (is_post() && isset($_POST['process_payment'])) {
-    error_log("Process payment submitted for order: $order_id");
-    
     try {
         // Begin transaction
         $_db->beginTransaction();
@@ -100,7 +58,9 @@ if (is_post() && isset($_POST['process_payment'])) {
         // Update payment record
         $stm = $_db->prepare("
             UPDATE payment 
-            SET payment_status = 'Completed', payment_date = NOW() 
+            SET payment_status = 'Completed', 
+                payment_method = 'Credit Card',
+                payment_date = NOW() 
             WHERE payment_id = ?
         ");
         $stm->execute([$order->payment_id]);
@@ -118,11 +78,7 @@ if (is_post() && isset($_POST['process_payment'])) {
         
         // Success message and redirect to order confirmation
         temp('success', 'Payment processed successfully. Your order is now being processed.');
-        
-        // Use both JavaScript and header redirect for reliability
-        echo "<script>window.location.href = 'order_confirmation.php?order_id=" . $order_id . "';</script>";
-        header("Location: order_confirmation.php?order_id=" . $order_id);
-        exit();
+        redirect('order_confirmation.php?order_id=' . $order_id);
         
     } catch (PDOException $e) {
         // Rollback on error
@@ -134,12 +90,6 @@ if (is_post() && isset($_POST['process_payment'])) {
         temp('error', 'An error occurred while processing your payment. Please try again.');
     }
 }
-
-// Get any messages from session
-$success_message = temp('success');
-$error_message = temp('error');
-$info_message = temp('info');
-$errors = [];
 ?>
 
 <!DOCTYPE html>
@@ -147,255 +97,22 @@ $errors = [];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>K&P - Payment</title>
+    <title>K&P - Complete Your Payment</title>
     <link rel="stylesheet" href="../css/checkout.css">
+    <link rel="stylesheet" href="../css/payment.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        .payment-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 30px;
-            margin-top: 30px;
-        }
-        
-        .payment-form {
-            flex: 3;
-            min-width: 300px;
-        }
-        
-        .payment-summary {
-            flex: 1;
-            min-width: 300px;
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            padding: 30px;
-        }
-        
-        .payment-section {
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            margin-bottom: 30px;
-            overflow: hidden;
-        }
-        
-        .payment-section-header {
-            padding: 20px;
-            background-color: #f9f9f9;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .payment-section-header h2 {
-            margin: 0;
-            font-size: 20px;
-            color: #333;
-            display: flex;
-            align-items: center;
-        }
-        
-        .payment-section-header h2 i {
-            margin-right: 10px;
-            color: #4a6fa5;
-        }
-        
-        .payment-section-body {
-            padding: 20px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
-        }
-        
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-        
-        .form-group input:focus {
-            border-color: #4a6fa5;
-            outline: none;
-        }
-        
-        .form-row {
-            display: flex;
-            gap: 15px;
-        }
-        
-        .form-row .form-group {
-            flex: 1;
-        }
-        
-        .card-icons {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            font-size: 24px;
-            color: #666;
-        }
-        
-        .card-icon {
-            transition: color 0.3s;
-        }
-        
-        .card-icon.active {
-            color: #4a6fa5;
-        }
-        
-        .process-payment-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            width: 100%;
-            padding: 15px;
-            background-color: #4a6fa5;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        
-        .process-payment-btn:hover {
-            background-color: #3a5a85;
-        }
-        
-        .summary-header h2 {
-            margin: 0 0 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
-            font-size: 20px;
-            color: #333;
-        }
-        
-        .order-id-display {
-            background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            font-weight: 600;
-            color: #4a6fa5;
-            text-align: center;
-        }
-        
-        .payment-method-display {
-            background-color: #f0f7ff;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .payment-method-display i {
-            font-size: 24px;
-            margin-right: 10px;
-            vertical-align: middle;
-        }
-        
-        /* Payment method selection styles */
-        .payment-methods {
-            margin: 20px 0;
-        }
-        
-        .payment-option {
-            margin-bottom: 15px;
-            position: relative;
-        }
-        
-        .payment-option input[type="radio"] {
-            position: absolute;
-            opacity: 0;
-        }
-        
-        .payment-option label {
-            display: flex;
-            align-items: center;
-            padding: 15px;
-            border: 1px solid #e0e0e0;
-            cursor: pointer;
-            transition: all 0.3s;
-            border-radius: 5px;
-        }
-        
-        .payment-option input[type="radio"]:checked + label {
-            border-color: #4a6fa5;
-            background-color: #f0f7ff;
-        }
-        
-        .payment-icon {
-            flex-shrink: 0;
-            width: 50px;
-            font-size: 24px;
-            color: #666;
-            text-align: center;
-        }
-        
-        .payment-info {
-            flex-grow: 1;
-            padding-left: 15px;
-        }
-        
-        .payment-name {
-            display: block;
-            font-weight: 500;
-            margin-bottom: 2px;
-            font-size: 16px;
-        }
-        
-        .payment-description {
-            font-size: 14px;
-            color: #666;
-        }
-
-        /* Step indicator styles */
-        .payment-steps {
-            display: flex;
-            margin-bottom: 30px;
-            padding: 0;
-            list-style: none;
-        }
-        
-        .payment-step {
-            flex: 1;
-            text-align: center;
-            padding: 15px;
-            font-weight: 600;
-            color: #666;
-            border-bottom: 3px solid #ddd;
-        }
-        
-        .payment-step.active {
-            color: #4a6fa5;
-            border-bottom-color: #4a6fa5;
-        }
-        
-        .payment-step.completed {
-            color: #28a745;
-            border-bottom-color: #28a745;
-        }
-    </style>
 </head>
 <body>
     <?php include('../header.php'); ?>
-
+    
     <div class="container">
         <h1 class="page-title">Complete Your Payment</h1>
         
-        <?php if ($success_message): ?>
+        <?php 
+        $success_message = temp('success');
+        $error_message = temp('error');
+        
+        if ($success_message): ?>
             <div class="alert alert-success">
                 <i class="fas fa-check-circle"></i> <?= $success_message ?>
             </div>
@@ -406,187 +123,42 @@ $errors = [];
                 <i class="fas fa-exclamation-circle"></i> <?= $error_message ?>
             </div>
         <?php endif; ?>
-        
-        <?php if ($info_message): ?>
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> <?= $info_message ?>
-            </div>
-        <?php endif; ?>
-        
-        <?php if (!empty($errors)): ?>
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle"></i> Please fix the following errors:
-                <ul>
-                    <?php foreach ($errors as $error): ?>
-                        <li><?= $error ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-        <?php endif; ?>
 
-        <!-- Payment Steps Indicator -->
-        <ul class="payment-steps">
-            <li class="payment-step <?= $payment_step === 'select' ? 'active' : ($payment_step === 'details' ? 'completed' : '') ?>">
-                <i class="fas fa-credit-card"></i> Select Payment Method
-            </li>
-            <li class="payment-step <?= $payment_step === 'details' ? 'active' : '' ?>">
-                <i class="fas fa-file-invoice"></i> Payment Details
-            </li>
-            <li class="payment-step">
-                <i class="fas fa-check-circle"></i> Confirmation
-            </li>
-        </ul>
-        
         <div class="payment-container">
             <div class="payment-form">
-                <?php if ($payment_step === 'select'): ?>
-                    <!-- Payment Method Selection Step -->
-                    <form method="post" id="payment-method-form">
-                        <div class="payment-section">
-                            <div class="payment-section-header">
-                                <h2><i class="fas fa-credit-card"></i> Select Payment Method</h2>
+                <div class="payment-section">
+                    <div class="payment-section-header">
+                        <h2><i class="fas fa-credit-card"></i> Credit Card Payment</h2>
+                    </div>
+                    <div class="payment-section-body">
+                        <form id="payment-form" method="post">
+                            <div class="form-group">
+                                <label for="cardholder_name">Cardholder Name</label>
+                                <input type="text" id="cardholder_name" name="cardholder_name" required>
                             </div>
-                            <div class="payment-section-body">
-                                <p>Please select your preferred payment method:</p>
-                                
-                                <div class="payment-methods">
-                                    <div class="payment-option">
-                                        <input type="radio" name="payment_method" id="payment_credit_card" value="Credit Card" checked>
-                                        <label for="payment_credit_card">
-                                            <div class="payment-icon">
-                                                <i class="fab fa-cc-visa"></i>
-                                            </div>
-                                            <div class="payment-info">
-                                                <span class="payment-name">Credit Card</span>
-                                                <span class="payment-description">Pay with Visa, Mastercard, or American Express</span>
-                                            </div>
-                                        </label>
-                                    </div>
-                                    
-                                    <div class="payment-option">
-                                        <input type="radio" name="payment_method" id="payment_paypal" value="PayPal">
-                                        <label for="payment_paypal">
-                                            <div class="payment-icon">
-                                                <i class="fab fa-paypal"></i>
-                                            </div>
-                                            <div class="payment-info">
-                                                <span class="payment-name">PayPal</span>
-                                                <span class="payment-description">Pay with your PayPal account</span>
-                                            </div>
-                                        </label>
-                                    </div>
+                            
+                            <div class="form-group">
+                                <label for="card_number">Card Number</label>
+                                <input type="text" id="card_number" name="card_number" placeholder="XXXX XXXX XXXX XXXX" required>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="expiry_date">Expiry Date</label>
+                                    <input type="text" id="expiry_date" name="expiry_date" placeholder="MM/YY" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="cvv">CVV</label>
+                                    <input type="text" id="cvv" name="cvv" placeholder="XXX" required>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <button type="submit" name="select_payment_method" class="process-payment-btn">
-                            <i class="fas fa-arrow-right"></i> Continue to Payment Details
-                        </button>
-                    </form>
-                
-                <?php elseif ($payment_step === 'details'): ?>
-                    <!-- Payment Details Step -->
-                    <form method="post" id="payment-form">
-                        <?php if ($order->payment_method === 'Credit Card'): ?>
-                            <div class="payment-section">
-                                <div class="payment-section-header">
-                                    <h2><i class="fas fa-credit-card"></i> Credit Card Payment</h2>
-                                </div>
-                                <div class="payment-section-body">
-                                    <div class="card-icons">
-                                        <i class="fab fa-cc-visa card-icon active"></i>
-                                        <i class="fab fa-cc-mastercard card-icon active"></i>
-                                        <i class="fab fa-cc-amex card-icon active"></i>
-                                        <i class="fab fa-cc-discover card-icon active"></i>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label for="cardholder_name">Cardholder Name</label>
-                                        <input type="text" id="cardholder_name" name="cardholder_name" required>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label for="card_number">Card Number</label>
-                                        <input type="text" id="card_number" name="card_number" placeholder="XXXX XXXX XXXX XXXX" required>
-                                    </div>
-                                    
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label for="expiry_date">Expiry Date</label>
-                                            <input type="text" id="expiry_date" name="expiry_date" placeholder="MM/YY" required>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="cvv">CVV</label>
-                                            <input type="text" id="cvv" name="cvv" placeholder="XXX" required>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="payment-section-header">
-                                        <h2><i class="fas fa-shield-alt"></i> Billing Address</h2>
-                                    </div>
-                                    <div class="payment-section-body">
-                                        <div class="form-group">
-                                            <label for="billing_name">Full Name</label>
-                                            <input type="text" id="billing_name" name="billing_name" required>
-                                        </div>
-                                        
-                                        <div class="form-group">
-                                            <label for="billing_address">Address</label>
-                                            <input type="text" id="billing_address" name="billing_address" required>
-                                        </div>
-                                        
-                                        <div class="form-row">
-                                            <div class="form-group">
-                                                <label for="billing_city">City</label>
-                                                <input type="text" id="billing_city" name="billing_city" required>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="billing_state">State</label>
-                                                <input type="text" id="billing_state" name="billing_state" required>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="form-row">
-                                            <div class="form-group">
-                                                <label for="billing_postcode">Postal Code</label>
-                                                <input type="text" id="billing_postcode" name="billing_postcode" required>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="billing_country">Country</label>
-                                                <input type="text" id="billing_country" name="billing_country" value="Malaysia" required>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php elseif ($order->payment_method === 'PayPal'): ?>
-                            <div class="payment-section">
-                                <div class="payment-section-header">
-                                    <h2><i class="fab fa-paypal"></i> PayPal Payment</h2>
-                                </div>
-                                <div class="payment-section-body">
-                                    <p>You'll be redirected to PayPal to complete your payment.</p>
-                                    <p>After completing payment on PayPal, you'll be returned to our website.</p>
-                                    
-                                    <div style="text-align: center; margin: 30px 0;">
-                                        <img src="../images/paypal-button.png" alt="PayPal Button" style="max-width: 250px;">
-                                    </div>
-                                    
-                                    <p>Note: Click the "Process Payment" button below to be redirected to PayPal.</p>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <div class="payment-actions" style="display: flex; gap: 15px;">
-                            <a href="payment.php?order_id=<?= $order_id ?>&step=select" class="btn" style="flex: 1; padding: 15px; border: 1px solid #ddd; text-align: center; text-decoration: none; color: #333; border-radius: 4px;">
-                                <i class="fas fa-arrow-left"></i> Change Payment Method
-                            </a>
-                            <button type="submit" name="process_payment" id="process-payment-btn" class="process-payment-btn" style="flex: 2;">
-                                <i class="fas fa-lock"></i> Process Payment
+                            
+                            <button type="submit" name="process_payment" class="process-payment-btn">
+                                <i class="fas fa-lock"></i> Pay RM <?= number_format($order->total_amount, 2) ?>
                             </button>
-                        </div>
-                    </form>
-                <?php endif; ?>
+                        </form>
+                    </div>
+                </div>
             </div>
             
             <div class="payment-summary">
@@ -597,17 +169,6 @@ $errors = [];
                 <div class="order-id-display">
                     Order ID: <?= $order_id ?>
                 </div>
-                
-                <?php if ($payment_step === 'details' && !empty($order->payment_method) && $order->payment_method !== 'Pending'): ?>
-                    <div class="payment-method-display">
-                        <?php if ($order->payment_method === 'Credit Card'): ?>
-                            <i class="fas fa-credit-card"></i>
-                        <?php elseif ($order->payment_method === 'PayPal'): ?>
-                            <i class="fab fa-paypal"></i>
-                        <?php endif; ?>
-                        Payment Method: <?= $order->payment_method ?>
-                    </div>
-                <?php endif; ?>
                 
                 <div class="summary-body">
                     <div class="summary-item">
@@ -638,18 +199,6 @@ $errors = [];
                         <span class="total-label">Total:</span>
                         <span class="total-value">RM <?= number_format($order->total_amount, 2) ?></span>
                     </div>
-                    
-                    <div class="secure-checkout">
-                        <div class="secure-checkout-header">
-                            <i class="fas fa-lock"></i> Secure Payment
-                        </div>
-                        <div class="payment-icons">
-                            <i class="fab fa-cc-visa"></i>
-                            <i class="fab fa-cc-mastercard"></i>
-                            <i class="fab fa-cc-paypal"></i>
-                            <i class="fab fa-cc-amex"></i>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -659,7 +208,6 @@ $errors = [];
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        <?php if ($payment_step === 'details' && $order->payment_method === 'Credit Card'): ?>
         // Card number formatting
         const cardInput = document.getElementById('card_number');
         cardInput.addEventListener('input', function(e) {
@@ -747,17 +295,6 @@ $errors = [];
             
             return true;
         });
-        <?php endif; ?>
-        
-        // Payment method selection form
-        const paymentMethodForm = document.getElementById('payment-method-form');
-        if (paymentMethodForm) {
-            paymentMethodForm.addEventListener('submit', function(e) {
-                const submitBtn = this.querySelector('button[type="submit"]');
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-                submitBtn.disabled = true;
-            });
-        }
     });
     </script>
 </body>

@@ -4,10 +4,6 @@ require_once '../../_base.php';
 // Start session and ensure user is logged in
 safe_session_start();
 
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 // Check if user is authenticated
 if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
     temp('info', 'Please log in to proceed with checkout');
@@ -15,7 +11,6 @@ if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
 }
 
 $user_id = $_SESSION['user']->user_id;
-$current_timestamp = date('Y-m-d H:i:s'); // Current timestamp: 2025-04-25 14:22:54
 
 // Check if cart is empty
 try {
@@ -43,34 +38,6 @@ try {
     ");
     $stm->execute([$user_id]);
     $cart_items = $stm->fetchAll();
-    
-    // Check if all items are available and in stock
-    $items_with_issues = [];
-    foreach ($cart_items as $item) {
-        // Check if product is available
-        if ($item->product_status !== 'Available') {
-            $items_with_issues[] = [
-                'product_id' => $item->product_id,
-                'product_name' => $item->product_name,
-                'message' => 'This product is no longer available'
-            ];
-            continue;
-        }
-        
-        // Check if enough stock
-        if ($item->product_stock < $item->quantity) {
-            $items_with_issues[] = [
-                'product_id' => $item->product_id,
-                'product_name' => $item->product_name,
-                'message' => "Only {$item->product_stock} items available (you requested {$item->quantity})"
-            ];
-        }
-    }
-    
-    if (!empty($items_with_issues)) {
-        temp('error', 'Some items in your cart have issues. Please review your shopping bag before proceeding.');
-        redirect('shopping-bag.php');
-    }
     
     // Calculate totals
     $subtotal = 0;
@@ -127,14 +94,12 @@ try {
     }
 } catch (PDOException $e) {
     error_log("Error fetching addresses: " . $e->getMessage());
-    temp('error', 'An error occurred while retrieving your addresses. Please try again.');
+    temp('error', 'An error occurred while retrieving your addresses.');
     redirect('shopping-bag.php');
 }
 
 // Handle checkout form submission
 if (is_post() && isset($_POST['place_order'])) {
-    error_log("PLACE ORDER button clicked by user: " . $user_id . " at " . $current_timestamp);
-    
     $address_id = $_POST['address_id'] ?? '';
     
     $errors = [];
@@ -142,14 +107,11 @@ if (is_post() && isset($_POST['place_order'])) {
     // Validate inputs
     if (empty($address_id)) {
         $errors[] = 'Please select a delivery address';
-        error_log("Validation error: No address selected");
     }
     
     // If validation passes, process order
     if (empty($errors)) {
         try {
-            error_log("Beginning transaction to create order");
-            
             // Begin transaction
             $_db->beginTransaction();
             
@@ -168,7 +130,6 @@ if (is_post() && isset($_POST['place_order'])) {
                 $next_order_id = 1; // Start from 1 if no previous orders
             }
             $order_id = 'OR' . str_pad($next_order_id, 3, '0', STR_PAD_LEFT);
-            error_log("Generated Order ID: " . $order_id);
             
             // 2. Generate payment ID - PMXXX format
             $stm = $_db->prepare("
@@ -185,7 +146,6 @@ if (is_post() && isset($_POST['place_order'])) {
                 $next_payment_id = 1; // Start from 1 if no previous payments
             }
             $payment_id = 'PM' . str_pad($next_payment_id, 3, '0', STR_PAD_LEFT);
-            error_log("Generated Payment ID: " . $payment_id);
             
             // 3. Generate delivery ID - DVXXX format
             $stm = $_db->prepare("
@@ -202,7 +162,6 @@ if (is_post() && isset($_POST['place_order'])) {
                 $next_delivery_id = 1; // Start from 1 if no previous deliveries
             }
             $delivery_id = 'DV' . str_pad($next_delivery_id, 3, '0', STR_PAD_LEFT);
-            error_log("Generated Delivery ID: " . $delivery_id);
             
             // 4. Create delivery record
             $estimated_delivery_date = date('Y-m-d', strtotime('+7 days')); // 7 days from now
@@ -212,7 +171,6 @@ if (is_post() && isset($_POST['place_order'])) {
                 VALUES (?, ?, ?, 'Processing', ?)
             ");
             $stm->execute([$delivery_id, $address_id, $shipping_fee, $estimated_delivery_date]);
-            error_log("Created delivery record");
             
             // 5. Create order record
             $stm = $_db->prepare("
@@ -220,7 +178,6 @@ if (is_post() && isset($_POST['place_order'])) {
                 VALUES (?, ?, ?, NOW(), 'Pending', ?, ?)
             ");
             $stm->execute([$order_id, $user_id, $delivery_id, $subtotal, $total]);
-            error_log("Created order record");
             
             // 6. Insert order details
             $stm = $_db->prepare("
@@ -245,16 +202,13 @@ if (is_post() && isset($_POST['place_order'])) {
                 ");
                 $update_stock->execute([$item->quantity, $item->quantity, $item->product_id, $item->size]);
             }
-            error_log("Created order details and updated stock");
             
-            // 7. Create payment record with placeholder payment method
-            // We'll set 'Pending' as payment status and let the user choose payment method on the next page
+            // 7. Create payment record with pending status
             $stm = $_db->prepare("
                 INSERT INTO payment (payment_id, order_id, tax, total_amount, payment_method, payment_status, payment_date)
                 VALUES (?, ?, ?, ?, 'Pending', 'Pending', NOW())
             ");
             $stm->execute([$payment_id, $order_id, $tax, $total]);
-            error_log("Created payment record with placeholder payment method");
             
             // 8. Clear user cart
             $stm = $_db->prepare("
@@ -262,20 +216,12 @@ if (is_post() && isset($_POST['place_order'])) {
                 WHERE user_id = ?
             ");
             $stm->execute([$user_id]);
-            error_log("Cleared user's cart");
             
             // Commit transaction
             $_db->commit();
-            error_log("Transaction committed successfully");
             
-            // 9. Redirect to payment page
-            error_log("Redirecting to payment.php?order_id=" . $order_id);
-            
-            // Force immediate redirect with JavaScript
-            echo "<script>window.location.href = 'payment.php?order_id=" . $order_id . "';</script>";
-            // Also set a header redirect as a fallback
-            header("Location: payment.php?order_id=" . $order_id);
-            exit();
+            // Redirect to payment page
+            redirect('payment.php?order_id=' . $order_id);
             
         } catch (PDOException $e) {
             // Rollback on error
@@ -288,11 +234,6 @@ if (is_post() && isset($_POST['place_order'])) {
         }
     }
 }
-
-// Get any messages from session
-$success_message = temp('success');
-$error_message = temp('error');
-$info_message = temp('info');
 ?>
 
 <!DOCTYPE html>
@@ -309,24 +250,6 @@ $info_message = temp('info');
 
     <div class="container">
         <h1 class="page-title">Checkout</h1>
-        
-        <?php if ($success_message): ?>
-            <div class="alert alert-success">
-                <i class="fas fa-check-circle"></i> <?= $success_message ?>
-            </div>
-        <?php endif; ?>
-        
-        <?php if ($error_message): ?>
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle"></i> <?= $error_message ?>
-            </div>
-        <?php endif; ?>
-        
-        <?php if ($info_message): ?>
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> <?= $info_message ?>
-            </div>
-        <?php endif; ?>
         
         <?php if (!empty($errors)): ?>
             <div class="alert alert-danger">
@@ -459,7 +382,7 @@ $info_message = temp('info');
                     </div>
                     
                     <button type="submit" form="checkout-form" name="place_order" id="place-order-btn" class="place-order-btn">
-                        PROCEED TO PAYMENT
+                        PLACE ORDER
                     </button>
                     
                     <div class="checkout-actions">
