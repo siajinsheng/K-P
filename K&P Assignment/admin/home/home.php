@@ -4,7 +4,10 @@ require '../../_base.php';
 auth('admin', 'staff');
 require '../headFooter/header.php';
 
-// Initialize totals
+// Set the year to match current date from system (2025)
+$current_year = date('Y');
+
+// Initialize variables
 $total_products = 0;
 $total_orders = 0;
 $total_users = 0;
@@ -13,6 +16,8 @@ $recent_orders = [];
 $top_products = [];
 $stock_alerts = [];
 $monthly_revenue = [];
+$category_sales = [];
+$product_view_type = isset($_GET['view']) && $_GET['view'] === 'photo' ? 'photo' : 'table';
 
 try {
     // Get total product count
@@ -21,10 +26,10 @@ try {
     $stmt->execute();
     $total_products = $stmt->fetchColumn();
 
-    // Get total order count
-    $order_query = "SELECT COUNT(*) as count FROM orders";
+    // Get total order count for current year (2025)
+    $order_query = "SELECT COUNT(*) as count FROM orders WHERE YEAR(order_date) = ?";
     $stmt = $_db->prepare($order_query);
-    $stmt->execute();
+    $stmt->execute([$current_year]);
     $total_orders = $stmt->fetchColumn();
 
     // Get total user count (only regular customers, not admin)
@@ -33,35 +38,37 @@ try {
     $stmt->execute();
     $total_users = $stmt->fetchColumn();
 
-    // Get total revenue
-    $revenue_query = "SELECT SUM(total_amount) as total FROM payment WHERE payment_status = 'Completed'";
+    // Get total revenue for current year (2025)
+    $revenue_query = "SELECT SUM(total_amount) as total FROM payment 
+                     WHERE payment_status = 'Completed' AND YEAR(payment_date) = ?";
     $stmt = $_db->prepare($revenue_query);
-    $stmt->execute();
+    $stmt->execute([$current_year]);
     $total_revenue = $stmt->fetchColumn() ?: 0;
 
-    // Get recent orders (last 5)
+    // Get recent orders (last 5) from current year (2025)
     $recent_orders_query = "SELECT o.order_id, o.order_date, o.orders_status, o.order_total, u.user_name 
                            FROM orders o
                            JOIN user u ON o.user_id = u.user_id
+                           WHERE YEAR(o.order_date) = ?
                            ORDER BY o.order_date DESC
                            LIMIT 5";
     $stmt = $_db->prepare($recent_orders_query);
-    $stmt->execute();
+    $stmt->execute([$current_year]);
     $recent_orders = $stmt->fetchAll();
 
-    // Get top selling products
-    $top_products_query = "SELECT p.product_id, p.product_name, p.product_pic1, 
+    // Get top selling products for current year (2025)
+    $top_products_query = "SELECT p.product_id, p.product_name, p.product_pic1, p.category_id,
                           SUM(od.quantity) as total_sold, 
                           SUM(od.unit_price * od.quantity) as revenue
                           FROM product p
                           JOIN order_details od ON p.product_id = od.product_id
                           JOIN orders o ON od.order_id = o.order_id
-                          WHERE o.orders_status != 'Cancelled'
+                          WHERE o.orders_status != 'Cancelled' AND YEAR(o.order_date) = ?
                           GROUP BY p.product_id
                           ORDER BY total_sold DESC
                           LIMIT 5";
     $stmt = $_db->prepare($top_products_query);
-    $stmt->execute();
+    $stmt->execute([$current_year]);
     $top_products = $stmt->fetchAll();
 
     // Get low stock alerts
@@ -75,8 +82,7 @@ try {
     $stmt->execute();
     $stock_alerts = $stmt->fetchAll();
 
-    // Get monthly revenue for the current year
-    $current_year = date('Y');
+    // Get monthly revenue for the current year (2025)
     $monthly_revenue_query = "SELECT MONTH(payment_date) as month, SUM(total_amount) as revenue
                              FROM payment
                              WHERE YEAR(payment_date) = ? AND payment_status = 'Completed'
@@ -92,23 +98,40 @@ try {
     while ($row = $stmt->fetch()) {
         $monthly_data[$row->month] = floatval($row->revenue);
     }
-
     $monthly_revenue = $monthly_data;
+    
+    // Get sales by category (for pie chart)
+    $category_sales_query = "SELECT c.category_name, SUM(od.quantity) as total_sold,
+                            SUM(od.unit_price * od.quantity) as revenue
+                            FROM category c
+                            JOIN product p ON c.category_id = p.category_id
+                            JOIN order_details od ON p.product_id = od.product_id
+                            JOIN orders o ON od.order_id = o.order_id
+                            WHERE YEAR(o.order_date) = ? AND o.orders_status != 'Cancelled'
+                            GROUP BY c.category_id
+                            ORDER BY revenue DESC";
+    $stmt = $_db->prepare($category_sales_query);
+    $stmt->execute([$current_year]);
+    $category_sales = $stmt->fetchAll();
+    
 } catch (PDOException $e) {
     temp('error', 'Database error: ' . $e->getMessage());
 }
 
-// Calculate order statistics
+// Calculate order statistics for current year (2025)
 $orders_pending = 0;
 $orders_processing = 0;
 $orders_completed = 0;
+$orders_shipped = 0;
+$orders_cancelled = 0;
 
 try {
     $orders_status_query = "SELECT orders_status, COUNT(*) as count 
                            FROM orders 
+                           WHERE YEAR(order_date) = ?
                            GROUP BY orders_status";
     $stmt = $_db->prepare($orders_status_query);
-    $stmt->execute();
+    $stmt->execute([$current_year]);
 
     while ($row = $stmt->fetch()) {
         switch ($row->orders_status) {
@@ -121,11 +144,23 @@ try {
             case 'Delivered':
                 $orders_completed = $row->count;
                 break;
+            case 'Shipped':
+                $orders_shipped = $row->count;
+                break;
+            case 'Cancelled':
+                $orders_cancelled = $row->count;
+                break;
         }
     }
 } catch (PDOException $e) {
-    // Silently handle error
     error_log("Error fetching order statistics: " . $e->getMessage());
+}
+
+// Calculate quarterly revenue data for bar chart
+$quarterly_revenue = [0, 0, 0, 0]; // Q1, Q2, Q3, Q4
+foreach ($monthly_revenue as $month => $revenue) {
+    $quarter = ceil($month / 3) - 1; // 0-indexed quarters
+    $quarterly_revenue[$quarter] += $revenue;
 }
 ?>
 <!DOCTYPE html>
@@ -144,10 +179,15 @@ try {
 <body class="bg-gray-50">
     <!-- Hidden inputs for chart data -->
     <input type="hidden" id="monthlyRevenueData" value='<?= json_encode(array_values($monthly_revenue)) ?>'>
+    <input type="hidden" id="quarterlyRevenueData" value='<?= json_encode($quarterly_revenue) ?>'>
     <input type="hidden" id="ordersPending" value="<?= $orders_pending ?>">
     <input type="hidden" id="ordersProcessing" value="<?= $orders_processing ?>">
+    <input type="hidden" id="ordersShipped" value="<?= $orders_shipped ?>">
     <input type="hidden" id="ordersCompleted" value="<?= $orders_completed ?>">
-    <input type="hidden" id="totalOrders" value="<?= $total_orders ?>">
+    <input type="hidden" id="ordersCancelled" value="<?= $orders_cancelled ?>">
+    <input type="hidden" id="categorySalesLabels" value='<?= json_encode(array_column($category_sales, 'category_name')) ?>'>
+    <input type="hidden" id="categorySalesData" value='<?= json_encode(array_column($category_sales, 'revenue')) ?>'>
+    <input type="hidden" id="currentYear" value="<?= $current_year ?>">
 
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold text-gray-800 mb-6">Welcome to the Admin Dashboard</h1>
@@ -156,6 +196,7 @@ try {
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div class="text-gray-600 mb-4 md:mb-0">
                 <p class="text-lg"><i class="far fa-calendar-alt mr-2"></i> <?= date('l, F j, Y') ?></p>
+                <p class="text-sm text-indigo-600">Showing data for fiscal year <?= $current_year ?></p>
             </div>
             <div class="flex space-x-3">
                 <a href="../product/product.php" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center">
@@ -194,7 +235,7 @@ try {
                         <i class="fas fa-shopping-bag"></i>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-600 mb-1">Total Orders</p>
+                        <p class="text-sm text-gray-600 mb-1">Orders (<?= $current_year ?>)</p>
                         <p class="text-2xl font-bold"><?= number_format($total_orders) ?></p>
                     </div>
                 </div>
@@ -230,7 +271,7 @@ try {
                         <i class="fas fa-dollar-sign"></i>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-600 mb-1">Total Revenue</p>
+                        <p class="text-sm text-gray-600 mb-1">Revenue (<?= $current_year ?>)</p>
                         <p class="text-2xl font-bold">RM<?= number_format($total_revenue, 2) ?></p>
                     </div>
                 </div>
@@ -243,11 +284,11 @@ try {
         </div>
 
         <!-- Order Status Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
             <!-- Pending Orders -->
             <div class="dashboard-card bg-white rounded-lg shadow p-5">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold text-gray-700">Pending Orders</h3>
+                    <h3 class="font-bold text-gray-700">Pending</h3>
                     <span class="p-2 rounded-full bg-yellow-100 text-yellow-700">
                         <i class="fas fa-clock"></i>
                     </span>
@@ -259,19 +300,31 @@ try {
             <!-- Processing Orders -->
             <div class="dashboard-card bg-white rounded-lg shadow p-5">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold text-gray-700">Processing Orders</h3>
+                    <h3 class="font-bold text-gray-700">Processing</h3>
                     <span class="p-2 rounded-full bg-blue-100 text-blue-700">
                         <i class="fas fa-cog"></i>
                     </span>
                 </div>
                 <p class="text-3xl font-bold text-blue-600"><?= number_format($orders_processing) ?></p>
-                <p class="text-sm text-gray-500 mt-2">Currently being processed</p>
+                <p class="text-sm text-gray-500 mt-2">Being processed</p>
+            </div>
+            
+            <!-- Shipped Orders -->
+            <div class="dashboard-card bg-white rounded-lg shadow p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-700">Shipped</h3>
+                    <span class="p-2 rounded-full bg-indigo-100 text-indigo-700">
+                        <i class="fas fa-shipping-fast"></i>
+                    </span>
+                </div>
+                <p class="text-3xl font-bold text-indigo-600"><?= number_format($orders_shipped) ?></p>
+                <p class="text-sm text-gray-500 mt-2">In transit</p>
             </div>
 
             <!-- Completed Orders -->
             <div class="dashboard-card bg-white rounded-lg shadow p-5">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold text-gray-700">Completed Orders</h3>
+                    <h3 class="font-bold text-gray-700">Delivered</h3>
                     <span class="p-2 rounded-full bg-green-100 text-green-700">
                         <i class="fas fa-check"></i>
                     </span>
@@ -279,23 +332,53 @@ try {
                 <p class="text-3xl font-bold text-green-600"><?= number_format($orders_completed) ?></p>
                 <p class="text-sm text-gray-500 mt-2">Successfully delivered</p>
             </div>
+            
+            <!-- Cancelled Orders -->
+            <div class="dashboard-card bg-white rounded-lg shadow p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-700">Cancelled</h3>
+                    <span class="p-2 rounded-full bg-red-100 text-red-700">
+                        <i class="fas fa-times"></i>
+                    </span>
+                </div>
+                <p class="text-3xl font-bold text-red-600"><?= number_format($orders_cancelled) ?></p>
+                <p class="text-sm text-gray-500 mt-2">Order cancelled</p>
+            </div>
         </div>
 
         <!-- Charts Section -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <!-- Monthly Revenue Chart -->
             <div class="dashboard-card bg-white rounded-lg shadow p-5">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Monthly Revenue (<?= date('Y') ?>)</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Monthly Revenue (<?= $current_year ?>)</h3>
                 <div class="h-64">
                     <canvas id="revenueChart"></canvas>
                 </div>
             </div>
 
+            <!-- Quarterly Revenue Bar Chart -->
+            <div class="dashboard-card bg-white rounded-lg shadow p-5">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Quarterly Revenue (<?= $current_year ?>)</h3>
+                <div class="h-64">
+                    <canvas id="quarterlyChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <!-- Orders Status Chart -->
             <div class="dashboard-card bg-white rounded-lg shadow p-5">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Order Status Distribution</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Order Status Distribution (<?= $current_year ?>)</h3>
                 <div class="h-64">
                     <canvas id="ordersChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Sales by Category Chart -->
+            <div class="dashboard-card bg-white rounded-lg shadow p-5">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Sales by Category (<?= $current_year ?>)</h3>
+                <div class="h-64">
+                    <canvas id="categoryChart"></canvas>
                 </div>
             </div>
         </div>
@@ -303,7 +386,7 @@ try {
         <!-- Recent Orders Section -->
         <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden mb-8">
             <div class="flex justify-between items-center p-5 border-b border-gray-200">
-                <h3 class="text-lg font-bold text-gray-800">Recent Orders</h3>
+                <h3 class="text-lg font-bold text-gray-800">Recent Orders (<?= $current_year ?>)</h3>
                 <a href="../order/orders.php" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
                     View All <i class="fas fa-arrow-right ml-1"></i>
                 </a>
@@ -367,46 +450,121 @@ try {
         </div>
 
         <!-- Top Products and Stock Alerts -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <!-- Top Products -->
-            <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden">
+        <div class="mb-8">
+            <!-- Best Selling Products -->
+            <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden mb-6">
                 <div class="flex justify-between items-center p-5 border-b border-gray-200">
-                    <h3 class="text-lg font-bold text-gray-800">Best Selling Products</h3>
-                    <a href="reports.php?view=top_products" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
-                        View All <i class="fas fa-arrow-right ml-1"></i>
-                    </a>
+                    <h3 class="text-lg font-bold text-gray-800">Best Selling Products (<?= $current_year ?>)</h3>
+                    <div class="flex space-x-2">
+                        <a href="#" onclick="toggleProductView('table'); return false;" class="toggle-view text-sm px-3 py-1 rounded <?= $product_view_type === 'table' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' ?>">
+                            <i class="fas fa-table mr-1"></i> Table
+                        </a>
+                        <a href="#" onclick="toggleProductView('photo'); return false;" class="toggle-view text-sm px-3 py-1 rounded <?= $product_view_type === 'photo' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' ?>">
+                            <i class="fas fa-th-large mr-1"></i> Photo
+                        </a>
+                        <a href="reports.php?view=top_products" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium ml-2">
+                            View All <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
+                    </div>
                 </div>
-                <div class="divide-y divide-gray-200">
-                    <?php if (empty($top_products)): ?>
-                        <div class="px-5 py-4 text-center text-gray-500">No product sales data available</div>
-                    <?php else: ?>
-                        <?php foreach ($top_products as $product): ?>
-                            <div class="p-5 flex items-center">
-                                <div class="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg overflow-hidden mr-4">
-                                    <?php if ($product->product_pic1): ?>
-                                        <img src="../../img/<?= $product->product_pic1 ?>" alt="<?= htmlspecialchars($product->product_name) ?>" class="w-full h-full object-cover">
-                                    <?php else: ?>
-                                        <div class="w-full h-full flex items-center justify-center bg-gray-200">
-                                            <i class="fas fa-tshirt text-gray-400"></i>
+                
+                <!-- Table View -->
+                <div id="product-table-view" class="<?= $product_view_type === 'table' ? 'block' : 'hidden' ?>">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units Sold</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <?php if (empty($top_products)): ?>
+                                <tr>
+                                    <td colspan="5" class="px-6 py-4 text-center text-gray-500">No product sales data available</td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($top_products as $index => $product): ?>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="flex-shrink-0 h-10 w-10">
+                                                    <?php if ($product->product_pic1): ?>
+                                                        <img class="h-10 w-10 rounded-full object-cover" src="../../img/<?= htmlspecialchars($product->product_pic1) ?>" alt="">
+                                                    <?php else: ?>
+                                                        <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                                            <i class="fas fa-tshirt text-gray-400"></i>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div class="ml-4">
+                                                    <div class="text-sm font-medium text-gray-900">
+                                                        <?= htmlspecialchars($product->product_name) ?>
+                                                    </div>
+                                                    <div class="text-sm text-gray-500">
+                                                        ID: <?= htmlspecialchars($product->product_id) ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <?= htmlspecialchars($product->category_id) ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="text-sm font-medium text-gray-900"><?= number_format($product->total_sold) ?></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="text-sm font-medium text-gray-900">RM<?= number_format($product->revenue, 2) ?></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <a href="../product/Detail_Product.php?id=<?= $product->product_id ?>" class="text-indigo-600 hover:text-indigo-900">View</a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Photo Grid View -->
+                <div id="product-photo-view" class="<?= $product_view_type === 'photo' ? 'block' : 'hidden' ?>">
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 p-6">
+                        <?php if (empty($top_products)): ?>
+                            <div class="col-span-full text-center text-gray-500 py-8">No product sales data available</div>
+                        <?php else: ?>
+                            <?php foreach ($top_products as $index => $product): ?>
+                                <div class="bg-white rounded-lg shadow overflow-hidden border border-gray-200 transition-transform transform hover:scale-105">
+                                    <div class="h-48 bg-gray-200 overflow-hidden relative">
+                                        <?php if ($product->product_pic1): ?>
+                                            <img class="w-full h-full object-cover" src="../../img/<?= htmlspecialchars($product->product_pic1) ?>" alt="<?= htmlspecialchars($product->product_name) ?>">
+                                        <?php else: ?>
+                                            <div class="w-full h-full flex items-center justify-center">
+                                                <i class="fas fa-tshirt text-4xl text-gray-400"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div class="absolute top-2 left-2 bg-indigo-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">
+                                            <?= $index + 1 ?>
                                         </div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="flex-grow">
-                                    <h4 class="text-sm font-medium text-gray-900"><?= htmlspecialchars($product->product_name) ?></h4>
-                                    <div class="flex items-center justify-between mt-1">
-                                        <span class="text-sm text-gray-500"><?= number_format($product->total_sold) ?> units sold</span>
-                                        <span class="text-sm font-medium text-gray-900">RM<?= number_format($product->revenue, 2) ?></span>
+                                    </div>
+                                    <div class="p-4">
+                                        <h3 class="font-semibold text-gray-800 truncate"><?= htmlspecialchars($product->product_name) ?></h3>
+                                        <div class="flex justify-between items-center mt-2 text-sm">
+                                            <span class="text-gray-600"><?= number_format($product->total_sold) ?> sold</span>
+                                            <span class="font-medium text-indigo-600">RM<?= number_format($product->revenue, 2) ?></span>
+                                        </div>
+                                        <a href="../product/Detail_Product.php?id=<?= $product->product_id ?>" class="mt-3 block text-center bg-gray-100 hover:bg-gray-200 text-indigo-600 py-2 rounded-lg text-sm">
+                                            View Details
+                                        </a>
                                     </div>
                                 </div>
-                                <a href="../product/Detail_Product.php?id=<?= $product->product_id ?>" class="ml-4 text-indigo-600 hover:text-indigo-900">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
-
+            
             <!-- Stock Alerts -->
             <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden">
                 <div class="flex justify-between items-center p-5 border-b border-gray-200">
@@ -458,6 +616,44 @@ try {
 
     <?php require '../headFooter/footer.php'; ?>
 
+    <script>
+        // Function to toggle between table and photo views
+        function toggleProductView(viewType) {
+            const tableView = document.getElementById('product-table-view');
+            const photoView = document.getElementById('product-photo-view');
+            const toggleButtons = document.querySelectorAll('.toggle-view');
+            
+            if (viewType === 'table') {
+                tableView.classList.remove('hidden');
+                photoView.classList.add('hidden');
+                
+                // Update button styles
+                toggleButtons.forEach(button => {
+                    if (button.textContent.includes('Table')) {
+                        button.classList.add('bg-indigo-600', 'text-white');
+                        button.classList.remove('bg-gray-100', 'text-gray-700');
+                    } else {
+                        button.classList.remove('bg-indigo-600', 'text-white');
+                        button.classList.add('bg-gray-100', 'text-gray-700');
+                    }
+                });
+            } else {
+                tableView.classList.add('hidden');
+                photoView.classList.remove('hidden');
+                
+                // Update button styles
+                toggleButtons.forEach(button => {
+                    if (button.textContent.includes('Photo')) {
+                        button.classList.add('bg-indigo-600', 'text-white');
+                        button.classList.remove('bg-gray-100', 'text-gray-700');
+                    } else {
+                        button.classList.remove('bg-indigo-600', 'text-white');
+                        button.classList.add('bg-gray-100', 'text-gray-700');
+                    }
+                });
+            }
+        }
+    </script>
     <script src="/admin/home/home.js"></script>
 </body>
 

@@ -911,7 +911,7 @@ if (is_post() && isset($_FILES['csv_file'])) {
     <!-- Alert Messages -->
     <?php $error = temp('error');
     if ($error): ?>
-        <div id="errorAlert" class="fixed top-5 right-5 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md z-50 transform transition-transform duration-500 translate-x-0">
+        <div id="errorAlert" class="fixed right-5 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md z-1001 transform transition-transform duration-500 translate-x-0" style="top: <?= isset($navbar_height) ? $navbar_height : '85' ?>px;">
             <div class="flex items-center">
                 <i class="fas fa-exclamation-circle mr-3"></i>
                 <span><?= $error ?></span>
@@ -933,7 +933,7 @@ if (is_post() && isset($_FILES['csv_file'])) {
 
     <?php $success = temp('success');
     if ($success): ?>
-        <div id="successAlert" class="fixed top-5 right-5 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-md z-50 transform transition-transform duration-500 translate-x-0">
+        <div id="successAlert" class="fixed right-5 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-md z-1001 transform transition-transform duration-500 translate-x-0" style="top: <?= isset($navbar_height) ? $navbar_height : '85' ?>px;">
             <div class="flex items-center">
                 <i class="fas fa-check-circle mr-3"></i>
                 <span><?= $success ?></span>
@@ -950,6 +950,22 @@ if (is_post() && isset($_FILES['csv_file'])) {
                     setTimeout(() => alert.remove(), 500);
                 }
             }, 5000);
+
+            // Add script to position alerts dynamically when page loads
+            document.addEventListener('DOMContentLoaded', function() {
+                const header = document.querySelector('.navbar');
+                const headerHeight = header ? header.offsetHeight + 10 : 85;
+
+                const errorAlert = document.getElementById('errorAlert');
+                if (errorAlert) errorAlert.style.top = `${headerHeight}px`;
+
+                const successAlert = document.getElementById('successAlert');
+                if (successAlert) {
+                    successAlert.style.top = errorAlert ?
+                        `${headerHeight + errorAlert.offsetHeight + 10}px` :
+                        `${headerHeight}px`;
+                }
+            });
         </script>
     <?php endif; ?>
 
@@ -1435,31 +1451,59 @@ if (is_post() && isset($_FILES['csv_file'])) {
 
                 const notification = document.createElement('div');
                 notification.id = id;
-                notification.className = `fixed top-5 right-5 ${bgColor} border-l-4 ${borderColor} ${textColor} p-4 rounded shadow-md z-50 transform transition-transform duration-500 translate-x-0`;
+
+                // Calculate header height to position notifications below it
+                const header = document.querySelector('.navbar');
+                const headerHeight = header ? header.offsetHeight + 10 : 90; // 10px extra padding
+
+                notification.className = `fixed right-5 ${bgColor} border-l-4 ${borderColor} ${textColor} p-4 rounded shadow-md z-1001 transform transition-transform duration-500 translate-x-0`;
+
+                // Set top position dynamically based on header height
+                notification.style.top = `${headerHeight}px`;
+
                 notification.innerHTML = `
-                <div class="flex items-center">
-                    <i class="fas ${icon} mr-3"></i>
-                    <div>
-                        <div class="font-bold">${title}</div>
-                        <div>${message}</div>
-                    </div>
-                </div>
-                <button class="absolute top-1 right-1 ${textColor} hover:${textColor}" onclick="this.parentElement.remove()">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
+    <div class="flex items-center">
+        <i class="fas ${icon} mr-3"></i>
+        <div>
+            <div class="font-bold">${title}</div>
+            <div>${message}</div>
+        </div>
+    </div>
+    <button class="absolute top-1 right-1 ${textColor} hover:${textColor}" onclick="this.parentElement.remove()">
+        <i class="fas fa-times"></i>
+    </button>
+    `;
 
                 document.body.appendChild(notification);
+
+                // Stack notifications if multiple are present
+                stackNotifications();
 
                 setTimeout(() => {
                     const alert = document.getElementById(id);
                     if (alert) {
                         alert.classList.add('translate-x-full');
-                        setTimeout(() => alert.remove(), 500);
+                        setTimeout(() => {
+                            alert.remove();
+                            stackNotifications(); // Re-stack remaining notifications
+                        }, 500);
                     }
                 }, 5000);
             }
 
+            // Function to stack notifications vertically
+            function stackNotifications() {
+                const notifications = document.querySelectorAll('[id^="notification-"]');
+                const header = document.querySelector('.navbar');
+                const headerHeight = header ? header.offsetHeight + 10 : 90;
+
+                let currentTop = headerHeight;
+
+                notifications.forEach((notification) => {
+                    notification.style.top = `${currentTop}px`;
+                    currentTop += notification.offsetHeight + 10; // 10px spacing between notifications
+                });
+            }
             // Close modals when clicking outside
             window.addEventListener('click', (event) => {
                 if (event.target === stockModal) {
