@@ -21,14 +21,32 @@ $username = $_SESSION['user']->user_name;
 
 error_log("Shopping bag - User authenticated: $username (ID: $user_id)");
 
+// Helper function to generate sequential IDs in the format XXnnn
+function generate_id($table, $id_field, $prefix, $pad_length = 3) {
+    global $_db;
+    
+    $stm = $_db->prepare("SELECT $id_field FROM $table ORDER BY $id_field DESC LIMIT 1");
+    $stm->execute();
+    $last_id = $stm->fetchColumn();
+    
+    if ($last_id && preg_match('/' . $prefix . '(\d+)/', $last_id, $matches)) {
+        $next_num = (int)$matches[1] + 1;
+    } else {
+        $next_num = 1;
+    }
+    
+    return sprintf('%s%0' . $pad_length . 'd', $prefix, $next_num);
+}
+
 // CONTINUE TO CHECKOUT Action - Prepare for checkout
 if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_checkout') {
     try {
         // Fetch cart items
         $stm = $_db->prepare("
-            SELECT c.*, p.product_price, p.product_name 
+            SELECT c.*, p.product_price, p.product_name, q.size
             FROM cart c
             JOIN product p ON c.product_id = p.product_id
+            JOIN quantity q ON c.quantity_id = q.quantity_id
             WHERE c.user_id = ?
         ");
         $stm->execute([$user_id]);
@@ -48,9 +66,9 @@ if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_check
             // Get stock information
             $stm = $_db->prepare("
                 SELECT product_stock FROM quantity 
-                WHERE product_id = ? AND size = ?
+                WHERE quantity_id = ?
             ");
-            $stm->execute([$item->product_id, $item->size]);
+            $stm->execute([$item->quantity_id]);
             $stock = $stm->fetchColumn();
             
             if ($stock < $item->quantity) {
@@ -136,9 +154,10 @@ if (isset($_GET['remove']) && is_get()) {
     try {
         // Get product details before removing (for logging)
         $stm = $_db->prepare("
-            SELECT c.product_id, c.size, c.quantity, p.product_name 
+            SELECT c.product_id, q.size, c.quantity, p.product_name 
             FROM cart c 
             JOIN product p ON c.product_id = p.product_id
+            JOIN quantity q ON c.quantity_id = q.quantity_id
             WHERE c.cart_id = ? AND c.user_id = ?
         ");
         $stm->execute([$cart_id, $user_id]);
@@ -181,7 +200,7 @@ if (is_post() && isset($_POST['update_cart'])) {
             try {
                 // Get current cart item info
                 $stm = $_db->prepare("
-                    SELECT c.product_id, c.size, c.quantity, p.product_name 
+                    SELECT c.product_id, c.quantity_id, c.quantity, p.product_name 
                     FROM cart c
                     JOIN product p ON c.product_id = p.product_id
                     WHERE c.cart_id = ? AND c.user_id = ?
@@ -198,9 +217,9 @@ if (is_post() && isset($_POST['update_cart'])) {
                     // Check stock
                     $stm = $_db->prepare("
                         SELECT product_stock FROM quantity 
-                        WHERE product_id = ? AND size = ?
+                        WHERE quantity_id = ?
                     ");
-                    $stm->execute([$current_item->product_id, $current_item->size]);
+                    $stm->execute([$current_item->quantity_id]);
                     $stock = $stm->fetchColumn();
                     
                     if ($stock < $quantity) {
@@ -241,12 +260,12 @@ if (is_post() && isset($_POST['update_cart'])) {
 // Get cart items with product details
 try {
     $stm = $_db->prepare("
-        SELECT c.cart_id, c.product_id, c.quantity, c.size, c.added_time,
+        SELECT c.cart_id, c.product_id, c.quantity, c.quantity_id, c.added_time,
                p.product_name, p.product_price, p.product_pic1, p.product_status,
-               q.product_stock
+               q.size, q.product_stock
         FROM cart c
         JOIN product p ON c.product_id = p.product_id
-        JOIN quantity q ON c.product_id = q.product_id AND c.size = q.size
+        JOIN quantity q ON c.quantity_id = q.quantity_id
         WHERE c.user_id = ?
         ORDER BY c.added_time DESC
     ");

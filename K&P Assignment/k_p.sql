@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 26, 2025 at 03:29 PM
+-- Generation Time: Apr 26, 2025 at 05:52 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -29,6 +29,7 @@ USE `k&p`;
 -- Table structure for table `address`
 --
 
+DROP TABLE IF EXISTS `address`;
 CREATE TABLE `address` (
   `address_id` varchar(255) NOT NULL,
   `user_id` varchar(255) NOT NULL,
@@ -52,7 +53,7 @@ CREATE TABLE `address` (
 
 INSERT INTO `address` (`address_id`, `user_id`, `address_name`, `recipient_name`, `phone`, `address_line1`, `address_line2`, `city`, `state`, `post_code`, `country`, `is_default`, `created_at`, `updated_at`) VALUES
 ('AD001', 'MB542', 'Home', 'Aiman Hakim', '60192837465', '12 Jalan Damai', 'Taman Sentosa', 'Kuala Lumpur', 'Wilayah Persekutuan', '50450', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:03:23'),
-('AD002', 'MB247', 'Office', 'Nurul Aisyah', '60162384921', '18A Jalan Ampang', 'Menara Prisma', 'Kuala Lumpur', 'Wilayah Persekutuan', '50450', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-24 02:48:24'),
+('AD002', 'MB247', 'Office', 'Nurul Aisyah', '60162384921', '18A Jalan Ampang', 'Menara Prisma', 'Kuala Lumpur', 'Wilayah Persekutuan', '50450', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-26 14:52:59'),
 ('AD003', 'MB542', 'Home', 'Ahmad Faizal', '60173458722', '27 Lorong Mawar', 'Taman Sri Andalas', 'Klang', 'Selangor', '41200', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:03:28'),
 ('AD004', 'MB542', 'Office', 'Siti Mariam', '60194587230', '9 Jalan Tanjung', 'Desa Sri Hartamas', 'Petaling Jaya', 'Selangor', '47800', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:04:37'),
 ('AD005', 'MB542', 'Home', 'Mohd Zulhilmi', '60125348971', '56 Jalan Seri', 'Taman Mutiara', 'Johor Bahru', 'Johor', '81100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:03:39'),
@@ -61,7 +62,7 @@ INSERT INTO `address` (`address_id`, `user_id`, `address_name`, `recipient_name`
 ('AD008', 'MB542', 'Office', 'Hafiz Rahman', '60193745268', '77 Jalan Putra', 'Residensi Putrajaya', 'Putrajaya', 'Wilayah Persekutuan', '62100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:03:46'),
 ('AD009', 'MB542', 'Home', 'Nadia Izzati', '60182347651', '14 Jalan Bukit', 'Taman Kenari', 'Alor Setar', 'Kedah', '05050', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:03:42'),
 ('AD010', 'MB542', 'Office', 'Zulkifli Osman', '60173452689', '66 Jalan Pantai', 'Pantai Batu Ferringhi', 'George Town', 'Penang', '11100', 'Malaysia', 0, '2025-04-24 02:48:24', '2025-04-25 14:04:33'),
-('AD011', 'MB247', 'Home', 'js', '60182250100', 'A-02-13, Mizumi Metro kepong', '', 'kepong', 'Kuala Lumpur', '52100', 'Malaysia', 1, '2025-04-23 14:28:46', '2025-04-25 12:32:46');
+('AD011', 'MB247', 'Home', 'js', '60182250100', 'A-02-13, Mizumi Metro kepong', '', 'kepong', 'Kuala Lumpur', '52100', 'Malaysia', 1, '2025-04-23 14:28:46', '2025-04-26 14:52:59');
 
 -- --------------------------------------------------------
 
@@ -69,6 +70,7 @@ INSERT INTO `address` (`address_id`, `user_id`, `address_name`, `recipient_name`
 -- Table structure for table `cart`
 --
 
+DROP TABLE IF EXISTS `cart`;
 CREATE TABLE `cart` (
   `cart_id` varchar(255) NOT NULL,
   `user_id` varchar(255) NOT NULL,
@@ -78,12 +80,20 @@ CREATE TABLE `cart` (
   `added_time` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `cart`
+--
+
+INSERT INTO `cart` (`cart_id`, `user_id`, `product_id`, `quantity_id`, `quantity`, `added_time`) VALUES
+('CART_20250426222059_bcbe17ef', 'MB247', 'P018', 88, 2, '2025-04-26 14:20:59');
+
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `category`
 --
 
+DROP TABLE IF EXISTS `category`;
 CREATE TABLE `category` (
   `category_id` varchar(50) NOT NULL,
   `category_name` varchar(255) NOT NULL
@@ -104,6 +114,7 @@ INSERT INTO `category` (`category_id`, `category_name`) VALUES
 -- Table structure for table `delivery`
 --
 
+DROP TABLE IF EXISTS `delivery`;
 CREATE TABLE `delivery` (
   `delivery_id` varchar(255) NOT NULL,
   `address_id` varchar(255) NOT NULL,
@@ -171,7 +182,10 @@ INSERT INTO `delivery` (`delivery_id`, `address_id`, `delivery_fee`, `delivery_s
 ('DV051', 'AD011', 20, '', '2025-04-29', NULL),
 ('DV052', 'AD011', 20, '', '2025-04-29', NULL),
 ('DV053', 'AD011', 20, 'Processing', '2025-04-29', NULL),
-('DV054', 'AD011', 20, 'Processing', '2025-04-29', NULL);
+('DV054', 'AD011', 20, 'Processing', '2025-04-29', NULL),
+('DV055', 'AD011', 20, 'Processing', '2025-04-29', NULL),
+('DV056', 'AD011', 20, 'Processing', '2025-04-29', NULL),
+('DV057', 'AD011', 20, 'Processing', '2025-04-29', NULL);
 
 -- --------------------------------------------------------
 
@@ -179,6 +193,7 @@ INSERT INTO `delivery` (`delivery_id`, `address_id`, `delivery_fee`, `delivery_s
 -- Table structure for table `discount`
 --
 
+DROP TABLE IF EXISTS `discount`;
 CREATE TABLE `discount` (
   `Discount_id` varchar(255) NOT NULL,
   `product_id` varchar(255) NOT NULL,
@@ -194,6 +209,7 @@ CREATE TABLE `discount` (
 -- Table structure for table `orders`
 --
 
+DROP TABLE IF EXISTS `orders`;
 CREATE TABLE `orders` (
   `order_id` varchar(255) NOT NULL,
   `user_id` varchar(255) NOT NULL,
@@ -209,60 +225,63 @@ CREATE TABLE `orders` (
 --
 
 INSERT INTO `orders` (`order_id`, `user_id`, `delivery_id`, `order_date`, `orders_status`, `order_subtotal`, `order_total`) VALUES
-('OR001', 'MB247', 'DV025', '2025-02-08 00:00:00', 'Delivered', 343.86, 322.43),
-('OR002', 'MB247', 'DV004', '2025-04-03 00:00:00', 'Processing', 457.32, 455.01),
-('OR003', 'MB247', 'DV021', '2025-01-03 00:00:00', 'Shipped', 133.04, 136.81),
-('OR004', 'MB247', 'DV002', '2025-04-24 00:00:00', 'Cancelled', 131.89, 107.64),
-('OR005', 'MB247', 'DV007', '2025-02-02 00:00:00', 'Processing', 383.45, 358.83),
-('OR006', 'MB247', 'DV022', '2025-02-19 00:00:00', 'Delivered', 217.14, 226.21),
-('OR007', 'MB247', 'DV028', '2025-01-09 00:00:00', 'Processing', 174.61, 163.71),
-('OR008', 'MB247', 'DV050', '2025-04-16 00:00:00', 'Delivered', 195.81, 179.63),
-('OR009', 'MB247', 'DV020', '2025-02-25 00:00:00', 'Pending', 471.34, 451.14),
-('OR010', 'MB247', 'DV021', '2025-02-16 00:00:00', 'Shipped', 199.46, 211.21),
-('OR011', 'MB247', 'DV016', '2025-03-27 00:00:00', 'Cancelled', 383.74, 380.77),
-('OR012', 'MB247', 'DV038', '2025-04-20 00:00:00', 'Pending', 164.68, 174.28),
-('OR013', 'MB247', 'DV024', '2025-02-25 00:00:00', 'Delivered', 241.39, 233.04),
-('OR014', 'MB247', 'DV022', '2025-03-28 00:00:00', 'Cancelled', 497.09, 489.36),
-('OR015', 'MB247', 'DV014', '2025-02-08 00:00:00', 'Shipped', 411.16, 406.28),
-('OR016', 'MB247', 'DV049', '2025-04-25 00:00:00', 'Delivered', 310.98, 312.76),
-('OR017', 'MB247', 'DV008', '2025-03-23 00:00:00', 'Delivered', 195.27, 162.27),
-('OR018', 'MB247', 'DV002', '2025-03-19 00:00:00', 'Shipped', 467.05, 469.62),
-('OR019', 'MB247', 'DV029', '2025-02-28 00:00:00', 'Processing', 151.54, 112.16),
-('OR020', 'MB247', 'DV031', '2025-04-10 00:00:00', 'Processing', 183.96, 171.20),
-('OR021', 'MB247', 'DV044', '2025-01-03 00:00:00', 'Cancelled', 245.16, 232.91),
-('OR022', 'MB247', 'DV046', '2025-01-24 00:00:00', 'Shipped', 434.36, 431.36),
-('OR023', 'MB247', 'DV013', '2025-04-06 00:00:00', 'Shipped', 154.00, 153.72),
-('OR024', 'MB247', 'DV027', '2025-04-15 00:00:00', 'Pending', 456.36, 437.68),
-('OR025', 'MB247', 'DV049', '2025-04-25 00:00:00', 'Shipped', 297.53, 298.72),
-('OR026', 'MB247', 'DV030', '2025-01-23 00:00:00', 'Delivered', 496.62, 517.14),
-('OR027', 'MB247', 'DV015', '2025-03-26 00:00:00', 'Shipped', 431.36, 418.22),
-('OR028', 'MB247', 'DV018', '2025-04-01 00:00:00', 'Shipped', 169.99, 138.16),
-('OR029', 'MB247', 'DV047', '2025-01-04 00:00:00', 'Processing', 210.06, 211.01),
-('OR030', 'MB247', 'DV034', '2025-04-05 00:00:00', 'Cancelled', 340.95, 359.27),
-('OR031', 'MB247', 'DV009', '2025-01-19 00:00:00', 'Delivered', 331.90, 334.86),
-('OR032', 'MB247', 'DV039', '2025-04-01 00:00:00', 'Cancelled', 302.69, 317.50),
-('OR033', 'MB247', 'DV040', '2025-01-01 00:00:00', 'Shipped', 125.95, 97.58),
-('OR034', 'MB247', 'DV036', '2025-04-02 00:00:00', 'Shipped', 246.97, 255.60),
-('OR035', 'MB247', 'DV015', '2025-03-06 00:00:00', 'Processing', 454.11, 436.99),
-('OR036', 'MB247', 'DV044', '2025-02-24 00:00:00', 'Delivered', 225.16, 201.56),
-('OR037', 'MB247', 'DV031', '2025-03-21 00:00:00', 'Processing', 372.66, 361.59),
-('OR038', 'MB247', 'DV033', '2025-01-11 00:00:00', 'Shipped', 384.16, 368.71),
-('OR039', 'MB247', 'DV021', '2025-03-29 00:00:00', 'Delivered', 127.54, 133.61),
-('OR040', 'MB247', 'DV011', '2025-01-19 00:00:00', 'Cancelled', 459.86, 462.32),
-('OR041', 'MB247', 'DV001', '2025-04-10 00:00:00', 'Delivered', 101.09, 99.18),
-('OR042', 'MB247', 'DV050', '2025-01-19 00:00:00', 'Pending', 113.20, 104.49),
-('OR043', 'MB247', 'DV044', '2025-01-21 00:00:00', 'Delivered', 274.26, 271.64),
-('OR044', 'MB247', 'DV006', '2025-02-15 00:00:00', 'Delivered', 285.30, 271.05),
-('OR045', 'MB247', 'DV041', '2025-01-29 00:00:00', 'Shipped', 412.52, 392.66),
-('OR046', 'MB247', 'DV012', '2025-01-08 00:00:00', 'Cancelled', 268.69, 282.66),
-('OR047', 'MB247', 'DV031', '2025-02-27 00:00:00', 'Processing', 246.06, 226.78),
-('OR048', 'MB247', 'DV039', '2025-04-02 00:00:00', 'Cancelled', 286.21, 287.33),
-('OR049', 'MB247', 'DV026', '2025-01-03 00:00:00', 'Delivered', 337.19, 349.46),
-('OR050', 'MB247', 'DV018', '2025-01-20 00:00:00', 'Processing', 215.76, 199.88),
+('OR001', 'MB971', 'DV025', '2025-02-08 00:00:00', 'Delivered', 343.86, 322.43),
+('OR002', 'MB570', 'DV004', '2025-04-03 00:00:00', 'Processing', 457.32, 455.01),
+('OR003', 'MB570', 'DV021', '2025-01-03 00:00:00', 'Shipped', 133.04, 136.81),
+('OR004', 'MB570', 'DV002', '2025-04-24 00:00:00', 'Cancelled', 131.89, 107.64),
+('OR005', 'MB570', 'DV007', '2025-02-02 00:00:00', 'Processing', 383.45, 358.83),
+('OR006', 'MB570', 'DV022', '2025-02-19 00:00:00', 'Delivered', 217.14, 226.21),
+('OR007', 'MB570', 'DV028', '2025-01-09 00:00:00', 'Processing', 174.61, 163.71),
+('OR008', 'MB971', 'DV050', '2025-04-16 00:00:00', 'Delivered', 195.81, 179.63),
+('OR009', 'MB570', 'DV020', '2025-02-25 00:00:00', 'Pending', 471.34, 451.14),
+('OR010', 'MB222', 'DV021', '2025-02-16 00:00:00', 'Shipped', 199.46, 211.21),
+('OR011', 'MB570', 'DV016', '2025-03-27 00:00:00', 'Cancelled', 383.74, 380.77),
+('OR012', 'MB570', 'DV038', '2025-04-20 00:00:00', 'Pending', 164.68, 174.28),
+('OR013', 'MB971', 'DV024', '2025-02-25 00:00:00', 'Delivered', 241.39, 233.04),
+('OR014', 'MB971', 'DV022', '2025-03-28 00:00:00', 'Cancelled', 497.09, 489.36),
+('OR015', 'MB971', 'DV014', '2025-02-08 00:00:00', 'Shipped', 411.16, 406.28),
+('OR016', 'MB971', 'DV049', '2025-04-25 00:00:00', 'Delivered', 310.98, 312.76),
+('OR017', 'MB971', 'DV008', '2025-03-23 00:00:00', 'Delivered', 195.27, 162.27),
+('OR018', 'MB971', 'DV002', '2025-03-19 00:00:00', 'Shipped', 467.05, 469.62),
+('OR019', 'MB971', 'DV029', '2025-02-28 00:00:00', 'Processing', 151.54, 112.16),
+('OR020', 'MB971', 'DV031', '2025-04-10 00:00:00', 'Processing', 183.96, 171.20),
+('OR021', 'MB542', 'DV044', '2025-01-03 00:00:00', 'Cancelled', 245.16, 232.91),
+('OR022', 'MB542', 'DV046', '2025-01-24 00:00:00', 'Shipped', 434.36, 431.36),
+('OR023', 'MB570', 'DV013', '2025-04-06 00:00:00', 'Shipped', 154.00, 153.72),
+('OR024', 'MB570', 'DV027', '2025-04-15 00:00:00', 'Pending', 456.36, 437.68),
+('OR025', 'MB570', 'DV049', '2025-04-25 00:00:00', 'Shipped', 297.53, 298.72),
+('OR026', 'MB222', 'DV030', '2025-01-23 00:00:00', 'Delivered', 496.62, 517.14),
+('OR027', 'MB222', 'DV015', '2025-03-26 00:00:00', 'Shipped', 431.36, 418.22),
+('OR028', 'MB222', 'DV018', '2025-04-01 00:00:00', 'Shipped', 169.99, 138.16),
+('OR029', 'MB570', 'DV047', '2025-01-04 00:00:00', 'Processing', 210.06, 211.01),
+('OR030', 'MB971', 'DV034', '2025-04-05 00:00:00', 'Cancelled', 340.95, 359.27),
+('OR031', 'MB971', 'DV009', '2025-01-19 00:00:00', 'Delivered', 331.90, 334.86),
+('OR032', 'MB971', 'DV039', '2025-04-01 00:00:00', 'Cancelled', 302.69, 317.50),
+('OR033', 'MB971', 'DV040', '2025-01-01 00:00:00', 'Shipped', 125.95, 97.58),
+('OR034', 'MB971', 'DV036', '2025-04-02 00:00:00', 'Shipped', 246.97, 255.60),
+('OR035', 'MB971', 'DV015', '2025-03-06 00:00:00', 'Processing', 454.11, 436.99),
+('OR036', 'MB971', 'DV044', '2025-02-24 00:00:00', 'Delivered', 225.16, 201.56),
+('OR037', 'MB971', 'DV031', '2025-03-21 00:00:00', 'Processing', 372.66, 361.59),
+('OR038', 'MB971', 'DV033', '2025-01-11 00:00:00', 'Shipped', 384.16, 368.71),
+('OR039', 'MB971', 'DV021', '2025-03-29 00:00:00', 'Delivered', 127.54, 133.61),
+('OR040', 'MB971', 'DV011', '2025-01-19 00:00:00', 'Cancelled', 459.86, 462.32),
+('OR041', 'MB570', 'DV001', '2025-04-10 00:00:00', 'Delivered', 101.09, 99.18),
+('OR042', 'MB222', 'DV050', '2025-01-19 00:00:00', 'Pending', 113.20, 104.49),
+('OR043', 'MB222', 'DV044', '2025-01-21 00:00:00', 'Delivered', 274.26, 271.64),
+('OR044', 'MB971', 'DV006', '2025-02-15 00:00:00', 'Delivered', 285.30, 271.05),
+('OR045', 'MB570', 'DV041', '2025-01-29 00:00:00', 'Shipped', 412.52, 392.66),
+('OR046', 'MB971', 'DV012', '2025-01-08 00:00:00', 'Cancelled', 268.69, 282.66),
+('OR047', 'MB570', 'DV031', '2025-02-27 00:00:00', 'Processing', 246.06, 226.78),
+('OR048', 'MB542', 'DV039', '2025-04-02 00:00:00', 'Cancelled', 286.21, 287.33),
+('OR049', 'MB222', 'DV026', '2025-01-03 00:00:00', 'Delivered', 337.19, 349.46),
+('OR050', 'MB971', 'DV018', '2025-01-20 00:00:00', 'Processing', 215.76, 199.88),
 ('OR051', 'MB247', 'DV051', '2025-04-26 11:02:26', 'Pending', 469.30, 517.46),
 ('OR052', 'MB247', 'DV052', '2025-04-26 11:12:13', 'Pending', 199.70, 231.68),
 ('OR053', 'MB247', 'DV053', '2025-04-26 11:16:56', 'Pending', 249.60, 284.58),
-('OR054', 'MB247', 'DV054', '2025-04-26 20:50:40', 'Pending', 159.80, 189.39);
+('OR054', 'MB247', 'DV054', '2025-04-26 20:50:40', 'Pending', 159.80, 189.39),
+('OR055', 'MB247', 'DV055', '2025-04-26 21:59:01', '', 159.80, 189.39),
+('OR056', 'MB247', 'DV056', '2025-04-26 22:02:39', '', 119.70, 146.88),
+('OR057', 'MB247', 'DV057', '2025-04-26 22:10:12', '', 119.80, 146.99);
 
 -- --------------------------------------------------------
 
@@ -270,6 +289,7 @@ INSERT INTO `orders` (`order_id`, `user_id`, `delivery_id`, `order_date`, `order
 -- Table structure for table `order_details`
 --
 
+DROP TABLE IF EXISTS `order_details`;
 CREATE TABLE `order_details` (
   `order_id` varchar(255) DEFAULT NULL,
   `product_id` varchar(255) DEFAULT NULL,
@@ -381,7 +401,10 @@ INSERT INTO `order_details` (`order_id`, `product_id`, `quantity_id`, `quantity`
 ('OR048', 'P008', 36, 1, 49.90),
 ('OR049', 'P014', 67, 1, 59.90),
 ('OR049', 'P016', 77, 1, 39.90),
-('OR050', 'P005', 22, 1, 79.90);
+('OR050', 'P005', 22, 1, 79.90),
+('OR055', 'P022', 108, 2, 79.90),
+('OR056', 'P013', 63, 3, 39.90),
+('OR057', 'P018', 88, 2, 59.90);
 
 -- --------------------------------------------------------
 
@@ -389,6 +412,7 @@ INSERT INTO `order_details` (`order_id`, `product_id`, `quantity_id`, `quantity`
 -- Table structure for table `payment`
 --
 
+DROP TABLE IF EXISTS `payment`;
 CREATE TABLE `payment` (
   `payment_id` varchar(255) NOT NULL,
   `order_id` varchar(255) NOT NULL,
@@ -458,7 +482,10 @@ INSERT INTO `payment` (`payment_id`, `order_id`, `tax`, `total_amount`, `payment
 ('PM051', 'OR051', 28.16, 517.46, '', 'Pending', '2025-04-26 11:02:26', 0.00),
 ('PM052', 'OR052', 11.98, 231.68, '', 'Pending', '2025-04-26 11:12:13', 0.00),
 ('PM053', 'OR053', 14.98, 284.58, '', 'Pending', '2025-04-26 11:16:56', 0.00),
-('PM054', 'OR054', 9.59, 189.39, '', 'Pending', '2025-04-26 20:50:40', 0.00);
+('PM054', 'OR054', 9.59, 189.39, '', 'Pending', '2025-04-26 20:50:40', 0.00),
+('PM055', 'OR055', 9.59, 189.39, 'Credit Card', 'Completed', '2025-04-26 21:59:01', 0.00),
+('PM056', 'OR056', 7.18, 146.88, 'Credit Card', 'Completed', '2025-04-26 22:02:39', 0.00),
+('PM057', 'OR057', 7.19, 146.99, 'Credit Card', 'Completed', '2025-04-26 22:10:12', 0.00);
 
 -- --------------------------------------------------------
 
@@ -466,6 +493,7 @@ INSERT INTO `payment` (`payment_id`, `order_id`, `tax`, `total_amount`, `payment
 -- Table structure for table `payment_method`
 --
 
+DROP TABLE IF EXISTS `payment_method`;
 CREATE TABLE `payment_method` (
   `method_id` varchar(255) NOT NULL,
   `user_id` varchar(255) NOT NULL,
@@ -481,12 +509,20 @@ CREATE TABLE `payment_method` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `payment_method`
+--
+
+INSERT INTO `payment_method` (`method_id`, `user_id`, `method_type`, `card_type`, `last_four`, `cardholder_name`, `expiry_month`, `expiry_year`, `paypal_email`, `is_default`, `created_at`, `updated_at`) VALUES
+('PM_20250426232533_aed55bdd', 'MB247', 'Credit Card', 'Visa', '7800', 'sia jin sheng', '8', '2032', NULL, 1, '2025-04-26 15:25:33', '2025-04-26 15:25:33');
+
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `product`
 --
 
+DROP TABLE IF EXISTS `product`;
 CREATE TABLE `product` (
   `product_id` varchar(255) NOT NULL,
   `category_id` varchar(255) NOT NULL,
@@ -544,6 +580,7 @@ INSERT INTO `product` (`product_id`, `category_id`, `product_name`, `product_pic
 -- Table structure for table `quantity`
 --
 
+DROP TABLE IF EXISTS `quantity`;
 CREATE TABLE `quantity` (
   `quantity_id` int(11) NOT NULL,
   `product_id` varchar(255) DEFAULT NULL,
@@ -619,7 +656,7 @@ INSERT INTO `quantity` (`quantity_id`, `product_id`, `size`, `product_stock`, `p
 (60, 'P012', 'XXL', 26, 9),
 (61, 'P013', 'S', 59, 11),
 (62, 'P013', 'M', 66, 8),
-(63, 'P013', 'L', 50, 21),
+(63, 'P013', 'L', 47, 21),
 (64, 'P013', 'XL', 43, 14),
 (65, 'P013', 'XXL', 31, 7),
 (66, 'P014', 'S', 45, 18),
@@ -644,7 +681,7 @@ INSERT INTO `quantity` (`quantity_id`, `product_id`, `size`, `product_stock`, `p
 (85, 'P017', 'XXL', 33, 5),
 (86, 'P018', 'S', 49, 21),
 (87, 'P018', 'M', 67, 7),
-(88, 'P018', 'L', 53, 14),
+(88, 'P018', 'L', 51, 14),
 (89, 'P018', 'XL', 45, 12),
 (90, 'P018', 'XXL', 29, 9),
 (91, 'P019', 'S', 57, 13),
@@ -664,7 +701,7 @@ INSERT INTO `quantity` (`quantity_id`, `product_id`, `size`, `product_stock`, `p
 (105, 'P021', 'XXL', 28, 9),
 (106, 'P022', 'S', 63, 7),
 (107, 'P022', 'M', 52, 18),
-(108, 'P022', 'L', 47, 20),
+(108, 'P022', 'L', 45, 20),
 (109, 'P022', 'XL', 36, 13),
 (110, 'P022', 'XXL', 29, 8),
 (111, 'P023', 'S', 59, 11),
@@ -724,6 +761,7 @@ INSERT INTO `quantity` (`quantity_id`, `product_id`, `size`, `product_stock`, `p
 -- Table structure for table `tokens`
 --
 
+DROP TABLE IF EXISTS `tokens`;
 CREATE TABLE `tokens` (
   `id` int(11) NOT NULL,
   `user_id` varchar(50) NOT NULL,
@@ -750,6 +788,7 @@ INSERT INTO `tokens` (`id`, `user_id`, `token`, `type`, `expires_at`, `created_a
 -- Table structure for table `user`
 --
 
+DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
   `user_id` varchar(255) NOT NULL,
   `user_name` varchar(255) DEFAULT NULL,
@@ -769,7 +808,7 @@ CREATE TABLE `user` (
 
 INSERT INTO `user` (`user_id`, `user_name`, `user_Email`, `user_password`, `user_gender`, `user_phone`, `user_profile_pic`, `user_update_time`, `status`, `role`) VALUES
 ('MB222', 'kok heng', 'mbsboleh123@gmail.com', '$2y$10$JBqUpxk0cUk.lWCouSynMunVgu.k.0NYhXjbteJM6QTofbwBSs3NO', 'Male', '60161234567', '68098a7497630.jpg', '2025-04-24 05:23:58', 'Inactive', 'member'),
-('MB247', 'wei hong', 'siajinsheng@gmail.com', '$2y$10$fmeUYMCv.FsAx66IAmZo6eD7lRk/xE6tweRx68ieavj7cKEUfEcsO', 'Male', '60182259000', '66321976e3099.jpg', '2025-04-26 12:50:33', 'Active', 'member'),
+('MB247', 'wei hong', 'siajinsheng@gmail.com', '$2y$10$fmeUYMCv.FsAx66IAmZo6eD7lRk/xE6tweRx68ieavj7cKEUfEcsO', 'Male', '60182259000', '66321976e3099.jpg', '2025-04-26 15:24:38', 'Active', 'member'),
 ('MB542', 'js', 'js@gmail.com', '$2y$10$G/Lg5qlPMy7bOWivlX.PeeSh9Rhmz60T53KqIeQ68PGZIjqt4ErR6', 'Male', '60182259156', '680b55b1005d6.jpg', '2025-04-25 09:35:45', 'Active', 'member'),
 ('MB570', 'admin', '1@gmail.com', '$2y$10$.555jOgS0gL3pUeGQBzq0uaYFbl6psE7yrHvrzGt6eFhfK.xdLp5.', 'Male', '60123333333', '6809cac2c296e.jpg', '2025-04-26 01:15:53', 'Active', 'admin'),
 ('MB971', 'staff', '2@gmail.com', '$2y$10$jJFfVoWsibiHcf44gVXHWOTPjkGdGOi/6/ltYA4Y6DdNS/a/1X.8.', 'Male', '60121234567', '6809cb3752977.jpg', '2025-04-24 05:25:34', 'Active', 'staff');
@@ -780,6 +819,7 @@ INSERT INTO `user` (`user_id`, `user_name`, `user_Email`, `user_password`, `user
 -- Table structure for table `voucher`
 --
 
+DROP TABLE IF EXISTS `voucher`;
 CREATE TABLE `voucher` (
   `voucher_code` varchar(255) NOT NULL,
   `user_id` varchar(255) NOT NULL,

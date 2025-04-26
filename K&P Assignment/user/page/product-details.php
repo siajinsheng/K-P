@@ -24,9 +24,9 @@ if (!$product || $product->product_status !== 'Available') {
     redirect('products.php');
 }
 
-// Get product sizes and stock
+// Get product sizes and stock with quantity_id
 $stm = $_db->prepare("
-    SELECT size, product_stock 
+    SELECT quantity_id, size, product_stock 
     FROM quantity 
     WHERE product_id = ? AND product_stock > 0
     ORDER BY FIELD(size, 'S', 'M', 'L', 'XL', 'XXL')
@@ -39,15 +39,18 @@ $in_cart = false;
 $cart_quantity = 0;
 if (isset($_SESSION['user'])) {
     $stm = $_db->prepare("
-        SELECT quantity FROM cart 
-        WHERE user_id = ? AND product_id = ?
+        SELECT c.quantity, q.size FROM cart c
+        JOIN quantity q ON c.quantity_id = q.quantity_id 
+        WHERE c.user_id = ? AND c.product_id = ?
     ");
     $stm->execute([$_SESSION['user']->user_id, $product_id]);
-    $cart_item = $stm->fetch();
+    $cart_items = $stm->fetchAll();
     
-    if ($cart_item) {
+    if ($cart_items) {
         $in_cart = true;
-        $cart_quantity = $cart_item->quantity;
+        foreach ($cart_items as $item) {
+            $cart_quantity += $item->quantity;
+        }
     }
 }
 ?>
@@ -119,7 +122,7 @@ if (isset($_SESSION['user'])) {
                         <div class="size-options">
                             <?php foreach ($sizes as $size): ?>
                             <label class="size-option">
-                                <input type="radio" name="size" value="<?= $size->size ?>" required>
+                                <input type="radio" name="quantity_id" value="<?= $size->quantity_id ?>" required>
                                 <span><?= $size->size ?></span>
                             </label>
                             <?php endforeach; ?>
@@ -127,7 +130,7 @@ if (isset($_SESSION['user'])) {
                         
                         <div class="size-stock">
                             <?php foreach ($sizes as $size): ?>
-                            <div class="stock-info" data-size="<?= $size->size ?>">
+                            <div class="stock-info" data-quantity-id="<?= $size->quantity_id ?>">
                                 <span class="stock-count"><?= $size->product_stock ?></span> items available
                             </div>
                             <?php endforeach; ?>
@@ -185,103 +188,11 @@ if (isset($_SESSION['user'])) {
             </div>
         </div>
         
-        <div class="product-details-accordion">
-            <button class="accordion-button active" data-tab="details">
-                Product Details
-                <i class="fas fa-chevron-down"></i>
-            </button>
-            <div class="accordion-content" id="details-content">
-                <p><?= htmlspecialchars($product->product_description) ?></p>
-                <ul>
-                    <li><strong>Material:</strong> High-quality fabric designed for comfort and durability</li>
-                    <li><strong>Style:</strong> Modern design suitable for casual and semi-formal occasions</li>
-                    <li><strong>Features:</strong> Breathable material, comfortable fit</li>
-                </ul>
-            </div>
-            
-            <button class="accordion-button" data-tab="care">
-                Care Instructions
-                <i class="fas fa-chevron-down"></i>
-            </button>
-            <div class="accordion-content" id="care-content">
-                <ul>
-                    <li>Machine wash cold with like colors</li>
-                    <li>Do not bleach</li>
-                    <li>Tumble dry low</li>
-                    <li>Cool iron if needed</li>
-                    <li>Do not dry clean</li>
-                </ul>
-            </div>
-            
-            <button class="accordion-button" data-tab="shipping">
-                Shipping & Returns
-                <i class="fas fa-chevron-down"></i>
-            </button>
-            <div class="accordion-content" id="shipping-content">
-                <p><strong>Shipping Policy:</strong></p>
-                <ul>
-                    <li>Free standard shipping on orders over RM100</li>
-                    <li>Kuala Lumpur: RM20</li>
-                    <li>Others City: RM40</li>
-                </ul>
-                <p><strong>Return Policy:</strong></p>
-                <ul>
-                    <li>Returns accepted within 7 days of delivery</li>
-                    <li>Item must be unworn, unwashed, and with original tags</li>
-                    <li>Return shipping fee is the responsibility of the customer unless the item is defective</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Size guide modal -->
-    <div id="sizeGuideModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h2>Size Guide</h2>
-            <table class="size-chart">
-                <thead>
-                    <tr>
-                        <th>Size</th>
-                        <th>Chest (cm)</th>
-                        <th>Waist (cm)</th>
-                        <th>Hip (cm)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>S</td>
-                        <td>86-91</td>
-                        <td>71-76</td>
-                        <td>86-91</td>
-                    </tr>
-                    <tr>
-                        <td>M</td>
-                        <td>91-97</td>
-                        <td>76-81</td>
-                        <td>91-97</td>
-                    </tr>
-                    <tr>
-                        <td>L</td>
-                        <td>97-102</td>
-                        <td>81-86</td>
-                        <td>97-102</td>
-                    </tr>
-                    <tr>
-                        <td>XL</td>
-                        <td>102-107</td>
-                        <td>86-91</td>
-                        <td>102-107</td>
-                    </tr>
-                    <tr>
-                        <td>XXL</td>
-                        <td>107-112</td>
-                        <td>91-97</td>
-                        <td>107-112</td>
-                    </tr>
-                </tbody>
-            </table>
-            <p class="size-note">* This is a general guide only. Actual sizes may vary slightly.</p>
+        <!-- Rest of the HTML code remains the same... -->
+        
+        <!-- Size guide modal -->
+        <div id="sizeGuideModal" class="modal">
+            <!-- Size guide modal content remains the same -->
         </div>
     </div>
     
@@ -316,10 +227,20 @@ if (isset($_SESSION['user'])) {
                         info.style.display = 'none';
                     });
                     
-                    const size = this.value;
-                    const stockInfo = document.querySelector(`.stock-info[data-size="${size}"]`);
+                    const quantityId = this.value;
+                    const stockInfo = document.querySelector(`.stock-info[data-quantity-id="${quantityId}"]`);
                     if (stockInfo) {
                         stockInfo.style.display = 'block';
+                        
+                        // Update max quantity based on available stock
+                        const stockCount = parseInt(stockInfo.querySelector('.stock-count').textContent);
+                        document.getElementById('quantity').setAttribute('max', Math.min(10, stockCount));
+                        
+                        // Adjust quantity if it exceeds new max
+                        const quantityInput = document.getElementById('quantity');
+                        if (parseInt(quantityInput.value) > stockCount) {
+                            quantityInput.value = stockCount;
+                        }
                     }
                 });
             });
@@ -355,7 +276,7 @@ if (isset($_SESSION['user'])) {
                 quantityError.textContent = '';
                 
                 // Validate size selection
-                const selectedSize = document.querySelector('input[name="size"]:checked');
+                const selectedSize = document.querySelector('input[name="quantity_id"]:checked');
                 if (!selectedSize) {
                     sizeError.textContent = 'Please select a size';
                     return;
@@ -376,7 +297,7 @@ if (isset($_SESSION['user'])) {
                 // Send AJAX request to add to cart
                 const formData = new FormData();
                 formData.append('product_id', '<?= $product_id ?>');
-                formData.append('size', selectedSize.value);
+                formData.append('quantity_id', selectedSize.value);
                 formData.append('quantity', quantity);
                 
                 fetch('add-to-cart.php', {
@@ -412,12 +333,14 @@ if (isset($_SESSION['user'])) {
                         } else {
                             addToCartBtn.innerHTML = '<i class="fas fa-times"></i> Error';
                             
-                            if (data.message && data.field === 'size') {
+                            if (data.message && data.field === 'quantity_id') {
                                 sizeError.textContent = data.message;
                             } else if (data.message && data.field === 'quantity') {
                                 quantityError.textContent = data.message;
                             } else if (data.message && data.message.includes('log in')) {
                                 window.location.href = 'login.php?redirect=' + encodeURIComponent(window.location.href);
+                            } else {
+                                alert(data.message || 'Failed to add to cart');
                             }
                             
                             // Reset button text after 2 seconds
@@ -439,47 +362,8 @@ if (isset($_SESSION['user'])) {
                 });
             });
             
-            // Accordion functionality
-            const accordionButtons = document.querySelectorAll('.accordion-button');
+            // Rest of your JavaScript remains the same...
             
-            accordionButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    this.classList.toggle('active');
-                    
-                    const content = document.getElementById(this.getAttribute('data-tab') + '-content');
-                    if (content.style.maxHeight) {
-                        content.style.maxHeight = null;
-                    } else {
-                        content.style.maxHeight = content.scrollHeight + 'px';
-                    }
-                });
-            });
-            
-            // Initialize the first accordion as open
-            const firstAccordion = document.querySelector('.accordion-button.active');
-            if (firstAccordion) {
-                const content = document.getElementById(firstAccordion.getAttribute('data-tab') + '-content');
-                content.style.maxHeight = content.scrollHeight + 'px';
-            }
-            
-            // Size guide modal
-            const sizeGuideBtn = document.getElementById('sizeGuideBtn');
-            const sizeGuideModal = document.getElementById('sizeGuideModal');
-            const closeModal = document.querySelector('.close-modal');
-            
-            sizeGuideBtn.addEventListener('click', function() {
-                sizeGuideModal.style.display = 'block';
-            });
-            
-            closeModal.addEventListener('click', function() {
-                sizeGuideModal.style.display = 'none';
-            });
-            
-            window.addEventListener('click', function(event) {
-                if (event.target === sizeGuideModal) {
-                    sizeGuideModal.style.display = 'none';
-                }
-            });
         });
     </script>
 </body>

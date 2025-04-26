@@ -43,9 +43,18 @@ try {
     $stm->execute([$user_id]);
     $addresses = $stm->fetchAll();
     
+    // Get user's payment methods
+    $stm = $_db->prepare("
+        SELECT * FROM payment_method
+        WHERE user_id = ?
+        ORDER BY is_default DESC
+    ");
+    $stm->execute([$user_id]);
+    $payment_methods = $stm->fetchAll();
+    
     // Get user's order history
     $stm = $_db->prepare("
-        SELECT o.order_id, o.order_date, o.orders_status, o.total_price,
+        SELECT o.order_id, o.order_date, o.orders_status, o.order_total as total_price,
                COUNT(od.product_id) as item_count
         FROM orders o
         LEFT JOIN order_details od ON o.order_id = od.order_id
@@ -183,6 +192,52 @@ if (is_post() && isset($_POST['update_profile'])) {
         }
     }
 }
+
+// Handle payment method deletion
+if (isset($_GET['delete_payment']) && is_get()) {
+    $method_id = $_GET['delete_payment'];
+    
+    try {
+        $stm = $_db->prepare("DELETE FROM payment_method WHERE method_id = ? AND user_id = ?");
+        $stm->execute([$method_id, $user_id]);
+        
+        temp('success', 'Payment method deleted successfully.');
+        redirect('profile.php#payment-methods');
+    } catch (PDOException $e) {
+        error_log("Error deleting payment method: " . $e->getMessage());
+        temp('error', 'An error occurred while deleting the payment method.');
+        redirect('profile.php#payment-methods');
+    }
+}
+
+// Handle setting default payment method
+if (isset($_GET['default_payment']) && is_get()) {
+    $method_id = $_GET['default_payment'];
+    
+    try {
+        $_db->beginTransaction();
+        
+        // Reset all payment methods to non-default
+        $stm = $_db->prepare("UPDATE payment_method SET is_default = 0 WHERE user_id = ?");
+        $stm->execute([$user_id]);
+        
+        // Set selected payment method as default
+        $stm = $_db->prepare("UPDATE payment_method SET is_default = 1 WHERE method_id = ? AND user_id = ?");
+        $stm->execute([$method_id, $user_id]);
+        
+        $_db->commit();
+        
+        temp('success', 'Default payment method updated successfully.');
+        redirect('profile.php#payment-methods');
+    } catch (PDOException $e) {
+        if ($_db->inTransaction()) {
+            $_db->rollBack();
+        }
+        error_log("Error setting default payment method: " . $e->getMessage());
+        temp('error', 'An error occurred while updating the default payment method.');
+        redirect('profile.php#payment-methods');
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -239,6 +294,11 @@ if (is_post() && isset($_POST['update_profile'])) {
                         <li>
                             <a href="#addresses">
                                 <i class="fas fa-map-marker-alt"></i> My Addresses
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#payment-methods">
+                                <i class="fas fa-credit-card"></i> Payment Methods
                             </a>
                         </li>
                         <li>
@@ -356,6 +416,85 @@ if (is_post() && isset($_POST['update_profile'])) {
                         <div class="add-address">
                             <a href="add_address.php" class="btn primary-btn">
                                 <i class="fas fa-plus"></i> Add New Address
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Payment Methods Section -->
+                <div id="payment-methods" class="profile-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-credit-card"></i> Payment Methods</h2>
+                        <p>Manage your saved payment methods for faster checkout</p>
+                    </div>
+                    
+                    <div class="payment-methods-container">
+                        <?php if (empty($payment_methods)): ?>
+                            <div class="empty-state">
+                                <i class="fas fa-credit-card"></i>
+                                <p>You don't have any saved payment methods yet.</p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($payment_methods as $method): ?>
+                                <div class="payment-card">
+                                    <div class="payment-card-header">
+                                        <?php if ($method->method_type === 'Credit Card'): ?>
+                                            <?php
+                                            $card_icon = 'fa-credit-card';
+                                            if ($method->card_type === 'Visa') {
+                                                $card_icon = 'fa-cc-visa';
+                                            } elseif ($method->card_type === 'MasterCard') {
+                                                $card_icon = 'fa-cc-mastercard';
+                                            } elseif ($method->card_type === 'American Express') {
+                                                $card_icon = 'fa-cc-amex';
+                                            }
+                                            ?>
+                                            <div class="card-type">
+                                                <i class="fab <?= $card_icon ?>"></i>
+                                                <span><?= htmlspecialchars($method->card_type) ?></span>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="card-type">
+                                                <i class="fab fa-paypal"></i>
+                                                <span>PayPal</span>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <?php if ($method->is_default): ?>
+                                            <span class="default-badge">Default</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <div class="payment-details">
+                                        <?php if ($method->method_type === 'Credit Card'): ?>
+                                            <p><strong><?= htmlspecialchars($method->cardholder_name) ?></strong></p>
+                                            <p>•••• •••• •••• <?= htmlspecialchars($method->last_four) ?></p>
+                                            <p>Expires: <?= htmlspecialchars($method->expiry_month) ?>/<?= htmlspecialchars($method->expiry_year) ?></p>
+                                        <?php else: ?>
+                                            <p><?= htmlspecialchars($method->paypal_email) ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <div class="payment-actions">
+                                        <a href="edit_payment.php?id=<?= $method->method_id ?>" class="btn secondary-btn sm">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <?php if (!$method->is_default): ?>
+                                            <a href="profile.php?default_payment=<?= $method->method_id ?>#payment-methods" class="btn outline-btn sm">
+                                                Set as Default
+                                            </a>
+                                        <?php endif; ?>
+                                        <a href="profile.php?delete_payment=<?= $method->method_id ?>#payment-methods" class="btn danger-btn sm" onclick="return confirm('Are you sure you want to delete this payment method?')">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        
+                        <div class="add-payment">
+                            <a href="add_payment.php" class="btn primary-btn">
+                                <i class="fas fa-plus"></i> Add New Payment Method
                             </a>
                         </div>
                     </div>
