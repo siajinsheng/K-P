@@ -9,7 +9,8 @@ $_SESSION['previous_url'] = $_SERVER['REQUEST_URI'];
 auth('admin');
 
 // Generate MBXXX ID
-function generateMBId($db) {
+function generateMBId($db)
+{
   $result = $db->query("SELECT MAX(CAST(SUBSTRING(user_id, 3) AS UNSIGNED)) AS max_id FROM user WHERE user_id LIKE 'MB%'");
   $row = $result->fetch(PDO::FETCH_OBJ);
   $next = $row && $row->max_id ? (int)$row->max_id + 1 : 1;
@@ -18,61 +19,61 @@ function generateMBId($db) {
 
 // Handle POST actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['add_staff'])) {
-        if (
-            empty(trim(req('user_name')))
-            || empty(trim(req('user_Email')))
-            || empty(trim(req('user_password')))
-            || empty(req('user_gender'))
-        ) {
-            temp('error', 'All fields are required.');
-            redirect('staff.php');
-        }
-        if (strlen(req('user_password')) < 8) {
-            temp('error', 'Password must be at least 8 characters.');
-            redirect('staff.php');
-        }
+  if (isset($_POST['add_staff'])) {
+    if (
+      empty(trim(req('user_name')))
+      || empty(trim(req('user_Email')))
+      || empty(trim(req('user_password')))
+      || empty(req('user_gender'))
+    ) {
+      temp('error', 'All fields are required.');
+      redirect('staff.php');
+    }
+    if (strlen(req('user_password')) < 8) {
+      temp('error', 'Password must be at least 8 characters.');
+      redirect('staff.php');
+    }
 
-        $userId = generateMBId($_db);
-        $stm = $_db->prepare(
-            "INSERT INTO user (user_id, user_name, user_Email, user_password, user_gender, role)
+    $userId = generateMBId($_db);
+    $stm = $_db->prepare(
+      "INSERT INTO user (user_id, user_name, user_Email, user_password, user_gender, role)
              VALUES (?, ?, ?, ?, ?, 'staff')"
-        );
-        $ok = $stm->execute([
-            $userId,
-            req('user_name'),
-            req('user_Email'),
-            password_hash(req('user_password'), PASSWORD_DEFAULT),
-            req('user_gender')
-        ]);
-        temp($ok ? 'info' : 'error', $ok ? 'Staff added.' : 'Add failed.');
-        redirect('staff.php');
-    }
+    );
+    $ok = $stm->execute([
+      $userId,
+      req('user_name'),
+      req('user_Email'),
+      password_hash(req('user_password'), PASSWORD_DEFAULT),
+      req('user_gender')
+    ]);
+    temp($ok ? 'info' : 'error', $ok ? 'Staff added.' : 'Add failed.');
+    redirect('staff.php');
+  }
 
-    $userId = req('user_id');
-    if (isset($_POST['update'])) {
-        $stm = $_db->prepare(
-            "UPDATE user SET user_name = ?, user_Email = ?, user_gender = ? WHERE user_id = ?"
-        );
-        $ok = $stm->execute([
-            req('user_name'),
-            req('user_Email'),
-            req('user_gender'),
-            $userId
-        ]);
-    } elseif (isset($_POST['ban'])) {
-        $new = req('status') === 'Banned' ? 'Active' : 'Banned';
-        $stm = $_db->prepare("UPDATE user SET status = ? WHERE user_id = ?");
-        $ok = $stm->execute([$new, $userId]);
-    } elseif (isset($_POST['delete'])) {
-        $stm = $_db->prepare("DELETE FROM user WHERE user_id = ?");
-        $ok = $stm->execute([$userId]);
-    }
+  $userId = req('user_id');
+  if (isset($_POST['update'])) {
+    $stm = $_db->prepare(
+      "UPDATE user SET user_name = ?, user_Email = ?, user_gender = ? WHERE user_id = ?"
+    );
+    $ok = $stm->execute([
+      req('user_name'),
+      req('user_Email'),
+      req('user_gender'),
+      $userId
+    ]);
+  } elseif (isset($_POST['ban'])) {
+    $new = req('status') === 'Banned' ? 'Active' : 'Banned';
+    $stm = $_db->prepare("UPDATE user SET status = ? WHERE user_id = ?");
+    $ok = $stm->execute([$new, $userId]);
+  } elseif (isset($_POST['delete'])) {
+    $stm = $_db->prepare("DELETE FROM user WHERE user_id = ?");
+    $ok = $stm->execute([$userId]);
+  }
 
-    if (isset($ok)) {
-        temp($ok ? 'info' : 'error', $ok ? 'Update succeeded.' : 'Update failed.');
-        redirect('staff.php');
-    }
+  if (isset($ok)) {
+    temp($ok ? 'info' : 'error', $ok ? 'Update succeeded.' : 'Update failed.');
+    redirect('staff.php');
+  }
 }
 
 $page   = req('page', 1);
@@ -135,7 +136,7 @@ require '../headFooter/header.php';
     </div>
     <div class="form-group">
       <label for="filter_status">Status</label>
-      <?= html_select('status', [''=>'All','Active'=>'Active','Banned'=>'Banned'], $status) ?>
+      <?= html_select('status', ['' => 'All', 'Active' => 'Active', 'Banned' => 'Banned'], $status) ?>
     </div>
     <button type="submit">Search</button>
   </form>
@@ -145,7 +146,7 @@ require '../headFooter/header.php';
   <table class="table mb-4">
     <thead>
       <tr>
-      <th>Email</th>
+        <th>Email</th>
         <th>Username</th>
         <th>Genders</th>
         <th>Photo</th>
@@ -161,7 +162,11 @@ require '../headFooter/header.php';
           <td><?= htmlspecialchars($s->user_Email) ?></td>
           <td><?= htmlspecialchars($s->user_name) ?></td>
           <td><?= htmlspecialchars($s->user_gender) ?></td>
-          <td><img class="popup" src="../../img/<?= $s->user_profile_pic ?: 'default.png' ?>"></td>
+          <td><img class="popup"
+              src="../../img/<?= htmlspecialchars($s->user_profile_pic ?: 'default.png') ?>"
+              alt="Staff Photo"
+              onerror="this.onerror=null; this.src='../../img/default.png';">
+          </td>
           <td><?= htmlspecialchars($s->user_update_time) ?></td>
           <td class="status-<?= strtolower($s->status) ?>"><?= htmlspecialchars($s->status) ?></td>
           <td><?= htmlspecialchars($s->role) ?></td>
@@ -172,8 +177,8 @@ require '../headFooter/header.php';
               <input name="user_name" type="text" value="<?= htmlspecialchars($s->user_name) ?>" required>
               <input name="user_Email" type="email" value="<?= htmlspecialchars($s->user_Email) ?>" required>
               <select name="user_gender">
-                <?php foreach (['Male','Female','Other'] as $g): ?>
-                  <option value="<?= $g ?>"<?= $s->user_gender === $g ? ' selected' : '' ?>><?= $g ?></option>
+                <?php foreach (['Male', 'Female', 'Other'] as $g): ?>
+                  <option value="<?= $g ?>" <?= $s->user_gender === $g ? ' selected' : '' ?>><?= $g ?></option>
                 <?php endforeach; ?>
               </select>
               <button name="update" class="button-update">Update</button>
@@ -189,37 +194,37 @@ require '../headFooter/header.php';
   </table>
 
   <script>
-  function confirmAction(form) {
-    const action = [...form.elements].find(e => e.tagName === "BUTTON" && e === document.activeElement)?.name;
-    if (action === "delete") {
-      return confirm("Are you sure you want to delete this staff?");
+    function confirmAction(form) {
+      const action = [...form.elements].find(e => e.tagName === "BUTTON" && e === document.activeElement)?.name;
+      if (action === "delete") {
+        return confirm("Are you sure you want to delete this staff?");
+      }
+      return true;
     }
-    return true;
-  }
 
-  document.querySelector('.add-form').addEventListener('submit', function(e) {
-    const name = document.getElementById('user_name');
-    const email = document.getElementById('user_Email');
-    const password = document.getElementById('user_password');
-    const gender = document.getElementById('user_gender');
+    document.querySelector('.add-form').addEventListener('submit', function(e) {
+      const name = document.getElementById('user_name');
+      const email = document.getElementById('user_Email');
+      const password = document.getElementById('user_password');
+      const gender = document.getElementById('user_gender');
 
-    let messages = [];
+      let messages = [];
 
-    if (!name.value.trim()) messages.push("Name is required.");
-    if (!email.value.trim()) {
-      messages.push("Email is required.");
-    } else if (!/^\S+@\S+\.\S+$/.test(email.value)) {
-      messages.push("Email must be a valid email format.");
-    }
-    if (!password.value.trim()) messages.push("Password is required.");
-    if (password.value.length > 0 && password.value.length < 8) messages.push("Password must be at least 8 characters.");
-    if (!gender.value) messages.push("Gender selection is required.");
+      if (!name.value.trim()) messages.push("Name is required.");
+      if (!email.value.trim()) {
+        messages.push("Email is required.");
+      } else if (!/^\S+@\S+\.\S+$/.test(email.value)) {
+        messages.push("Email must be a valid email format.");
+      }
+      if (!password.value.trim()) messages.push("Password is required.");
+      if (password.value.length > 0 && password.value.length < 8) messages.push("Password must be at least 8 characters.");
+      if (!gender.value) messages.push("Gender selection is required.");
 
-    if (messages.length > 0) {
-      alert(messages.join("\n"));
-      e.preventDefault();
-    }
-  });
+      if (messages.length > 0) {
+        alert(messages.join("\n"));
+        e.preventDefault();
+      }
+    });
   </script>
 
   <?php $base = "staff.php?sort={$sort}&dir={$dir}&email=" . urlencode($email) . "&status=" . urlencode($status); ?>
