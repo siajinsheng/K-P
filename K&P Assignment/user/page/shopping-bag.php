@@ -41,22 +41,27 @@ function generate_id($table, $id_field, $prefix, $pad_length = 3) {
 // CONTINUE TO CHECKOUT Action - Prepare for checkout
 if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_checkout') {
     try {
+        error_log("[$username] Starting checkout process from shopping bag");
+        
         // Fetch cart items
         $stm = $_db->prepare("
-            SELECT c.*, p.product_price, p.product_name, q.size
+            SELECT c.*, p.product_price, p.product_name, p.product_pic1, q.quantity_id, q.size
             FROM cart c
             JOIN product p ON c.product_id = p.product_id
-            JOIN quantity q ON c.quantity_id = q.quantity_id
+            LEFT JOIN quantity q ON c.quantity_id = q.quantity_id
             WHERE c.user_id = ?
         ");
         $stm->execute([$user_id]);
         $cart_items = $stm->fetchAll();
         
         if (empty($cart_items)) {
+            error_log("[$username] Cart is empty, redirecting back to shopping bag");
             temp('error', 'Your shopping bag is empty');
             redirect('shopping-bag.php');
             exit;
         }
+        
+        error_log("[$username] Found " . count($cart_items) . " items in cart");
         
         // Check if all items are in stock
         $all_in_stock = true;
@@ -74,11 +79,13 @@ if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_check
             if ($stock < $item->quantity) {
                 $all_in_stock = false;
                 $items_with_issues[] = $item->product_name;
+                error_log("[$username] Item {$item->product_name} has insufficient stock: requested {$item->quantity}, available $stock");
             }
         }
         
         if (!$all_in_stock) {
             $error_msg = 'Some items are out of stock: ' . implode(', ', $items_with_issues);
+            error_log("[$username] Stock check failed: $error_msg");
             temp('error', $error_msg);
             redirect('shopping-bag.php');
             exit;
@@ -97,10 +104,13 @@ if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_check
         }
         
         if (!$address_id) {
+            error_log("[$username] No delivery address found");
             temp('error', 'Please add a delivery address first');
-            redirect('address.php?redirect=shopping-bag.php');
+            redirect('add_address.php?redirect=shopping-bag.php');
             exit;
         }
+        
+        error_log("[$username] Using address ID: $address_id");
         
         // Calculate subtotal and total
         $subtotal = 0;
@@ -113,8 +123,16 @@ if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_check
         $stm->execute([$address_id]);
         $state = $stm->fetchColumn();
         
-        // Set delivery fee based on state (East Malaysia higher fee)
-        $delivery_fee = in_array($state, ['Sabah', 'Sarawak', 'Labuan']) ? 40 : 20;
+        // Modified delivery fee calculation
+        // Free shipping for orders over RM100
+        if ($subtotal >= 100) {
+            $delivery_fee = 0; // Free delivery
+            error_log("[$username] Free delivery applied (order > RM100)");
+        } else {
+            // Set delivery fee based on state (East Malaysia higher fee)
+            $delivery_fee = in_array($state, ['Sabah', 'Sarawak', 'Labuan']) ? 40 : 20;
+            error_log("[$username] Delivery fee set to RM$delivery_fee for state: $state");
+        }
         
         // Calculate tax (6%)
         $tax = round($subtotal * 0.06, 2);
@@ -133,14 +151,15 @@ if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_check
             'prepared_at' => time()
         ];
         
-        // Log the successful preparation for checkout
-        error_log("User $username ($user_id) proceeding to checkout. Cart items: " . count($cart_items));
+        error_log("[$username] Checkout data saved to session: subtotal=$subtotal, tax=$tax, delivery=$delivery_fee, total=$order_total");
         
         // Redirect to checkout page
+        error_log("[$username] Redirecting to checkout.php");
         redirect('checkout.php');
         exit;
     } catch (Exception $e) {
-        error_log("Checkout preparation error: " . $e->getMessage());
+        error_log("[$username] Checkout preparation error: " . $e->getMessage());
+        error_log("[$username] Error trace: " . $e->getTraceAsString());
         temp('error', 'An error occurred while preparing checkout. Please try again.');
         redirect('shopping-bag.php');
         exit;
@@ -300,8 +319,8 @@ try {
         $total_items += $item->quantity;
     }
     
-    // Determine shipping fee
-    $shipping_fee = $subtotal >= 100 ? 0 : 10;
+    // Modified shipping fee logic - free for orders over RM100
+    $shipping_fee = $subtotal >= 100 ? 0 : 20;
     
     // Calculate total
     $total = $subtotal + $shipping_fee;
@@ -473,10 +492,10 @@ $current_time = date('Y-m-d H:i:s');
                         <span class="total-value">RM <?= number_format($total, 2) ?></span>
                     </div>
                     
-                    <!-- Modified to use POST method for checkout process -->
-                    <form method="post" action="shopping-bag.php">
+                    <!-- Modified to use direct form with POST method for checkout process -->
+                    <form method="post" action="shopping-bag.php" id="checkout-form">
                         <input type="hidden" name="action" value="continue_checkout">
-                        <button type="submit" class="checkout-btn" <?= !empty($items_with_issues) ? 'disabled' : '' ?>>
+                        <button type="submit" name="checkout_button" id="checkout-button" class="checkout-btn" <?= !empty($items_with_issues) ? 'disabled' : '' ?>>
                             CONTINUE TO CHECKOUT
                         </button>
                     </form>
@@ -550,6 +569,22 @@ $current_time = date('Y-m-d H:i:s');
                 }
             });
         });
+
+        // Add extra debugging for the checkout button form submission
+        const checkoutForm = document.getElementById('checkout-form');
+        if (checkoutForm) {
+            checkoutForm.addEventListener('submit', function(e) {
+                console.log('Checkout form submitted');
+                // Add a short delay to make sure the browser registers the submission
+                setTimeout(function() {
+                    const checkoutButton = document.getElementById('checkout-button');
+                    if (checkoutButton) {
+                        checkoutButton.disabled = true;
+                        checkoutButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Please wait...';
+                    }
+                }, 100);
+            });
+        }
     });
     
     // Confirm remove item

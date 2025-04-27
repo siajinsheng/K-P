@@ -737,6 +737,164 @@ function send_reset_email($email, $name, $token)
 }
 
 /**
+ * Send order receipt email to customer
+ * 
+ * @param string $email The recipient's email address
+ * @param string $name The recipient's name
+ * @param object $order Order details
+ * @param array $order_items Array of order items
+ * @param object $address Shipping address
+ * @param string $payment_method Payment method used
+ * @return bool True if email sent successfully, false otherwise
+ */
+function send_receipt_email($email, $name, $order, $order_items, $address, $payment_method)
+{
+    try {
+        $mail = get_mail();
+        $mail->addAddress($email, $name);
+        $mail->Subject = 'K&P Fashion - Your Order Confirmation #' . $order->order_id;
+
+        // Get server info for assets
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https://" : "http://";
+        $server_name = $_SERVER['HTTP_HOST'];
+
+        // Order details URL
+        $order_details_url = $protocol . $server_name . "/user/page/order_details.php?id=" . urlencode($order->order_id);
+
+        // Format dates
+        $order_date = date('F j, Y, g:i a', strtotime($order->order_date));
+        $estimated_date = date('F j, Y', strtotime($order->estimated_date));
+
+        // Start the email body
+        $mail_body = "
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;'>
+            <div style='text-align: center; margin-bottom: 20px;'>
+                <img src='{$protocol}{$server_name}/user/img/logo.png' alt='K&P Logo' style='max-width: 150px;'>
+            </div>
+            
+            <div style='text-align: center; margin-bottom: 30px;'>
+                <h2 style='color: #000; margin-bottom: 5px;'>Order Confirmation</h2>
+                <p style='color: #666; font-size: 16px;'>Thank you for your purchase!</p>
+            </div>
+            
+            <div style='background-color: #f7f7f7; border-radius: 5px; padding: 15px; margin-bottom: 25px;'>
+                <p style='margin: 5px 0;'><strong>Order Number:</strong> {$order->order_id}</p>
+                <p style='margin: 5px 0;'><strong>Order Date:</strong> {$order_date}</p>
+                <p style='margin: 5px 0;'><strong>Payment Method:</strong> {$payment_method}</p>
+                <p style='margin: 5px 0;'><strong>Order Status:</strong> {$order->orders_status}</p>
+            </div>";
+
+        // Add shipping address
+        $mail_body .= "
+            <div style='margin-bottom: 25px;'>
+                <h3 style='color: #000; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;'>Shipping Address</h3>
+                <p style='margin: 5px 0;'><strong>{$address->recipient_name}</strong></p>
+                <p style='margin: 5px 0;'>{$address->address_line1}</p>";
+
+        if (!empty($address->address_line2)) {
+            $mail_body .= "<p style='margin: 5px 0;'>{$address->address_line2}</p>";
+        }
+
+        $mail_body .= "
+                <p style='margin: 5px 0;'>{$address->city}, {$address->state} {$address->post_code}</p>
+                <p style='margin: 5px 0;'>{$address->country}</p>
+                <p style='margin: 5px 0;'>Phone: {$address->phone}</p>
+            </div>
+            
+            <div style='margin-bottom: 25px;'>
+                <h3 style='color: #000; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;'>Order Summary</h3>
+                <table style='width: 100%; border-collapse: collapse;'>
+                    <thead>
+                        <tr>
+                            <th style='text-align: left; padding: 10px; border-bottom: 1px solid #eee;'>Product</th>
+                            <th style='text-align: center; padding: 10px; border-bottom: 1px solid #eee;'>Qty</th>
+                            <th style='text-align: right; padding: 10px; border-bottom: 1px solid #eee;'>Price</th>
+                            <th style='text-align: right; padding: 10px; border-bottom: 1px solid #eee;'>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>";
+
+        // Add order items
+        foreach ($order_items as $item) {
+            $item_total = $item->unit_price * $item->quantity;
+            $mail_body .= "
+                        <tr>
+                            <td style='text-align: left; padding: 10px; border-bottom: 1px solid #eee;'>
+                                {$item->product_name}<br>
+                                <small style='color: #777;'>Size: {$item->size}</small>
+                            </td>
+                            <td style='text-align: center; padding: 10px; border-bottom: 1px solid #eee;'>{$item->quantity}</td>
+                            <td style='text-align: right; padding: 10px; border-bottom: 1px solid #eee;'>RM " . number_format($item->unit_price, 2) . "</td>
+                            <td style='text-align: right; padding: 10px; border-bottom: 1px solid #eee;'>RM " . number_format($item_total, 2) . "</td>
+                        </tr>";
+        }
+
+        // Calculate tax
+        $tax = round($order->order_subtotal * 0.06, 2);
+        $shipping = $order->order_total - $order->order_subtotal - $tax;
+
+        // Add order totals
+        $mail_body .= "
+                    </tbody>
+                </table>
+                
+                <div style='margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;'>
+                    <table style='width: 100%; border-collapse: collapse;'>
+                        <tr>
+                            <td style='text-align: right; padding: 5px;'>Subtotal:</td>
+                            <td style='text-align: right; padding: 5px; width: 100px;'>RM " . number_format($order->order_subtotal, 2) . "</td>
+                        </tr>
+                        <tr>
+                            <td style='text-align: right; padding: 5px;'>Tax (6%):</td>
+                            <td style='text-align: right; padding: 5px;'>RM " . number_format($tax, 2) . "</td>
+                        </tr>
+                        <tr>
+                            <td style='text-align: right; padding: 5px;'>Shipping:</td>
+                            <td style='text-align: right; padding: 5px;'>RM " . number_format($shipping, 2) . "</td>
+                        </tr>
+                        <tr>
+                            <td style='text-align: right; padding: 5px; font-weight: bold;'>Total:</td>
+                            <td style='text-align: right; padding: 5px; font-weight: bold;'>RM " . number_format($order->order_total, 2) . "</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div style='background-color: #f0f7ff; border-radius: 5px; padding: 15px; margin-bottom: 25px; text-align: center;'>
+                <p style='margin: 5px 0;'><i style='color: #4a6fa5;'>&#128666;</i> <strong>Estimated Delivery:</strong> {$estimated_date}</p>
+            </div>
+            
+            <div style='text-align: center; margin: 30px 0;'>
+                <a href='{$order_details_url}' style='background-color: #000; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; font-weight: bold;'>View Order Details</a>
+            </div>
+            
+            <div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 12px; color: #888; text-align: center;'>
+                <p>If you have any questions about your order, please contact our customer service.</p>
+                <p>This is an automated message, please do not reply to this email.</p>
+                <p>&copy; " . date('Y') . " K&P Fashion. All rights reserved.</p>
+            </div>
+        </div>";
+
+        $mail->isHTML(true);
+        $mail->Body = $mail_body;
+        $mail->AltBody = strip_tags(str_replace('<br>', "\r\n", $mail_body));
+
+        // Send the email
+        if (is_development()) {
+            error_log("Development mode: Order receipt email would be sent to $email");
+            return true;
+        } else {
+            $mail->send();
+            error_log("Order receipt email sent to $email for order {$order->order_id}");
+            return true;
+        }
+    } catch (Exception $e) {
+        error_log("Failed to send order receipt email to $email: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
  * HTML input for password with toggle visibility
  * @param string $name Input name attribute
  * @param string $attributes Additional HTML attributes

@@ -6,11 +6,12 @@ safe_session_start();
 
 // Authentication check
 if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
-    temp('info', 'Please log in to view order confirmation');
+    temp('info', 'Please log in to view your orders');
     redirect('login.php?redirect=' . urlencode($_SERVER['REQUEST_URI']));
 }
 
 $user_id = $_SESSION['user']->user_id;
+$username = $_SESSION['user']->user_name;
 $page_title = "Order Confirmation";
 
 // Initialize variables
@@ -18,32 +19,32 @@ $error_message = temp('error');
 $success_message = temp('success');
 $info_message = temp('info');
 
-// Get order ID from URL parameter
-$order_id = req('order_id');
+// Check if order ID is provided
+$order_id = isset($_GET['order_id']) ? $_GET['order_id'] : null;
 
-if (empty($order_id)) {
-    temp('error', 'Order ID is required');
-    redirect('profile.php#order-history');
+if (!$order_id) {
+    temp('error', 'Invalid order reference');
+    redirect('account.php?tab=orders');
     exit;
 }
 
-// Get order details
+// Fetch order details
 try {
-    // Get order data
+    // Get order details
     $stm = $_db->prepare("
-        SELECT o.*, p.payment_id, p.payment_method, p.payment_status, p.payment_date,
-               d.delivery_id, d.delivery_status, d.estimated_date
+        SELECT o.*, d.delivery_status, d.estimated_date, d.address_id, 
+               p.payment_method, p.payment_status
         FROM orders o
-        JOIN payment p ON o.order_id = p.order_id
         JOIN delivery d ON o.delivery_id = d.delivery_id
+        JOIN payment p ON o.order_id = p.order_id
         WHERE o.order_id = ? AND o.user_id = ?
     ");
     $stm->execute([$order_id, $user_id]);
     $order = $stm->fetch();
     
     if (!$order) {
-        temp('error', 'Order not found or you do not have permission to view it');
-        redirect('profile.php#order-history');
+        temp('error', 'Order not found');
+        redirect('account.php?tab=orders');
         exit;
     }
     
@@ -58,26 +59,27 @@ try {
     $stm->execute([$order_id]);
     $order_items = $stm->fetchAll();
     
+    // Get address details
+    $stm = $_db->prepare("SELECT * FROM address WHERE address_id = ?");
+    $stm->execute([$order->address_id]);
+    $address = $stm->fetch();
+    
 } catch (PDOException $e) {
-    error_log("Error fetching order confirmation: " . $e->getMessage());
-    temp('error', 'An error occurred while retrieving the order confirmation');
-    redirect('profile.php#order-history');
+    error_log("Error fetching order details for user $username: " . $e->getMessage());
+    temp('error', 'An error occurred while retrieving your order details');
+    redirect('account.php?tab=orders');
     exit;
 }
 
-// Format dates for better display
+// Format dates
 $order_date = date('F j, Y, g:i a', strtotime($order->order_date));
-$payment_date = date('F j, Y, g:i a', strtotime($order->payment_date));
 $estimated_date = date('F j, Y', strtotime($order->estimated_date));
 
-// Calculate the item count
-$item_count = 0;
-foreach ($order_items as $item) {
-    $item_count += $item->quantity;
-}
-
-// Current date and time
-$current_date = date('Y-m-d H:i:s');
+// Calculate order totals
+$subtotal = $order->order_subtotal;
+$delivery_fee = $order->order_total - $subtotal - ($subtotal * 0.06);
+$tax = $subtotal * 0.06;
+$total = $order->order_total;
 ?>
 
 <!DOCTYPE html>
@@ -90,183 +92,164 @@ $current_date = date('Y-m-d H:i:s');
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .confirmation-container {
-            background-color: #fff;
+            background: #fff;
             border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            padding: 40px;
-            margin: 30px 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 30px;
             text-align: center;
+            margin-bottom: 30px;
         }
         
         .confirmation-icon {
-            color: #28a745;
-            font-size: 5rem;
+            font-size: 60px;
+            color: #4caf50;
             margin-bottom: 20px;
         }
         
-        .confirmation-heading {
-            font-size: 2rem;
+        .confirmation-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        
+        .order-number {
+            font-size: 18px;
             margin-bottom: 20px;
-            color: #000;
         }
         
         .confirmation-message {
-            font-size: 1.1rem;
             margin-bottom: 30px;
-            color: #555;
-        }
-        
-        .order-details {
-            margin: 30px auto;
-            max-width: 600px;
-            text-align: left;
-            border: 1px solid #eee;
-            padding: 20px;
-            border-radius: 5px;
-        }
-        
-        .order-details h3 {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-        }
-        
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            font-size: 0.95rem;
-        }
-        
-        .detail-label {
-            font-weight: 600;
-        }
-        
-        .action-buttons {
-            margin-top: 30px;
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-        }
-        
-        .order-summary {
-            margin-top: 40px;
-            border-top: 1px solid #eee;
-            padding-top: 30px;
-        }
-        
-        .summary-title {
-            font-size: 1.3rem;
-            margin-bottom: 20px;
-            text-align: left;
-        }
-        
-        .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 30px;
-            text-align: left;
-        }
-        
-        .items-table th {
-            background-color: #f5f5f5;
-            padding: 12px 15px;
-            font-weight: 600;
-        }
-        
-        .items-table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .items-table tr:last-child td {
-            border-bottom: none;
-        }
-        
-        .product-cell {
-            display: flex;
-            align-items: center;
-        }
-        
-        .product-image {
-            width: 50px;
-            height: 50px;
-            margin-right: 15px;
-            object-fit: cover;
-        }
-        
-        .product-name {
-            font-weight: 500;
-        }
-        
-        .product-size {
-            font-size: 0.85rem;
             color: #666;
         }
         
-        .summary-footer {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            margin-top: 20px;
+        .order-details-container {
+            background: #fff;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 30px;
         }
         
-        .summary-row {
-            display: flex;
-            justify-content: space-between;
-            width: 300px;
+        .section-title {
+            font-size: 18px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .order-details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 992px) {
+            .order-details-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .detail-card {
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        
+        .detail-card-title {
+            font-size: 16px;
+            font-weight: 500;
             margin-bottom: 10px;
         }
         
-        .summary-row.total {
-            font-weight: 700;
-            font-size: 1.1rem;
-            border-top: 1px solid #ddd;
-            padding-top: 10px;
-            margin-top: 5px;
+        .detail-card-content {
+            font-size: 14px;
+            color: #666;
         }
         
-        .estimated-delivery {
-            background-color: #f9f9f9;
-            padding: 15px 20px;
-            margin: 30px 0;
-            border-radius: 5px;
-            text-align: center;
-            border-left: 3px solid #000;
+        .detail-card-content p {
+            margin: 5px 0;
         }
         
-        .estimated-delivery p {
-            margin: 0;
-            font-size: 1rem;
+        .detail-highlight {
+            color: #000;
+            font-weight: 500;
         }
         
-        .estimated-delivery strong {
-            font-weight: 600;
+        .order-items-list {
+            margin-bottom: 30px;
         }
         
-        @media (max-width: 768px) {
-            .confirmation-container {
-                padding: 30px 20px;
-            }
-            
-            .action-buttons {
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            .items-table {
-                display: block;
-                overflow-x: auto;
-            }
-            
-            .summary-footer {
-                align-items: stretch;
-            }
-            
-            .summary-row {
-                width: 100%;
-            }
+        .order-item {
+            display: flex;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .order-item:last-child {
+            border-bottom: none;
+        }
+        
+        .item-image {
+            width: 80px;
+            height: 80px;
+            position: relative;
+            margin-right: 15px;
+        }
+        
+        .item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        
+        .item-details {
+            flex: 1;
+        }
+        
+        .item-name {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .item-meta {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .item-price {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+        
+        .order-totals {
+            margin-top: 30px;
+        }
+        
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+        
+        .total-row.final {
+            font-size: 18px;
+            font-weight: 500;
+            padding-top: 15px;
+            margin-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            margin: 0 10px;
         }
     </style>
 </head>
@@ -274,128 +257,111 @@ $current_date = date('Y-m-d H:i:s');
     <?php include('../header.php'); ?>
 
     <div class="container">
-        <?php if ($success_message): ?>
-            <div class="alert alert-success">
-                <i class="fas fa-check-circle"></i> <?= $success_message ?>
-            </div>
-        <?php endif; ?>
-        
-        <?php if ($info_message): ?>
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> <?= $info_message ?>
-            </div>
-        <?php endif; ?>
-        
-        <?php if ($error_message): ?>
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle"></i> <?= $error_message ?>
-            </div>
-        <?php endif; ?>
-        
         <div class="confirmation-container">
             <div class="confirmation-icon">
                 <i class="fas fa-check-circle"></i>
             </div>
-            
-            <h1 class="confirmation-heading">Thank You for Your Order!</h1>
-            
-            <p class="confirmation-message">
-                Your order has been placed successfully. We're processing it right away.
-            </p>
-            
-            <div class="order-details">
-                <h3>Order Information</h3>
-                
-                <div class="detail-row">
-                    <span class="detail-label">Order ID:</span>
-                    <span><?= htmlspecialchars($order->order_id) ?></span>
-                </div>
-                
-                <div class="detail-row">
-                    <span class="detail-label">Order Date:</span>
-                    <span><?= $order_date ?></span>
-                </div>
-                
-                <div class="detail-row">
-                    <span class="detail-label">Payment Method:</span>
-                    <span><?= htmlspecialchars($order->payment_method) ?></span>
-                </div>
-                
-                <div class="detail-row">
-                    <span class="detail-label">Payment Status:</span>
-                    <span><?= htmlspecialchars($order->payment_status) ?></span>
-                </div>
-                
-                <div class="detail-row">
-                    <span class="detail-label">Total Amount:</span>
-                    <span>RM <?= number_format($order->order_total, 2) ?></span>
-                </div>
+            <h1 class="confirmation-title">Thank you for your order!</h1>
+            <p class="order-number">Order Number: <strong><?= $order_id ?></strong></p>
+            <div class="confirmation-message">
+                <p>Your order has been placed and a confirmation has been sent to your email.</p>
+                <p>You can track your order status in your <a href="account.php?tab=orders">account orders section</a>.</p>
             </div>
+        </div>
+        
+        <div class="order-details-container">
+            <h2 class="section-title">Order Details</h2>
             
-            <div class="estimated-delivery">
-                <p>
-                    <i class="fas fa-truck"></i>
-                    <strong>Estimated Delivery:</strong> <?= $estimated_date ?>
-                </p>
-            </div>
-            
-            <div class="action-buttons">
-                <a href="order_details.php?id=<?= $order_id ?>" class="btn primary-btn">
-                    <i class="fas fa-receipt"></i> View Order Details
-                </a>
-                
-                <a href="index.php" class="btn secondary-btn">
-                    <i class="fas fa-home"></i> Continue Shopping
-                </a>
-            </div>
-            
-            <div class="order-summary">
-                <h3 class="summary-title">Order Summary</h3>
-                
-                <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Price</th>
-                            <th>Quantity</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($order_items as $item): ?>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <img src="../../img/<?= $item->product_pic1 ?>" alt="<?= htmlspecialchars($item->product_name) ?>" class="product-image">
-                                        <div>
-                                            <div class="product-name"><?= htmlspecialchars($item->product_name) ?></div>
-                                            <div class="product-size">Size: <?= $item->size ?></div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>RM <?= number_format($item->unit_price, 2) ?></td>
-                                <td><?= $item->quantity ?></td>
-                                <td>RM <?= number_format($item->unit_price * $item->quantity, 2) ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-                
-                <div class="summary-footer">
-                    <div class="summary-row">
-                        <span>Subtotal:</span>
-                        <span>RM <?= number_format($order->order_subtotal, 2) ?></span>
+            <div class="order-details-grid">
+                <div class="detail-card">
+                    <h3 class="detail-card-title"><i class="fas fa-calendar-alt"></i> Order Information</h3>
+                    <div class="detail-card-content">
+                        <p>Order Date: <span class="detail-highlight"><?= $order_date ?></span></p>
+                        <p>Order Status: <span class="detail-highlight"><?= $order->orders_status ?></span></p>
+                        <p>Payment Method: <span class="detail-highlight"><?= $order->payment_method ?></span></p>
+                        <p>Payment Status: <span class="detail-highlight"><?= $order->payment_status ?></span></p>
                     </div>
-                    <div class="summary-row">
-                        <span>Shipping:</span>
-                        <span>RM <?= number_format($order->order_total - $order->order_subtotal, 2) ?></span>
+                </div>
+                
+                <div class="detail-card">
+                    <h3 class="detail-card-title"><i class="fas fa-shipping-fast"></i> Shipping Information</h3>
+                    <div class="detail-card-content">
+                        <p>Shipping Status: <span class="detail-highlight"><?= $order->delivery_status ?></span></p>
+                        <p>Estimated Delivery: <span class="detail-highlight"><?= $estimated_date ?></span></p>
                     </div>
-                    <div class="summary-row total">
-                        <span>Total:</span>
-                        <span>RM <?= number_format($order->order_total, 2) ?></span>
+                </div>
+                
+                <div class="detail-card">
+                    <h3 class="detail-card-title"><i class="fas fa-map-marker-alt"></i> Shipping Address</h3>
+                    <div class="detail-card-content">
+                        <?php if ($address): ?>
+                            <p><?= htmlspecialchars($address->recipient_name) ?></p>
+                            <p><?= htmlspecialchars($address->address_line1) ?></p>
+                            <?php if (!empty($address->address_line2)): ?>
+                                <p><?= htmlspecialchars($address->address_line2) ?></p>
+                            <?php endif; ?>
+                            <p><?= htmlspecialchars($address->city) ?>, <?= htmlspecialchars($address->state) ?> <?= htmlspecialchars($address->post_code) ?></p>
+                            <p><?= htmlspecialchars($address->country) ?></p>
+                        <?php else: ?>
+                            <p>Shipping address not available</p>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
+            
+            <h2 class="section-title">Order Items</h2>
+            
+            <div class="order-items-list">
+                <?php foreach ($order_items as $item): ?>
+                    <div class="order-item">
+                        <div class="item-image">
+                            <img src="../../img/<?= $item->product_pic1 ?>" alt="<?= htmlspecialchars($item->product_name) ?>">
+                        </div>
+                        <div class="item-details">
+                            <h3 class="item-name"><?= htmlspecialchars($item->product_name) ?></h3>
+                            <p class="item-meta">Size: <?= $item->size ?></p>
+                            <div class="item-price">
+                                <span>RM <?= number_format($item->unit_price, 2) ?> × <?= $item->quantity ?></span>
+                                <span>RM <?= number_format($item->unit_price * $item->quantity, 2) ?></span>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            
+            <div class="order-totals">
+                <div class="total-row">
+                    <span>Subtotal</span>
+                    <span>RM <?= number_format($subtotal, 2) ?></span>
+                </div>
+                <div class="total-row">
+                    <span>Shipping</span>
+                    <span>
+                        <?php if ($delivery_fee > 0): ?>
+                            RM <?= number_format($delivery_fee, 2) ?>
+                        <?php else: ?>
+                            <span style="color: #4caf50;">Free</span>
+                        <?php endif; ?>
+                    </span>
+                </div>
+                <div class="total-row">
+                    <span>Tax (6%)</span>
+                    <span>RM <?= number_format($tax, 2) ?></span>
+                </div>
+                <div class="total-row final">
+                    <span>Total</span>
+                    <span>RM <?= number_format($total, 2) ?></span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <a href="products.php" class="btn outline-btn">
+                <i class="fas fa-shopping-bag"></i> Continue Shopping
+            </a>
+            <a href="account.php?tab=orders" class="btn primary-btn">
+                <i class="fas fa-list"></i> View All Orders
+            </a>
         </div>
     </div>
     

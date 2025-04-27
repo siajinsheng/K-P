@@ -1,8 +1,17 @@
 <?php
 require_once '../../_base.php';
 
+// Define Stripe keys
+define('STRIPE_PUBLISHABLE_KEY', 'pk_test_51RISsNFxdKIHFmkels1EXKIkW89B9Uze2ZIpRHAPi543xSzAbWwffGC4hxO0aB4B55h4wFmRrXJP2suVnp4H0M0m00gX8BR3Wm');
+
 // Ensure session is started and user is authenticated
 safe_session_start();
+
+// Debug logging
+error_log("Is post: " . (is_post() ? 'true' : 'false') . ", proceed_to_payment: " . (isset($_POST['proceed_to_payment']) ? 'true' : 'false'));
+if (is_post()) {
+    error_log("POST data: " . print_r($_POST, true));
+}
 
 // Authentication check
 if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
@@ -11,7 +20,7 @@ if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
 }
 
 $user_id = $_SESSION['user']->user_id;
-$username = $_SESSION['user']->user_name; // Added username for logging
+$username = $_SESSION['user']->user_name;
 $page_title = "Checkout";
 
 // Initialize variables
@@ -25,10 +34,10 @@ try {
     
     // Get cart items with product details
     $stm = $_db->prepare("
-        SELECT c.*, p.product_name, p.product_pic1, p.product_price, q.quantity_id 
+        SELECT c.*, p.product_name, p.product_pic1, p.product_price, q.quantity_id, q.size
         FROM cart c 
         JOIN product p ON c.product_id = p.product_id 
-        LEFT JOIN quantity q ON q.product_id = p.product_id AND q.size = c.size
+        LEFT JOIN quantity q ON c.quantity_id = q.quantity_id
         WHERE c.user_id = ?
     ");
     $stm->execute([$user_id]);
@@ -61,16 +70,16 @@ try {
     
     error_log("[$username] Addresses found: " . count($addresses));
     
-    // Get saved payment methods
+    // Get saved credit cards
     $stm = $_db->prepare("
         SELECT * FROM payment_method
-        WHERE user_id = ?
+        WHERE user_id = ? AND method_type = 'Credit Card'
         ORDER BY is_default DESC, created_at DESC
     ");
     $stm->execute([$user_id]);
-    $payment_methods = $stm->fetchAll();
+    $credit_cards = $stm->fetchAll();
     
-    error_log("[$username] Payment methods found: " . count($payment_methods));
+    error_log("[$username] Payment methods found: " . count($credit_cards) . " credit cards");
     
     // Calculate cart totals
     $subtotal = 0;
@@ -82,25 +91,34 @@ try {
     $tax = round($subtotal * 0.06, 2);
     
     // Calculate delivery fee based on user's default address
-    $delivery_fee = 20; // Default delivery fee
-    
-    if (!empty($addresses)) {
-        $default_address = null;
-        foreach ($addresses as $address) {
-            if ($address->is_default) {
-                $default_address = $address;
-                break;
+    // Free shipping for orders over RM100
+    if ($subtotal >= 100) {
+        $delivery_fee = 0; // Free delivery
+        error_log("[$username] Free delivery applied (order > RM100)");
+    } else {
+        $delivery_fee = 20; // Default delivery fee
+        
+        if (!empty($addresses)) {
+            $default_address = null;
+            foreach ($addresses as $address) {
+                if ($address->is_default) {
+                    $default_address = $address;
+                    break;
+                }
             }
-        }
-        
-        // If no default address, use the first one
-        if (!$default_address && !empty($addresses)) {
-            $default_address = $addresses[0];
-        }
-        
-        // Set delivery fee based on state
-        if ($default_address && isset($default_address->state) && in_array($default_address->state, ['Sabah', 'Sarawak', 'Labuan'])) {
-            $delivery_fee = 40; // Higher fee for East Malaysia
+            
+            // If no default address, use the first one
+            if (!$default_address && !empty($addresses)) {
+                $default_address = $addresses[0];
+            }
+            
+            // Set delivery fee based on state
+            if ($default_address && isset($default_address->state) && 
+                in_array($default_address->state, ['Sabah', 'Sarawak', 'Labuan'])) {
+                $delivery_fee = 40; // Higher fee for East Malaysia
+            } else {
+                $delivery_fee = 20; // Standard fee for West Malaysia
+            }
         }
     }
     
@@ -130,11 +148,11 @@ try {
 if (is_post() && isset($_POST['proceed_to_payment'])) {
     // Validate form submission
     $address_id = post('address_id');
-    $payment_option = post('payment_option');
+    $payment_method_type = post('payment_method_type');
     $payment_method_id = post('payment_method_id');
-    $payment_type = post('payment_type');
+    $save_payment = isset($_POST['save_payment']) ? 1 : 0;
     
-    error_log("[$username] Form submitted: address_id=$address_id, payment_option=$payment_option, payment_method_id=$payment_method_id, payment_type=$payment_type");
+    error_log("[$username] Form submitted: address_id=$address_id, payment_method_type=$payment_method_type, payment_method_id=$payment_method_id, save_payment=$save_payment");
     
     try {
         if (empty($address_id)) {
@@ -144,23 +162,9 @@ if (is_post() && isset($_POST['proceed_to_payment'])) {
             exit;
         }
         
-        if (empty($payment_option) || !in_array($payment_option, ['saved', 'new'])) {
-            error_log("[$username] No payment option selected.");
-            temp('error', 'Please select a payment option');
-            redirect('checkout.php');
-            exit;
-        }
-        
-        if ($payment_option === 'saved' && empty($payment_method_id)) {
-            error_log("[$username] No saved payment method selected.");
-            temp('error', 'Please select a saved payment method');
-            redirect('checkout.php');
-            exit;
-        }
-        
-        if ($payment_option === 'new' && empty($payment_type)) {
-            error_log("[$username] No payment type selected for new payment.");
-            temp('error', 'Please select a payment type');
+        if (empty($payment_method_type) || !in_array($payment_method_type, ['Credit Card', 'Stripe'])) {
+            error_log("[$username] No payment method type selected.");
+            temp('error', 'Please select a payment method type (Credit Card or Stripe)');
             redirect('checkout.php');
             exit;
         }
@@ -180,64 +184,67 @@ if (is_post() && isset($_POST['proceed_to_payment'])) {
         // Update checkout data with selected address
         $_SESSION['checkout_data']['address_id'] = $address_id;
         
-        // Recalculate delivery fee if needed based on selected address
-        if (isset($address->state) && in_array($address->state, ['Sabah', 'Sarawak', 'Labuan'])) {
-            $delivery_fee = 40;
+        // Recalculate delivery fee based on selected address
+        if ($subtotal >= 100) {
+            $delivery_fee = 0; // Free delivery
         } else {
-            $delivery_fee = 20;
+            // Set delivery fee based on state
+            $delivery_fee = (isset($address->state) && 
+                          in_array($address->state, ['Sabah', 'Sarawak', 'Labuan'])) ? 40 : 20;
         }
         
         $_SESSION['checkout_data']['delivery_fee'] = $delivery_fee;
         $_SESSION['checkout_data']['total'] = $subtotal + $tax + $delivery_fee;
         
-        // If using saved payment method, verify it belongs to the user
-        if ($payment_option === 'saved') {
-            $stm = $_db->prepare("SELECT * FROM payment_method WHERE method_id = ? AND user_id = ?");
-            $stm->execute([$payment_method_id, $user_id]);
-            $payment_method = $stm->fetch();
-            
-            if (!$payment_method) {
-                error_log("[$username] Invalid payment method selected: $payment_method_id");
-                temp('error', 'Invalid payment method selected');
-                redirect('checkout.php');
+        // Process based on payment method type
+        if ($payment_method_type === 'Credit Card') {
+            if (!empty($payment_method_id)) {
+                // Using saved card
+                $stm = $_db->prepare("SELECT * FROM payment_method WHERE method_id = ? AND user_id = ? AND method_type = 'Credit Card'");
+                $stm->execute([$payment_method_id, $user_id]);
+                $payment_method = $stm->fetch();
+                
+                if (!$payment_method) {
+                    error_log("[$username] Invalid credit card selected: $payment_method_id");
+                    temp('error', 'Invalid credit card selected');
+                    redirect('checkout.php');
+                    exit;
+                }
+                
+                $_SESSION['checkout_data']['payment_method_id'] = $payment_method_id;
+                $_SESSION['checkout_data']['payment_option'] = 'saved';
+                $_SESSION['checkout_data']['payment_type'] = 'Credit Card';
+                
+                error_log("[$username] Using saved credit card ID: $payment_method_id");
+                
+                // Redirect to confirmation page
+                redirect('checkout_confirm.php');
+                exit;
+            } else {
+                // New card (payment_method_id is empty)
+                $_SESSION['checkout_data']['payment_option'] = 'new';
+                $_SESSION['checkout_data']['payment_type'] = 'Credit Card';
+                $_SESSION['checkout_data']['save_payment'] = $save_payment;
+                
+                error_log("[$username] Using new credit card, save card: $save_payment");
+                
+                // Redirect to payment page for card details
+                redirect('checkout_payment.php');
                 exit;
             }
+        } else if ($payment_method_type === 'Stripe') {
+            // Stripe payment
+            $_SESSION['checkout_data']['payment_type'] = 'Stripe';
             
-            $_SESSION['checkout_data']['payment_method_id'] = $payment_method_id;
-            $_SESSION['checkout_data']['payment_option'] = 'saved';
+            error_log("[$username] Using Stripe payment");
             
-            // Store payment type from the saved method
-            $_SESSION['checkout_data']['payment_type'] = $payment_method->method_type;
-            
-            error_log("[$username] Using saved payment method ID: $payment_method_id, type: {$payment_method->method_type}");
-            
-            // Redirect to confirmation page
-            redirect('checkout_confirm.php');
-            exit;
-        } else {
-            // New payment method
-            if (!in_array($payment_type, ['Credit Card', 'PayPal'])) {
-                error_log("[$username] Invalid payment type: $payment_type");
-                temp('error', 'Invalid payment type');
-                redirect('checkout.php');
-                exit;
-            }
-            
-            $_SESSION['checkout_data']['payment_type'] = $payment_type;
-            $_SESSION['checkout_data']['payment_option'] = 'new';
-            
-            // Check if user wants to save this payment method
-            $save_payment = isset($_POST['save_payment']) ? 1 : 0;
-            $_SESSION['checkout_data']['save_payment'] = $save_payment;
-            
-            error_log("[$username] Using new payment method type: $payment_type, save to profile: $save_payment");
-            
-            // Redirect to payment page to enter new payment details
-            redirect('checkout_payment.php');
+            // Redirect to Stripe page
+            redirect('checkout_stripe.php');
             exit;
         }
     } catch (Exception $e) {
         error_log("Error processing checkout form for user $username: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
         temp('error', 'An error occurred during checkout. Please try again.');
         redirect('checkout.php');
         exit;
@@ -300,7 +307,7 @@ $current_date = date('Y-m-d H:i:s');
         
         <div class="checkout-content">
             <div class="checkout-main">
-                <form method="post" id="checkout-form">
+                <form method="post" id="checkout-form" action="checkout.php">
                     <div class="checkout-section">
                         <h2 class="section-title">
                             <span class="section-number">1</span>
@@ -335,12 +342,12 @@ $current_date = date('Y-m-d H:i:s');
                                     </label>
                                 </div>
                             <?php endforeach; ?>
+                        </div>
                             
-                            <div class="address-actions">
-                                <a href="add_address.php?redirect=checkout.php" class="btn secondary-btn">
-                                    <i class="fas fa-plus"></i> Add New Address
-                                </a>
-                            </div>
+                        <div class="address-actions">
+                            <a href="add_address.php?redirect=checkout.php" class="btn secondary-btn">
+                                <i class="fas fa-plus"></i> Add New Address
+                            </a>
                         </div>
                     </div>
                     
@@ -350,102 +357,99 @@ $current_date = date('Y-m-d H:i:s');
                             Payment Method
                         </h2>
                         
-                        <div class="payment-selection">
-                            <div class="payment-options">
-                                <?php if (!empty($payment_methods)): ?>
-                                    <div class="payment-option">
-                                        <input type="radio" name="payment_option" id="saved_payment" value="saved" checked>
-                                        <label for="saved_payment" class="option-label">
-                                            <span>Use a saved payment method</span>
-                                        </label>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <div class="payment-option">
-                                    <input type="radio" name="payment_option" id="new_payment" value="new" <?= empty($payment_methods) ? 'checked' : '' ?>>
-                                    <label for="new_payment" class="option-label">
-                                        <span>Add a new payment method</span>
-                                    </label>
-                                </div>
+                        <!-- First, select payment method type -->
+                        <div class="payment-method-types">
+                            <div class="payment-type-option">
+                                <input type="radio" name="payment_method_type" id="type_credit_card" value="Credit Card" checked>
+                                <label for="type_credit_card" class="payment-type-label">
+                                    <i class="fas fa-credit-card"></i>
+                                    <span>Saved Cards</span>
+                                </label>
                             </div>
                             
-                            <?php if (!empty($payment_methods)): ?>
-                                <div class="saved-payment-methods" id="saved-payment-section">
-                                    <?php foreach ($payment_methods as $index => $method): ?>
-                                        <div class="payment-method-option">
-                                            <input type="radio" name="payment_method_id" id="method_<?= $method->method_id ?>" value="<?= $method->method_id ?>" <?= $index === 0 ? 'checked' : '' ?>>
-                                            <label for="method_<?= $method->method_id ?>" class="payment-card">
-                                                <div class="payment-card-header">
-                                                    <?php if ($method->method_type === 'Credit Card'): ?>
-                                                        <?php
-                                                        $card_icon = 'fa-credit-card';
-                                                        if (isset($method->card_type)) {
-                                                            if ($method->card_type === 'Visa') {
-                                                                $card_icon = 'fa-cc-visa';
-                                                            } elseif ($method->card_type === 'MasterCard') {
-                                                                $card_icon = 'fa-cc-mastercard';
-                                                            } elseif ($method->card_type === 'American Express') {
-                                                                $card_icon = 'fa-cc-amex';
-                                                            }
+                            <div class="payment-type-option">
+                                <input type="radio" name="payment_method_type" id="type_stripe" value="Stripe">
+                                <label for="type_stripe" class="payment-type-label">
+                                    <i class="fab fa-stripe"></i>
+                                    <span>Pay with Stripe</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="payment-options-container" style="margin-top: 20px;">
+                            <!-- Credit Card options - Combined layout -->
+                            <div id="credit_card_options" class="payment-options-section">
+                                <div class="payment-methods-grid">
+                                    <!-- Add new card option -->
+                                    <div class="payment-method-card">
+                                        <label for="new_card">
+                                            <input type="radio" id="new_card" name="payment_method_id" value="">
+                                            <div class="card-header">
+                                                <div class="card-icon">
+                                                    <i class="fas fa-plus-circle"></i>
+                                                    <span>Add New Card</span>
+                                                </div>
+                                            </div>
+                                            <div class="add-new-card">
+                                                <p class="card-content">Enter your card details in the next step</p>
+                                            </div>
+                                        </label>
+                                        <div class="save-card-option" id="save_card_option">
+                                            <input type="checkbox" id="save_payment" name="save_payment" checked>
+                                            <label for="save_payment">Save this card for future orders</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Saved cards -->
+                                    <?php foreach ($credit_cards as $card): ?>
+                                        <div class="payment-method-card">
+                                            <label for="card_<?= $card->method_id ?>">
+                                                <input type="radio" id="card_<?= $card->method_id ?>" name="payment_method_id" value="<?= $card->method_id ?>">
+                                                <div class="card-header">
+                                                    <?php
+                                                    $card_icon = 'fa-credit-card';
+                                                    if (isset($card->card_type)) {
+                                                        if ($card->card_type === 'Visa') {
+                                                            $card_icon = 'fa-cc-visa';
+                                                        } elseif ($card->card_type === 'MasterCard') {
+                                                            $card_icon = 'fa-cc-mastercard';
+                                                        } elseif ($card->card_type === 'American Express') {
+                                                            $card_icon = 'fa-cc-amex';
                                                         }
-                                                        ?>
-                                                        <div class="card-icon">
-                                                            <i class="fab <?= $card_icon ?>"></i>
-                                                            <span><?= isset($method->card_type) ? htmlspecialchars($method->card_type) : 'Credit Card' ?></span>
-                                                        </div>
-                                                    <?php else: ?>
-                                                        <div class="card-icon">
-                                                            <i class="fab fa-paypal"></i>
-                                                            <span>PayPal</span>
-                                                        </div>
-                                                    <?php endif; ?>
-                                                    
-                                                    <?php if ($method->is_default): ?>
+                                                    }
+                                                    ?>
+                                                    <div class="card-icon">
+                                                        <i class="fab <?= $card_icon ?>"></i>
+                                                        <span><?= isset($card->card_type) ? htmlspecialchars($card->card_type) : 'Credit Card' ?></span>
+                                                    </div>
+                                                    <?php if ($card->is_default): ?>
                                                         <div class="default-badge">Default</div>
                                                     <?php endif; ?>
                                                 </div>
-                                                <div class="payment-card-details">
-                                                    <?php if ($method->method_type === 'Credit Card'): ?>
-                                                        <div class="card-number">•••• •••• •••• <?= htmlspecialchars($method->last_four) ?></div>
-                                                        <div class="card-expiry">Expires: <?= sprintf('%02d', $method->expiry_month) ?>/<?= $method->expiry_year ?></div>
-                                                    <?php else: ?>
-                                                        <div class="paypal-email"><?= htmlspecialchars($method->paypal_email) ?></div>
-                                                    <?php endif; ?>
+                                                <div class="card-content">
+                                                    <div>•••• •••• •••• <?= htmlspecialchars($card->last_four) ?></div>
+                                                    <div>Expires: <?= sprintf('%02d', $card->expiry_month) ?>/<?= $card->expiry_year ?></div>
+                                                    <div><?= htmlspecialchars($card->cardholder_name) ?></div>
                                                 </div>
                                             </label>
                                         </div>
                                     <?php endforeach; ?>
-                                    
-                                    <div class="payment-actions">
-                                        <a href="add_payment.php?redirect=checkout.php" class="btn secondary-btn">
-                                            <i class="fas fa-plus"></i> Add New Payment Method
-                                        </a>
-                                    </div>
                                 </div>
-                            <?php endif; ?>
+                            </div>
                             
-                            <div class="new-payment-methods" id="new-payment-section" <?= !empty($payment_methods) ? 'style="display: none;"' : '' ?>>
-                                <div class="payment-method-types">
-                                    <div class="payment-type-option">
-                                        <input type="radio" name="payment_type" id="credit_card" value="Credit Card" checked>
-                                        <label for="credit_card" class="payment-type-label">
-                                            <i class="fas fa-credit-card"></i>
-                                            <span>Credit / Debit Card</span>
-                                        </label>
+                            <!-- Stripe option -->
+                            <div id="stripe_options" class="payment-options-section" style="display: none;">
+                                <div class="stripe-info">
+                                    <div class="stripe-logo" style="text-align: center; margin-bottom: 20px;">
+                                        <i class="fab fa-stripe" style="font-size: 40px; color: #6772e5;"></i>
                                     </div>
-                                    
-                                    <div class="payment-type-option">
-                                        <input type="radio" name="payment_type" id="paypal" value="PayPal">
-                                        <label for="paypal" class="payment-type-label">
-                                            <i class="fab fa-paypal"></i>
-                                            <span>PayPal</span>
-                                        </label>
+                                    <div class="stripe-message" style="text-align: center; margin-bottom: 20px;">
+                                        <p>Pay securely using Stripe's payment platform.</p>
+                                        <p>You'll enter your card details in the next step.</p>
+                                        <div class="demo-info" style="background-color: #f0f7ff; padding: 10px; margin-top: 15px; border-radius: 5px;">
+                                            <p style="font-size: 14px; color: #0c5460;"><strong>Demo Mode:</strong> Use test card number 4242 4242 4242 4242 with any future expiration date and any 3-digit CVC.</p>
+                                        </div>
                                     </div>
-                                </div>
-                                
-                                <div class="save-payment-option">
-                                    <input type="checkbox" name="save_payment" id="save_payment" value="1" checked>
-                                    <label for="save_payment">Save this payment method for future orders</label>
                                 </div>
                             </div>
                         </div>
@@ -490,7 +494,13 @@ $current_date = date('Y-m-d H:i:s');
                         </div>
                         <div class="summary-row">
                             <span>Shipping</span>
-                            <span>RM <?= number_format($delivery_fee, 2) ?></span>
+                            <span>
+                                <?php if ($delivery_fee > 0): ?>
+                                    RM <?= number_format($delivery_fee, 2) ?>
+                                <?php else: ?>
+                                    <span style="color: #4caf50; font-weight: 500;">Free</span>
+                                <?php endif; ?>
+                            </span>
                         </div>
                         <div class="summary-row">
                             <span>Tax (6%)</span>
@@ -510,88 +520,188 @@ $current_date = date('Y-m-d H:i:s');
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Toggle payment sections based on selection
-        const savedPaymentOption = document.getElementById('saved_payment');
-        const newPaymentOption = document.getElementById('new_payment');
-        const savedPaymentSection = document.getElementById('saved-payment-section');
-        const newPaymentSection = document.getElementById('new-payment-section');
+        console.log('DOM loaded, initializing checkout functionality');
         
-        if (savedPaymentOption && newPaymentOption) {
-            savedPaymentOption.addEventListener('change', function() {
-                if (this.checked) {
-                    savedPaymentSection.style.display = 'block';
-                    newPaymentSection.style.display = 'none';
-                }
-            });
-            
-            newPaymentOption.addEventListener('change', function() {
-                if (this.checked) {
-                    savedPaymentSection.style.display = 'none';
-                    newPaymentSection.style.display = 'block';
-                }
-            });
+        // Payment method type selection (Credit Card or Stripe)
+        const creditCardRadio = document.getElementById('type_credit_card');
+        const stripeRadio = document.getElementById('type_stripe');
+        const creditCardOptions = document.getElementById('credit_card_options');
+        const stripeOptions = document.getElementById('stripe_options');
+        
+        function showCreditCardOptions() {
+            creditCardOptions.style.display = 'block';
+            stripeOptions.style.display = 'none';
+            console.log('Showing Credit Card options');
         }
         
-        // Form validation
-        const checkoutForm = document.getElementById('checkout-form');
-        checkoutForm.addEventListener('submit', function(e) {
-            let isValid = true;
-            
-            // Check if address is selected
-            const addressRadios = document.querySelectorAll('input[name="address_id"]');
-            let addressSelected = false;
-            addressRadios.forEach(radio => {
-                if (radio.checked) {
-                    addressSelected = true;
+        function showStripeOptions() {
+            creditCardOptions.style.display = 'none';
+            stripeOptions.style.display = 'block';
+            console.log('Showing Stripe options');
+        }
+        
+        if (creditCardRadio && stripeRadio) {
+            creditCardRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    showCreditCardOptions();
                 }
             });
             
-            if (!addressSelected) {
-                alert('Please select a delivery address');
-                isValid = false;
-            }
+            stripeRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    showStripeOptions();
+                }
+            });
             
-            // Check if payment option is selected
-            const paymentOption = document.querySelector('input[name="payment_option"]:checked');
-            if (!paymentOption) {
-                alert('Please select a payment option');
-                isValid = false;
-            } else {
-                // If using saved payment, check if a method is selected
-                if (paymentOption.value === 'saved') {
-                    const methodRadios = document.querySelectorAll('input[name="payment_method_id"]');
-                    let methodSelected = false;
-                    methodRadios.forEach(radio => {
-                        if (radio.checked) {
-                            methodSelected = true;
-                        }
-                    });
-                    
-                    if (!methodSelected) {
-                        alert('Please select a payment method');
-                        isValid = false;
-                    }
-                } else if (paymentOption.value === 'new') {
-                    // For new payment, check if type is selected
-                    const typeRadios = document.querySelectorAll('input[name="payment_type"]');
-                    let typeSelected = false;
-                    typeRadios.forEach(radio => {
-                        if (radio.checked) {
-                            typeSelected = true;
-                        }
-                    });
-                    
-                    if (!typeSelected) {
-                        alert('Please select a payment type');
-                        isValid = false;
+            // Initialize the default view
+            if (creditCardRadio.checked) {
+                showCreditCardOptions();
+            } else if (stripeRadio.checked) {
+                showStripeOptions();
+            }
+        }
+        
+        // Credit Card selection styling
+        const paymentMethodCards = document.querySelectorAll('.payment-method-card');
+        const saveCardOption = document.getElementById('save_card_option');
+        const newCardRadio = document.getElementById('new_card');
+        
+        // Select the first card by default (new card)
+        if (newCardRadio) {
+            newCardRadio.checked = true;
+            newCardRadio.closest('.payment-method-card').classList.add('selected');
+            if (saveCardOption) {
+                saveCardOption.style.display = 'block';
+            }
+        }
+        
+        paymentMethodCards.forEach(card => {
+            const radioInput = card.querySelector('input[type="radio"]');
+            
+            // Add click event to the entire card
+            card.addEventListener('click', function() {
+                radioInput.checked = true;
+                
+                // Remove 'selected' class from all cards
+                paymentMethodCards.forEach(c => {
+                    c.classList.remove('selected');
+                });
+                
+                // Add 'selected' class to clicked card
+                this.classList.add('selected');
+                
+                // Show save option only for new card
+                if (saveCardOption) {
+                    if (radioInput.id === 'new_card') {
+                        saveCardOption.style.display = 'block';
+                    } else {
+                        saveCardOption.style.display = 'none';
                     }
                 }
-            }
-            
-            if (!isValid) {
-                e.preventDefault();
-            }
+            });
         });
+        
+        // Form validation and direct submission
+        const checkoutForm = document.getElementById('checkout-form');
+        if (checkoutForm) {
+            console.log('Checkout form found, adding submission handler');
+            
+            checkoutForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // Prevent the default form submission
+                
+                let isValid = true;
+                console.log('Form submitted, validating...');
+                
+                // Log form data
+                const formData = new FormData(this);
+                for (let [key, value] of formData.entries()) {
+                    console.log(key + ': ' + value);
+                }
+                
+                // Check if address is selected
+                const addressRadios = document.querySelectorAll('input[name="address_id"]');
+                let addressSelected = false;
+                let selectedAddressId = '';
+                
+                addressRadios.forEach(radio => {
+                    if (radio.checked) {
+                        addressSelected = true;
+                        selectedAddressId = radio.value;
+                    }
+                });
+                
+                if (!addressSelected) {
+                    alert('Please select a delivery address');
+                    isValid = false;
+                    console.log('Validation failed: No address selected');
+                    return;
+                }
+                
+                // Check if payment method type is selected
+                const paymentMethodType = document.querySelector('input[name="payment_method_type"]:checked');
+                if (!paymentMethodType) {
+                    alert('Please select a payment method type');
+                    isValid = false;
+                    console.log('Validation failed: No payment method type selected');
+                    return;
+                }
+                
+                // Create our custom form submission
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'checkout.php';
+                form.style.display = 'none';
+                
+                // Add hidden fields
+                const addHiddenField = (name, value) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value;
+                    form.appendChild(input);
+                };
+                
+                // Add the proceed_to_payment flag
+                addHiddenField('proceed_to_payment', '1');
+                
+                // Add the address_id
+                addHiddenField('address_id', selectedAddressId);
+                
+                // Add payment_method_type
+                addHiddenField('payment_method_type', paymentMethodType.value);
+                
+                // If Credit Card is selected, check for payment_method_id
+                if (paymentMethodType.value === 'Credit Card') {
+                    const paymentMethodRadio = document.querySelector('input[name="payment_method_id"]:checked');
+                    if (paymentMethodRadio) {
+                        addHiddenField('payment_method_id', paymentMethodRadio.value);
+                    } else {
+                        addHiddenField('payment_method_id', '');
+                    }
+                    
+                    // Check if save_payment is checked for new card
+                    const savePaymentCheckbox = document.getElementById('save_payment');
+                    if (savePaymentCheckbox && savePaymentCheckbox.checked) {
+                        addHiddenField('save_payment', '1');
+                    }
+                }
+                
+                // Add the form to the document and submit it
+                document.body.appendChild(form);
+                
+                // Disable the button to prevent double submission
+                const submitBtn = checkoutForm.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                }
+                
+                console.log('Form validation passed, submitting custom form...');
+                form.submit();
+            });
+        } else {
+            console.error('Checkout form not found!');
+        }
     });
     </script>
 </body>

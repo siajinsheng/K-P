@@ -18,7 +18,8 @@ if (!isset($_SESSION['checkout_data']) || $_SESSION['checkout_data']['payment_op
 }
 
 $user_id = $_SESSION['user']->user_id;
-$username = $_SESSION['user']->user_name; // Added username for logging
+$username = $_SESSION['user']->user_name;
+$user_email = $_SESSION['user']->user_Email; // Get user email for receipt
 $page_title = "Order Confirmation";
 
 // Initialize variables
@@ -126,7 +127,7 @@ if (is_post() && isset($_POST['place_order'])) {
             INSERT INTO orders (
                 order_id, user_id, delivery_id, 
                 order_date, orders_status, order_subtotal, order_total
-            ) VALUES (?, ?, ?, NOW(), 'Confirmed', ?, ?)
+            ) VALUES (?, ?, ?, NOW(), 'Pending', ?, ?)
         ");
         $stm->execute([
             $order_id, 
@@ -156,7 +157,8 @@ if (is_post() && isset($_POST['place_order'])) {
             0 // Discount (not implemented)
         ]);
         
-        // Insert order details for each item
+        // Insert order details for each item and track all items for email
+        $order_details_items = [];
         foreach ($cart_items as $item) {
             $stm = $_db->prepare("
                 INSERT INTO order_details (
@@ -178,6 +180,14 @@ if (is_post() && isset($_POST['place_order'])) {
                 WHERE quantity_id = ?
             ");
             $stm->execute([$item->quantity, $item->quantity_id]);
+            
+            // Save item to send in email
+            $order_item = new stdClass();
+            $order_item->product_name = $item->product_name;
+            $order_item->quantity = $item->quantity;
+            $order_item->unit_price = $item->product_price;
+            $order_item->size = $item->size;
+            $order_details_items[] = $order_item;
         }
         
         // Clear cart
@@ -187,6 +197,28 @@ if (is_post() && isset($_POST['place_order'])) {
         // Commit transaction
         $_db->commit();
         error_log("[$username] Order placed successfully: $order_id");
+        
+        // Get order details for email
+        $stm = $_db->prepare("
+            SELECT o.*, d.estimated_date 
+            FROM orders o
+            JOIN delivery d ON o.delivery_id = d.delivery_id
+            WHERE o.order_id = ?
+        ");
+        $stm->execute([$order_id]);
+        $order = $stm->fetch();
+        
+        // Format payment method display name
+        $payment_method_display = $payment_method->method_type;
+        if ($payment_method->method_type === 'Credit Card') {
+            $card_type = isset($payment_method->card_type) ? $payment_method->card_type : 'Credit Card';
+            $payment_method_display = $card_type . " (...".htmlspecialchars($payment_method->last_four).")";
+        } elseif ($payment_method->method_type === 'PayPal') {
+            $payment_method_display = 'PayPal (' . htmlspecialchars($payment_method->paypal_email) . ')';
+        }
+        
+        // Send receipt email to user
+        send_receipt_email($user_email, $username, $order, $order_details_items, $address, $payment_method_display);
         
         // Clear checkout data from session
         unset($_SESSION['checkout_data']);
@@ -219,7 +251,6 @@ $current_date = date('Y-m-d H:i:s');
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>K&P - <?= $page_title ?></title>
     <link rel="stylesheet" href="../css/checkout.css">
-    <link rel="stylesheet" href="../css/checkout_payment.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -269,7 +300,7 @@ $current_date = date('Y-m-d H:i:s');
             </div>
         </div>
         
-        <div class="checkout-grid">
+        <div class="checkout-content">
             <div class="checkout-main">
                 <div class="checkout-section">
                     <h2 class="section-title">
@@ -288,7 +319,13 @@ $current_date = date('Y-m-d H:i:s');
                         </div>
                         <div class="checkout-summary-row">
                             <span>Shipping:</span>
-                            <span>RM <?= number_format($delivery_fee, 2) ?></span>
+                            <span>
+                                <?php if ($delivery_fee > 0): ?>
+                                    RM <?= number_format($delivery_fee, 2) ?>
+                                <?php else: ?>
+                                    <span style="color: #4caf50;">Free</span>
+                                <?php endif; ?>
+                            </span>
                         </div>
                         <div class="checkout-summary-row">
                             <span>Tax (6%):</span>
@@ -361,7 +398,7 @@ $current_date = date('Y-m-d H:i:s');
                     </div>
                 </div>
                 
-                <form method="post" id="confirmation-form">
+                <form method="post" id="confirmation-form" action="checkout_confirm.php">
                     <div class="checkout-actions">
                         <a href="checkout.php" class="btn outline-btn back-btn">
                             <i class="fas fa-arrow-left"></i> Back to Checkout
@@ -378,9 +415,9 @@ $current_date = date('Y-m-d H:i:s');
                 <div class="order-summary">
                     <h2 class="summary-title">Order Items</h2>
                     
-                    <div class="order-items">
+                    <div class="summary-items">
                         <?php foreach ($cart_items as $item): ?>
-                            <div class="order-item">
+                            <div class="summary-item">
                                 <div class="item-image">
                                     <img src="../../img/<?= $item->product_pic1 ?>" alt="<?= htmlspecialchars($item->product_name) ?>">
                                     <span class="item-quantity"><?= $item->quantity ?></span>
@@ -409,11 +446,41 @@ $current_date = date('Y-m-d H:i:s');
         // Form submission protection to prevent double-submission
         const form = document.getElementById('confirmation-form');
         if (form) {
-            form.addEventListener('submit', function() {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault(); // Prevent normal form submission
+                
+                // Disable the button to prevent double submission
                 const submitButton = this.querySelector('button[type="submit"]');
                 submitButton.disabled = true;
                 submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Order...';
+                
+                // Create a custom form submission
+                const customForm = document.createElement('form');
+                customForm.method = 'POST';
+                customForm.action = 'checkout_confirm.php';
+                
+                // Add hidden field for place_order
+                const hiddenField = document.createElement('input');
+                hiddenField.type = 'hidden';
+                hiddenField.name = 'place_order';
+                hiddenField.value = '1';
+                customForm.appendChild(hiddenField);
+                
+                // Add form to document and submit
+                document.body.appendChild(customForm);
+                customForm.submit();
             });
+        }
+        
+        // Error handling and form resubmission
+        const errorMessage = document.querySelector('.alert-danger');
+        if (errorMessage) {
+            const submitButton = document.querySelector('button[type="submit"]');
+            if (submitButton) {
+                // Re-enable the button if there was an error
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'Place Order <i class="fas fa-check"></i>';
+            }
         }
     });
     </script>
