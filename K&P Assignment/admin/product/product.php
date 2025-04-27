@@ -903,7 +903,7 @@ if (is_post() && isset($_FILES['csv_file'])) {
                 <button type="button" id="cancelBatchUpdate" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg">
                     Cancel
                 </button>
-                <button type="button" id="applyBatchUpdate" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg" disabled>
+                <button type="button" id="applyBatchUpdate" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg"  href="product.php">
                     <i class="fas fa-check mr-1"></i> Apply Update
                 </button>
             </div>
