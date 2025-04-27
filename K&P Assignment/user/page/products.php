@@ -79,7 +79,7 @@ $categories = $cat_stm->fetchAll();
         <iframe 
             width="100%" 
             height="450" 
-            src="https://www.youtube.com/embed/9Pbe4DyMQYw?si=Qan6a6KWCQ2XVuYe&autoplay=1&mute=1"
+            src="https://www.youtube.com/embed/9Pbe4DyMQYw?si=Qan6a6KWCQ2XVuYe&autoplay=1&mute=1&loop=1&playlist=9Pbe4DyMQYw"
             title="YouTube video player" 
             frameborder="0" 
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
