@@ -145,8 +145,14 @@ require '../headFooter/header.php';
   <table class="table mb-4">
     <thead>
       <tr>
-        <?= table_headers($fields, $sort, $dir, "page={$page}&email={$email}&status={$status}") ?>
-        <th>Photo</th><th>Updated</th><th>Status</th><th>Role</th><th>Actions</th>
+      <th>Email</th>
+        <th>Username</th>
+        <th>Genders</th>
+        <th>Photo</th>
+        <th>Updated</th>
+        <th>Status</th>
+        <th>Role</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>

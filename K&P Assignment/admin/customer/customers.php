@@ -73,7 +73,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <table class="table">
     <thead>
       <tr>
-        <?= table_headers($fields, $sort, $dir, "page=$page&email=$email&status=$status") ?>
+      <th>Email</th>
+        <th>Username</th>
+        <th>Genders</th>
         <th>Photo</th>
         <th>Status</th>
         <th>Actions</th>
