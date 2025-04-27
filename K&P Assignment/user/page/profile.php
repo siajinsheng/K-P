@@ -144,7 +144,7 @@ if (is_post() && isset($_POST['update_profile'])) {
                 $photo = save_photo_user((object)$file, '../../img', 300, 300);
                 
                 // Delete old photo if it exists and isn't the default
-                if ($user->user_profile_pic && $user->user_profile_pic !== 'default-profile.jpg' && file_exists('../../img/' . $user->user_profile_pic)) {
+                if ($user->user_profile_pic && $user->user_profile_pic !== 'default.png' && file_exists('../../img/' . $user->user_profile_pic)) {
                     unlink('../../img/' . $user->user_profile_pic);
                 }
             }
