@@ -192,7 +192,7 @@ if (is_post() && isset($_POST['process_payment'])) {
                 INSERT INTO orders (
                     order_id, user_id, delivery_id, 
                     order_date, orders_status, order_subtotal, order_total
-                ) VALUES (?, ?, ?, NOW(), 'Pending', ?, ?)
+                ) VALUES (?, ?, ?, NOW(), 'Confirmed', ?, ?)
             ");
             $stm->execute([
                 $order_id, 
