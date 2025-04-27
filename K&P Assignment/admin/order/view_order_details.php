@@ -143,7 +143,8 @@ function formatDate($date) {
     <title><?= $_title ?> - <?= htmlspecialchars($orderId) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="../css/orders.css">
+    <link rel="stylesheet" href="view_order_details.css">
+    <script src="view_order_details.js"></script>
 </head>
 <body class="bg-gray-50">
     <div class="container mx-auto px-4 py-8 max-w-6xl">
@@ -483,27 +484,9 @@ function formatDate($date) {
                         </div>
                     </div>
                 </div>
-                
-                <!-- Notes and Actions -->
-                <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
-                        <h2 class="text-lg font-semibold text-gray-800">Actions</h2>
-                    </div>
-                    <div class="p-6">
-                        <div class="space-y-3">
-                            <button onclick="downloadInvoice('<?= $orderId ?>')" class="w-full flex items-center justify-center px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
-                                <i class="fas fa-file-invoice mr-2"></i> Download Invoice
-                            </button>
-                            <button onclick="sendEmail('<?= $orderId ?>')" class="w-full flex items-center justify-center px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
-                                <i class="fas fa-envelope mr-2"></i> Email Customer
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 </body>
 </html>
-
 <?php require '../headFooter/footer.php'; ?>

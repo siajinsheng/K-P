@@ -119,73 +119,18 @@ if ($discount) {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="Detail_Product.css" rel="stylesheet">
+    <script src="Detail_Product.js"></script>
     <script>
-        $(document).ready(function() {
-            // Handle thumbnail click to change main image
-            $('.thumbnail').on('click', function() {
-                const imgSrc = $(this).attr('src');
-                $('#mainImage').attr('src', imgSrc);
-
-                // Update active thumbnail
-                $('.thumbnail').removeClass('active-thumbnail');
-                $(this).addClass('active-thumbnail');
-            });
-
-            // Initialize with first image as active
-            $('.thumbnail:first').addClass('active-thumbnail');
-
-            // Size selection handling
-            $('.size-btn').on('click', function() {
-                $('.size-btn').removeClass('bg-indigo-600 text-white');
-                $('.size-btn').addClass('bg-white text-gray-800');
-                $(this).removeClass('bg-white text-gray-800');
-                $(this).addClass('bg-indigo-600 text-white');
-            });
-
-            // Simple placeholder stock chart
-            if ($('#stockChart').length) {
-                const stockCtx = document.getElementById('stockChart').getContext('2d');
-                const stockChart = new Chart(stockCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: <?= json_encode(array_map(function ($item) {
-                                    return $item->size;
-                                }, $stock_info)) ?>,
-                        datasets: [{
-                            label: 'In Stock',
-                            data: <?= json_encode(array_map(function ($item) {
-                                        return $item->product_stock;
-                                    }, $stock_info)) ?>,
-                            backgroundColor: 'rgba(79, 70, 229, 0.8)',
-                            borderColor: 'rgba(79, 70, 229, 1)',
-                            borderWidth: 1
-                        }, {
-                            label: 'Sold',
-                            data: <?= json_encode(array_map(function ($item) {
-                                        return $item->product_sold;
-                                    }, $stock_info)) ?>,
-                            backgroundColor: 'rgba(99, 102, 241, 0.4)',
-                            borderColor: 'rgba(99, 102, 241, 1)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Print functionality
-            $('#printBtn').on('click', function(e) {
-                e.preventDefault();
-                window.print();
-            });
-        });
+        // Define variables needed for the chart
+        const stockSizes = <?= json_encode(array_map(function ($item) {
+                                return $item->size;
+                            }, $stock_info)) ?>;
+        const stockQuantities = <?= json_encode(array_map(function ($item) {
+                                    return $item->product_stock;
+                                }, $stock_info)) ?>;
+        const stockSold = <?= json_encode(array_map(function ($item) {
+                                return $item->product_sold;
+                            }, $stock_info)) ?>;
     </script>
 </head>
 
@@ -261,7 +206,7 @@ if ($discount) {
                             <span class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium">
                                 <?= htmlspecialchars($product->category_name ?? 'Uncategorized') ?>
                             </span>
-                            
+
                             <span class="text-gray-700 ml-4 mr-2">Type:</span>
                             <span class="px-3 py-1 <?= $type_style['bg'] ?> <?= $type_style['text'] ?> rounded-full text-sm font-medium flex items-center">
                                 <i class="fas <?= $type_style['icon'] ?> mr-1"></i>

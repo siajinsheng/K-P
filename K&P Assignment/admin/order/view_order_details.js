@@ -41,17 +41,3 @@ function updateStatusFromForm() {
 function printOrderDetails() {
     window.print();
 }
-
-function downloadInvoice(orderId) {
-    // Placeholder - replace with actual invoice download functionality
-    alert('Invoice download functionality will be implemented here.');
-    // In a real implementation, this would redirect to an invoice generation script
-    // window.location.href = `generate_invoice.php?id=${orderId}`;
-}
-
-function sendEmail(orderId) {
-    // Placeholder - replace with actual email sending functionality
-    alert('Email functionality will be implemented here.');
-    // In a real implementation, this might open a modal or redirect to an email form
-    // window.location.href = `email_customer.php?id=${orderId}`;
-}

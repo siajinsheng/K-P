@@ -260,7 +260,7 @@ $error_message = temp('error');
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
     <link href="Update_Product.css" rel="stylesheet">
-
+    <script src="Update_Product.js"></script>
 </head>
 
 <body>
