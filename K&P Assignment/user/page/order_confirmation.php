@@ -358,9 +358,6 @@ $total = $order->order_total;
             <a href="products.php" class="btn outline-btn">
                 <i class="fas fa-shopping-bag"></i> Continue Shopping
             </a>
-            <a href="account.php?tab=orders" class="btn primary-btn">
-                <i class="fas fa-list"></i> View All Orders
-            </a>
         </div>
     </div>
     
