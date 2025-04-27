@@ -1,0 +1,145 @@
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 20px;
+}
+
+.tab {
+  padding: 10px 20px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab.active {
+  border-bottom: 2px solid var(--primary-color);
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* Photo editing styles */
+.photo-editor-container {
+  margin-bottom: 30px;
+}
+
+.photo-tabs {
+  display: flex;
+  margin-bottom: 20px;
+}
+
+.photo-tab {
+  flex: 1;
+  text-align: center;
+  padding: 12px;
+  background-color: #f5f5f5;
+  cursor: pointer;
+  border: 1px solid #ddd;
+}
+
+.photo-tab:first-child {
+  border-radius: 5px 0 0 5px;
+}
+
+.photo-tab:last-child {
+  border-radius: 0 5px 5px 0;
+}
+
+.photo-tab.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.photo-content {
+  display: none;
+}
+
+.photo-content.active {
+  display: block;
+}
+
+.dropzone {
+  border: 2px dashed #ccc;
+  border-radius: 5px;
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dropzone:hover, .dropzone.dragover {
+  border-color: var(--primary-color);
+  background-color: rgba(74, 111, 165, 0.05);
+}
+
+.dropzone i {
+  font-size: 48px;
+  color: #ccc;
+  margin-bottom: 15px;
+}
+
+.dropzone p {
+  margin: 0;
+  color: #777;
+}
+
+#webcam-container {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+#webcam {
+  width: 100%;
+  border-radius: 5px;
+  background-color: #f5f5f5;
+}
+
+.webcam-buttons {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+  gap: 10px;
+}
+
+.image-preview-container {
+  margin: 20px 0;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 5px;
+  text-align: center;
+}
+
+#image-preview {
+  max-width: 100%;
+  max-height: 400px;
+}
+
+.image-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.no-preview {
+  color: #777;
+  padding: 30px;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+  text-align: center;
+}
+
+#cropper-container {
+  max-height: 400px;
+  margin: 20px 0;
+}
