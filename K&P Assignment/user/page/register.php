@@ -61,7 +61,7 @@ if (is_post()) {
         $_err['confirm'] = 'Passwords do not match';
     }
 
-    if ($profilePic && !str_starts_with($profilePic->type, 'image/')) {
+    if ($profilePic && !str_starts_with($profilePic->type, 'img/')) {
         $_err['profile_pic'] = 'Only image files are allowed';
     } elseif ($profilePic && $profilePic->size > 2 * 1024 * 1024) {
         $_err['profile_pic'] = 'Image must be less than 2MB';
@@ -89,7 +89,7 @@ if (is_post()) {
             if ($profilePic) {
                 $profilePicPath = save_photo_user($profilePic, '../../img', 300, 300);
             } else {
-                $profilePicPath = 'default-profile.jpg'; // Default profile image
+                $profilePicPath = '../../img/default.jpg'; // Default profile image
             }
             
             // Begin transaction
@@ -171,7 +171,7 @@ if (is_post()) {
                     <label for="profile_pic">Profile Picture</label>
                     <input type="file" id="profile_pic" name="profile_pic" class="form-control" accept="image/*">
                     <?= err('profile_pic') ?>
-                    <img id="profilePreview" class="profile-pic-preview" src="../../admin/Uploaded_profile/default-profile.jpg" alt="Profile Preview">
+                    <img id="profilePreview" class="profile-pic-preview" src="../../img/default.jpg" alt="Profile Preview">
                 </div>
                 
                 <div class="form-group">

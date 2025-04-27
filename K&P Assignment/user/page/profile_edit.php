@@ -102,8 +102,8 @@ if (is_post()) {
                 $stm->execute([$name, $email, $phone, $gender, $profile_pic, $user_id]);
                 
                 // Delete old profile pic if not default
-                if ($user->user_profile_pic != 'default-profile.jpg' && file_exists('../../admin/Uploaded_profile/' . $user->user_profile_pic)) {
-                    unlink('../../admin/Uploaded_profile/' . $user->user_profile_pic);
+                if ($user->user_profile_pic != '../../img/default.jpg' && file_exists('../../img/' . $user->user_profile_pic)) {
+                    unlink('../../img/' . $user->user_profile_pic);
                 }
             } else {
                 // Update without changing profile picture
@@ -238,7 +238,7 @@ if (is_post()) {
         <form method="post" enctype="multipart/form-data" class="profile-form">
             <div class="profile-pic-upload">
                 <img 
-                    src="../../admin/Uploaded_profile/<?= ($user->user_profile_pic && file_exists('../../admin/Uploaded_profile/' . $user->user_profile_pic)) ? $user->user_profile_pic : 'default-profile.jpg' ?>" 
+                    src="../../img/<?= ($user->user_profile_pic && file_exists('../../img/' . $user->user_profile_pic)) ? $user->user_profile_pic : '../../img/default.jpg' ?>" 
                     alt="Profile Picture" 
                     id="profile-pic-preview" 
                     class="profile-pic-preview"

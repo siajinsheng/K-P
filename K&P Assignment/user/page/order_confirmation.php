@@ -265,7 +265,6 @@ $total = $order->order_total;
             <p class="order-number">Order Number: <strong><?= $order_id ?></strong></p>
             <div class="confirmation-message">
                 <p>Your order has been placed and a confirmation has been sent to your email.</p>
-                <p>You can track your order status in your <a href="account.php?tab=orders">account orders section</a>.</p>
             </div>
         </div>
         
