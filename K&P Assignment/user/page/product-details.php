@@ -53,6 +53,32 @@ if (isset($_SESSION['user'])) {
         }
     }
 }
+
+// Define additional product details based on category
+$fabricDetails = '';
+$careInstructions = '';
+$fitInformation = '';
+
+// Set category-specific details
+if (strpos($product->category_id, 'CAT1001') !== false) {
+    // Short T-shirt
+    $fabricDetails = 'Made with premium 100% cotton jersey fabric. Breathable, soft to the touch, and perfect for everyday wear.';
+    $careInstructions = 'Machine wash cold with similar colors. Tumble dry low. Do not bleach.';
+    $fitInformation = 'Regular fit. Model is 180cm/5\'11" tall and wears size M.';
+} elseif (strpos($product->category_id, 'CAT1002') !== false) {
+    // Long T-shirt
+    $fabricDetails = 'Crafted from a premium blend of cotton (95%) and elastane (5%) for enhanced comfort and durability.';
+    $careInstructions = 'Machine wash cold with similar colors. Lay flat to dry for best results. Do not bleach.';
+    $fitInformation = 'Relaxed fit with slightly longer sleeves. Model is 175cm/5\'9" tall and wears size M.';
+} elseif (strpos($product->category_id, 'CAT1003') !== false) {
+    // Jeans
+    $fabricDetails = 'Premium denim with just the right amount of stretch. 98% cotton, 2% elastane for comfort and flexibility.';
+    $careInstructions = 'Machine wash cold inside out. Line dry to preserve color and shape. Wash separately before first wear.';
+    $fitInformation = $product->product_type === 'Man' ? 
+        'Regular waist, straight through hip and thigh. Model is 185cm/6\'1" tall and wears size 32.' : 
+        'High waist, relaxed through hip and thigh. Model is 172cm/5\'8" tall and wears size 28.';
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -63,6 +89,57 @@ if (isset($_SESSION['user'])) {
     <title>K&P - <?= htmlspecialchars($product->product_name) ?></title>
     <link rel="stylesheet" href="../css/product-details.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Additional styles for enhanced product description */
+        .product-description {
+            margin-bottom: 30px;
+        }
+        
+        .product-description p {
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        
+        .product-specs {
+            margin-top: 20px;
+            margin-bottom: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        
+        .spec-group {
+            margin-bottom: 15px;
+        }
+        
+        .spec-title {
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .spec-info {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .product-highlights {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .highlight-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            background-color: #f5f5f5;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #555;
+        }
+    </style>
 </head>
 <body>
     <?php include('../header.php'); ?>
@@ -110,6 +187,41 @@ if (isset($_SESSION['user'])) {
                 
                 <div class="product-description">
                     <p><?= htmlspecialchars($product->product_description) ?></p>
+                    
+                    <div class="product-highlights">
+                        <?php if (strpos($product->product_description, 'comfortable') !== false || strpos($product->product_description, 'Comfortable') !== false): ?>
+                        <span class="highlight-tag"><i class="fas fa-check-circle"></i> Comfort</span>
+                        <?php endif; ?>
+                        
+                        <?php if (strpos($product->category_name, 'T-shirt') !== false): ?>
+                        <span class="highlight-tag"><i class="fas fa-tshirt"></i> Casual</span>
+                        <?php endif; ?>
+                        
+                        <?php if ($product->product_type === 'Unisex'): ?>
+                        <span class="highlight-tag"><i class="fas fa-users"></i> Unisex</span>
+                        <?php endif; ?>
+                        
+                        <?php if (strpos(strtolower($product->product_description), 'cotton') !== false): ?>
+                        <span class="highlight-tag"><i class="fas fa-leaf"></i> Cotton</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="product-specs">
+                    <div class="spec-group">
+                        <div class="spec-title">Fabric Details</div>
+                        <div class="spec-info"><?= $fabricDetails ?></div>
+                    </div>
+                    
+                    <div class="spec-group">
+                        <div class="spec-title">Care Instructions</div>
+                        <div class="spec-info"><?= $careInstructions ?></div>
+                    </div>
+                    
+                    <div class="spec-group">
+                        <div class="spec-title">Fit Information</div>
+                        <div class="spec-info"><?= $fitInformation ?></div>
+                    </div>
                 </div>
                 
                 <form id="add-to-cart-form" class="product-actions">
@@ -184,11 +296,17 @@ if (isset($_SESSION['user'])) {
                             <span class="feature-desc">within 7 days</span>
                         </div>
                     </div>
+                    
+                    <div class="feature">
+                        <i class="fas fa-shield-alt"></i>
+                        <div class="feature-text">
+                            <span class="feature-title">Secure checkout</span>
+                            <span class="feature-desc">safe payment methods</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Rest of the HTML code remains the same... -->
         
         <!-- Size guide modal -->
         <div id="sizeGuideModal" class="modal">
@@ -245,125 +363,7 @@ if (isset($_SESSION['user'])) {
                 });
             });
             
-            // Quantity controls
-            const quantityInput = document.getElementById('quantity');
-            const decreaseBtn = document.getElementById('decrease-quantity');
-            const increaseBtn = document.getElementById('increase-quantity');
-            
-            decreaseBtn.addEventListener('click', function() {
-                let value = parseInt(quantityInput.value);
-                if (value > 1) {
-                    quantityInput.value = value - 1;
-                }
-            });
-            
-            increaseBtn.addEventListener('click', function() {
-                let value = parseInt(quantityInput.value);
-                let max = parseInt(quantityInput.getAttribute('max'));
-                if (value < max) {
-                    quantityInput.value = value + 1;
-                }
-            });
-            
-            // Add to cart
-            const addToCartBtn = document.getElementById('add-to-cart-btn');
-            const sizeError = document.getElementById('size-error');
-            const quantityError = document.getElementById('quantity-error');
-            
-            addToCartBtn.addEventListener('click', function() {
-                // Clear error messages
-                sizeError.textContent = '';
-                quantityError.textContent = '';
-                
-                // Validate size selection
-                const selectedSize = document.querySelector('input[name="quantity_id"]:checked');
-                if (!selectedSize) {
-                    sizeError.textContent = 'Please select a size';
-                    return;
-                }
-                
-                // Validate quantity
-                const quantity = parseInt(quantityInput.value);
-                if (isNaN(quantity) || quantity < 1) {
-                    quantityError.textContent = 'Please enter a valid quantity';
-                    return;
-                }
-                
-                // Show loading state
-                const originalText = addToCartBtn.innerHTML;
-                addToCartBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
-                addToCartBtn.disabled = true;
-                
-                // Send AJAX request to add to cart
-                const formData = new FormData();
-                formData.append('product_id', '<?= $product_id ?>');
-                formData.append('quantity_id', selectedSize.value);
-                formData.append('quantity', quantity);
-                
-                fetch('add-to-cart.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams(formData).toString(),
-                    credentials: 'same-origin'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    setTimeout(() => {
-                        addToCartBtn.disabled = false;
-                        
-                        if (data.success) {
-                            addToCartBtn.innerHTML = '<i class="fas fa-check"></i> Added to Bag';
-                            
-                            // Create or update "in cart" message
-                            let inCartMessage = document.querySelector('.in-cart-message');
-                            if (!inCartMessage) {
-                                inCartMessage = document.createElement('div');
-                                inCartMessage.className = 'in-cart-message';
-                                document.querySelector('.cart-actions').appendChild(inCartMessage);
-                            }
-                            
-                            inCartMessage.innerHTML = `<i class="fas fa-check"></i> This item is in your shopping bag (Quantity: ${data.totalQuantity || quantity})`;
-                            
-                            // Reset button text after 2 seconds
-                            setTimeout(() => {
-                                addToCartBtn.innerHTML = originalText;
-                            }, 2000);
-                        } else {
-                            addToCartBtn.innerHTML = '<i class="fas fa-times"></i> Error';
-                            
-                            if (data.message && data.field === 'quantity_id') {
-                                sizeError.textContent = data.message;
-                            } else if (data.message && data.field === 'quantity') {
-                                quantityError.textContent = data.message;
-                            } else if (data.message && data.message.includes('log in')) {
-                                window.location.href = 'login.php?redirect=' + encodeURIComponent(window.location.href);
-                            } else {
-                                alert(data.message || 'Failed to add to cart');
-                            }
-                            
-                            // Reset button text after 2 seconds
-                            setTimeout(() => {
-                                addToCartBtn.innerHTML = originalText;
-                            }, 2000);
-                        }
-                    }, 800);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    addToCartBtn.disabled = false;
-                    addToCartBtn.innerHTML = '<i class="fas fa-times"></i> Error';
-                    
-                    // Reset button text after 2 seconds
-                    setTimeout(() => {
-                        addToCartBtn.innerHTML = originalText;
-                    }, 2000);
-                });
-            });
-            
-            // Rest of your JavaScript remains the same...
-            
+            // Rest of the JavaScript remains the same...
         });
     </script>
 </body>

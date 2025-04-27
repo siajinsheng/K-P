@@ -11,7 +11,7 @@ $category_id = req('category', '');
 $sort = req('sort', ''); // Default to no specific sorting
 
 // Build query to get products based on filters
-$sql = "SELECT p.product_id, p.product_name, p.product_price, p.product_pic1, 
+$sql = "SELECT p.product_id, p.product_name, p.product_price, p.product_pic1, p.product_pic2, p.product_pic3, 
                c.category_name, c.category_id 
         FROM product p 
         JOIN category c ON p.category_id = c.category_id
@@ -161,14 +161,36 @@ $categories = $cat_stm->fetchAll();
                         <div class="product-card">
                             <a href="product-details.php?id=<?= $product->product_id ?>" class="product-link">
                                 <div class="product-image">
-                                    <img src="../../img/<?= $product->product_pic1 ?>" alt="<?= $product->product_name ?>">
+                                    <img src="../../img/<?= $product->product_pic1 ?>" alt="<?= $product->product_name ?>" class="primary-image">
+                                    
+                                    <!-- Add hover images only if they exist -->
+                                    <?php if (!empty($product->product_pic2)): ?>
+                                        <img src="../../img/<?= $product->product_pic2 ?>" alt="<?= $product->product_name ?>" class="hover-image hover-image-1">
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($product->product_pic3)): ?>
+                                        <img src="../../img/<?= $product->product_pic3 ?>" alt="<?= $product->product_name ?>" class="hover-image hover-image-2">
+                                    <?php endif; ?>
+                                    
+                                    <!-- Add navigation dots if we have additional images -->
+                                    <?php if (!empty($product->product_pic2) || !empty($product->product_pic3)): ?>
+                                        <div class="image-dots">
+                                            <span class="dot active" data-index="0"></span>
+                                            <?php if (!empty($product->product_pic2)): ?>
+                                                <span class="dot" data-index="1"></span>
+                                            <?php endif; ?>
+                                            <?php if (!empty($product->product_pic3)): ?>
+                                                <span class="dot" data-index="2"></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="product-info">
                                     <h3 class="product-name"><?= $product->product_name ?></h3>
                                     <p class="product-price">RM <?= number_format($product->product_price, 2) ?></p>
                                 </div>
                             </a>
-                            <button class="add-to-cart" data-product="<?= $product->product_id ?>">
+                            <button class="add-to-cart-btn" data-product="<?= $product->product_id ?>" data-name="<?= $product->product_name ?>">
                                 <span class="add-to-cart-text">ADD</span>
                                 <i class="fas fa-shopping-bag"></i>
                             </button>
@@ -184,6 +206,45 @@ $categories = $cat_stm->fetchAll();
     </div>
     
     <div class="overlay" id="overlay"></div>
+    
+    <!-- Size selection modal -->
+    <div id="size-selection-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Select Size</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="product-name"></p>
+                <div class="size-options">
+                    <div class="size-option">
+                        <input type="radio" name="size" id="size-S" value="S">
+                        <label for="size-S">S</label>
+                    </div>
+                    <div class="size-option">
+                        <input type="radio" name="size" id="size-M" value="M">
+                        <label for="size-M">M</label>
+                    </div>
+                    <div class="size-option">
+                        <input type="radio" name="size" id="size-L" value="L" checked>
+                        <label for="size-L">L</label>
+                    </div>
+                    <div class="size-option">
+                        <input type="radio" name="size" id="size-XL" value="XL">
+                        <label for="size-XL">XL</label>
+                    </div>
+                    <div class="size-option">
+                        <input type="radio" name="size" id="size-XXL" value="XXL">
+                        <label for="size-XXL">XXL</label>
+                    </div>
+                </div>
+                <p class="size-error" style="color: red; display: none;">Please select a size</p>
+            </div>
+            <div class="modal-footer">
+                <button id="add-to-cart-confirm" class="primary-btn">Add to Cart</button>
+            </div>
+        </div>
+    </div>
     
     <?php include('../footer.php'); ?>
 
@@ -231,81 +292,241 @@ $categories = $cat_stm->fetchAll();
             });
         }
         
-        // Add to cart functionality
-        const addToCartButtons = document.querySelectorAll('.add-to-cart');
+        // Product image switching on hover
+        document.querySelectorAll('.product-card').forEach(card => {
+            let currentIndex = 0;
+            const imageContainer = card.querySelector('.product-image');
+            const dots = card.querySelectorAll('.dot');
+            const images = [
+                card.querySelector('.primary-image'),
+                card.querySelector('.hover-image-1'),
+                card.querySelector('.hover-image-2')
+            ].filter(img => img); // Filter out null values
+            
+            // Update active image based on index
+            function showImage(index) {
+                if (index >= images.length) return;
+                
+                // Hide all images
+                images.forEach(img => {
+                    if (img) img.style.opacity = 0;
+                });
+                
+                // Show selected image
+                images[index].style.opacity = 1;
+                
+                // Update dots
+                dots.forEach(dot => dot.classList.remove('active'));
+                if (dots[index]) dots[index].classList.add('active');
+                
+                // Update current index
+                currentIndex = index;
+            }
+            
+            // Set initial state
+            showImage(0);
+            
+            // Add click event to dots
+            dots.forEach((dot, index) => {
+                dot.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showImage(index);
+                });
+            });
+            
+            // Auto rotate images on hover
+            let hoverInterval;
+            imageContainer.addEventListener('mouseenter', function() {
+                if (images.length > 1) {
+                    hoverInterval = setInterval(() => {
+                        let nextIndex = (currentIndex + 1) % images.length;
+                        showImage(nextIndex);
+                    }, 1500); // Switch every 1.5 seconds
+                }
+            });
+            
+            imageContainer.addEventListener('mouseleave', function() {
+                if (hoverInterval) {
+                    clearInterval(hoverInterval);
+                    showImage(0); // Reset to first image
+                }
+            });
+        });
+        
+        // Size selection modal functionality
+        const modal = document.getElementById('size-selection-modal');
+        const addToCartButtons = document.querySelectorAll('.add-to-cart-btn');
+        const closeModal = document.querySelector('.close-modal');
+        const addToCartConfirm = document.getElementById('add-to-cart-confirm');
+        const productNameElement = document.getElementById('product-name');
+        const sizeError = document.querySelector('.size-error');
+        
+        let currentProductId = null;
+        let currentProductName = null;
+        
+        // Open modal when clicking ADD button
         addToCartButtons.forEach(button => {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+                currentProductId = this.getAttribute('data-product');
+                currentProductName = this.getAttribute('data-name');
+                productNameElement.textContent = currentProductName;
                 
-                const productId = this.getAttribute('data-product');
-                const originalText = this.innerHTML;
+                // Reset size selection
+                document.querySelector('#size-L').checked = true;
+                sizeError.style.display = 'none';
                 
-                // Show loading state
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                this.disabled = true;
-                
-                // AJAX request to add item to cart
-                fetch('add-to-cart.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `product_id=${productId}&quantity=1`,
-                    credentials: 'same-origin'
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Server responded with status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    setTimeout(() => {
-                        button.disabled = false;
-                        
-                        if (data.success) {
-                            // Show success state
-                            button.innerHTML = '<i class="fas fa-check"></i>';
-                            
-                            // Update cart count in header if exists
-                            const cartCountElement = document.querySelector('.cart-count');
-                            if (cartCountElement && data.cartTotalItems !== undefined) {
-                                cartCountElement.textContent = data.cartTotalItems;
-                            }
-                            
-                            // Reset button text after 2 seconds
-                            setTimeout(() => {
-                                button.innerHTML = originalText;
-                            }, 2000);
-                        } else {
-                            // Show error state
-                            button.innerHTML = '<i class="fas fa-times"></i>';
-                            
-                            // Handle authentication error separately
-                            if (data.message && data.message.includes('log in')) {
-                                window.location.href = 'login.php';
-                            }
-                            
-                            // Reset button text after 2 seconds
-                            setTimeout(() => {
-                                button.innerHTML = originalText;
-                            }, 2000);
-                        }
-                    }, 500);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    button.disabled = false;
-                    button.innerHTML = '<i class="fas fa-times"></i>';
-                    
-                    // Reset button text after 2 seconds
-                    setTimeout(() => {
-                        button.innerHTML = originalText;
-                    }, 2000);
-                });
+                // Show the modal
+                modal.style.display = 'block';
+                document.body.style.overflow = 'hidden'; // Prevent scrolling
             });
         });
+        
+        // Close modal when clicking X
+        closeModal.addEventListener('click', function() {
+            modal.style.display = 'none';
+            document.body.style.overflow = ''; // Enable scrolling
+        });
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = ''; // Enable scrolling
+            }
+        });
+        
+        // Add to cart when size is selected and confirmed
+        addToCartConfirm.addEventListener('click', function() {
+            const selectedSize = document.querySelector('input[name="size"]:checked');
+            
+            if (!selectedSize) {
+                sizeError.style.display = 'block';
+                return;
+            }
+            
+            const size = selectedSize.value;
+            
+            // Show loading state on button
+            const originalText = this.textContent;
+            this.textContent = 'Adding...';
+            this.disabled = true;
+            
+            // First, get the quantity_id for the selected size
+            fetch('get_quantity_id.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `product_id=${currentProductId}&size=${size}`,
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.quantity_id) {
+                    // Now we have the quantity_id, add to cart
+                    return fetch('add-to-cart.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `product_id=${currentProductId}&quantity_id=${data.quantity_id}&quantity=1`,
+                        credentials: 'same-origin'
+                    });
+                } else {
+                    throw new Error(data.message || 'Could not find product with selected size');
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Reset button
+                this.textContent = originalText;
+                this.disabled = false;
+                
+                // Close modal
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+                
+                if (data.success) {
+                    // Show success notification
+                    showNotification(`Added "${currentProductName}" to your cart!`, 'success');
+                    
+                    // Update cart count in header if exists
+                    const cartCountElement = document.querySelector('.cart-count');
+                    if (cartCountElement && data.cartTotalItems !== undefined) {
+                        cartCountElement.textContent = data.cartTotalItems;
+                        cartCountElement.style.display = 'flex';
+                    }
+                } else {
+                    // Handle authentication error separately
+                    if (data.message && data.message.includes('log in')) {
+                        showNotification('Please log in to add items to your cart', 'error');
+                        setTimeout(() => {
+                            window.location.href = 'login.php';
+                        }, 2000);
+                    } else {
+                        // Show error notification
+                        showNotification(data.message || 'Error adding to cart', 'error');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.textContent = originalText;
+                this.disabled = false;
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+                showNotification('An error occurred. Please try again.', 'error');
+            });
+        });
+        
+        // Show notification function
+        function showNotification(message, type = 'success') {
+            // Check if notification container exists
+            let notificationContainer = document.querySelector('.notification-container');
+            
+            if (!notificationContainer) {
+                notificationContainer = document.createElement('div');
+                notificationContainer.className = 'notification-container';
+                document.body.appendChild(notificationContainer);
+            }
+            
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            // Add icon based on type
+            let icon = 'check-circle';
+            if (type === 'error') {
+                icon = 'times-circle';
+            } else if (type === 'warning') {
+                icon = 'exclamation-circle';
+            } else if (type === 'info') {
+                icon = 'info-circle';
+            }
+            
+            notification.innerHTML = `
+                <i class="fas fa-${icon}"></i>
+                <span>${message}</span>
+            `;
+            
+            notificationContainer.appendChild(notification);
+            
+            // Show notification with animation
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+            
+            // Remove notification after few seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }, 3000);
+        }
     </script>
 </body>
 </html>

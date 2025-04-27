@@ -1,7 +1,6 @@
 <?php
 require_once '../../_base.php';
 
-// Ensure session is started and user is authenticated
 safe_session_start();
 
 // Authentication check
