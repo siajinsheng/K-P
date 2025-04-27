@@ -66,6 +66,15 @@ if (!isset($allowedTransitions[$role][$currentStatus]) || !in_array($newStatus, 
     exit;
 }
 
+// Define mapping between order status and delivery status
+$deliveryStatusMapping = [
+    'Pending' => 'Processing',
+    'Processing' => 'Processing',
+    'Shipped' => 'Out for Delivery',
+    'Delivered' => 'Delivered',
+    'Cancelled' => 'Failed'
+];
+
 // Update status and update delivery status for specific transitions
 try {
     $_db->beginTransaction();
@@ -75,16 +84,17 @@ try {
     $updateOrderStmt = $_db->prepare($updateOrderQuery);
     $updateOrderStmt->execute([$newStatus, $orderId]);
     
-    // For specific transitions, update delivery status too
+    // Always update the delivery status based on the mapping
+    $newDeliveryStatus = $deliveryStatusMapping[$newStatus];
+    $updateDeliveryQuery = "UPDATE delivery d 
+                          JOIN orders o ON d.delivery_id = o.delivery_id 
+                          SET d.delivery_status = ?
+                          WHERE o.order_id = ?";
+    $updateDeliveryStmt = $_db->prepare($updateDeliveryQuery);
+    $updateDeliveryStmt->execute([$newDeliveryStatus, $orderId]);
+    
+    // Handle additional status-specific updates
     if ($newStatus === 'Shipped') {
-        // When order is shipped, update delivery status to "Out for Delivery"
-        $updateDeliveryQuery = "UPDATE delivery d 
-                              JOIN orders o ON d.delivery_id = o.delivery_id 
-                              SET d.delivery_status = 'Out for Delivery' 
-                              WHERE o.order_id = ?";
-        $updateDeliveryStmt = $_db->prepare($updateDeliveryQuery);
-        $updateDeliveryStmt->execute([$orderId]);
-        
         // Set estimated delivery date to 3 days from now if not already set
         $updateEstimatedDateQuery = "UPDATE delivery d 
                                    JOIN orders o ON d.delivery_id = o.delivery_id 
@@ -94,24 +104,15 @@ try {
         $updateEstimatedDateStmt->execute([$orderId]);
     } 
     elseif ($newStatus === 'Delivered') {
-        // When order is delivered, update delivery status to "Delivered" and set delivered date
-        $updateDeliveryQuery = "UPDATE delivery d 
-                              JOIN orders o ON d.delivery_id = o.delivery_id 
-                              SET d.delivery_status = 'Delivered', 
-                                  d.delivered_date = CURDATE()
-                              WHERE o.order_id = ?";
-        $updateDeliveryStmt = $_db->prepare($updateDeliveryQuery);
-        $updateDeliveryStmt->execute([$orderId]);
+        // When order is delivered, set delivered date
+        $updateDeliveryDateQuery = "UPDATE delivery d 
+                                  JOIN orders o ON d.delivery_id = o.delivery_id 
+                                  SET d.delivered_date = CURDATE()
+                                  WHERE o.order_id = ?";
+        $updateDeliveryDateStmt = $_db->prepare($updateDeliveryDateQuery);
+        $updateDeliveryDateStmt->execute([$orderId]);
     }
     elseif ($newStatus === 'Cancelled') {
-        // When order is cancelled, update delivery status to "Failed"
-        $updateDeliveryQuery = "UPDATE delivery d 
-                              JOIN orders o ON d.delivery_id = o.delivery_id 
-                              SET d.delivery_status = 'Failed'
-                              WHERE o.order_id = ?";
-        $updateDeliveryStmt = $_db->prepare($updateDeliveryQuery);
-        $updateDeliveryStmt->execute([$orderId]);
-        
         // Also update payment status to "Refunded" if order was cancelled by admin
         $updatePaymentQuery = "UPDATE payment p
                              JOIN orders o ON p.order_id = o.order_id 
@@ -123,7 +124,10 @@ try {
     
     $_db->commit();
     
-    echo json_encode(['success' => true, 'message' => "Order status updated to $newStatus"]);
+    echo json_encode([
+        'success' => true, 
+        'message' => "Order status updated to $newStatus and delivery status updated to $newDeliveryStatus"
+    ]);
 } 
 catch (Exception $e) {
     $_db->rollBack();
