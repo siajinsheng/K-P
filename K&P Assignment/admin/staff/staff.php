@@ -19,7 +19,6 @@ function generateMBId($db) {
 // Handle POST actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_staff'])) {
-        // Backend validation
         if (
             empty(trim(req('user_name')))
             || empty(trim(req('user_Email')))
@@ -36,8 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $userId = generateMBId($_db);
         $stm = $_db->prepare(
-            "INSERT INTO user
-             (user_id, user_name, user_Email, user_password, user_gender, role)
+            "INSERT INTO user (user_id, user_name, user_Email, user_password, user_gender, role)
              VALUES (?, ?, ?, ?, ?, 'staff')"
         );
         $ok = $stm->execute([
@@ -62,10 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             req('user_gender'),
             $userId
         ]);
-    } elseif (isset($_POST['lock'])) {
-        $new = req('status') === 'Inactive' ? 'Active' : 'Inactive';
-        $stm = $_db->prepare("UPDATE user SET status = ? WHERE user_id = ?");
-        $ok = $stm->execute([$new, $userId]);
     } elseif (isset($_POST['ban'])) {
         $new = req('status') === 'Banned' ? 'Active' : 'Banned';
         $stm = $_db->prepare("UPDATE user SET status = ? WHERE user_id = ?");
@@ -141,7 +135,7 @@ require '../headFooter/header.php';
     </div>
     <div class="form-group">
       <label for="filter_status">Status</label>
-      <?= html_select('status', [''=>'All','Active'=>'Active','Inactive'=>'Inactive','Banned'=>'Banned'], $status) ?>
+      <?= html_select('status', [''=>'All','Active'=>'Active','Banned'=>'Banned'], $status) ?>
     </div>
     <button type="submit">Search</button>
   </form>
@@ -177,9 +171,6 @@ require '../headFooter/header.php';
                 <?php endforeach; ?>
               </select>
               <button name="update" class="button-update">Update</button>
-              <button name="lock" class="button-lock">
-                <?= $s->status === 'Inactive' ? 'Unlock' : 'Lock' ?>
-              </button>
               <button name="ban" class="button-block">
                 <?= $s->status === 'Banned' ? 'Unban' : 'Ban' ?>
               </button>
@@ -199,7 +190,6 @@ require '../headFooter/header.php';
     }
     return true;
   }
-
 
   document.querySelector('.add-form').addEventListener('submit', function(e) {
     const name = document.getElementById('user_name');

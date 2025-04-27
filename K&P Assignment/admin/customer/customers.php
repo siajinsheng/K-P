@@ -8,7 +8,7 @@ auth('admin', 'staff');
 require '../headFooter/header.php';
 
 $user_gender = ['Male' => 'Male', 'Female' => 'Female', 'Other' => 'Other'];
-$user_status = ['Active' => 'Active', 'Inactive' => 'Inactive', 'Banned' => 'Banned'];
+$user_status = ['Active' => 'Active', 'Banned' => 'Banned'];
 
 $fields = ['user_Email' => 'Email', 'user_name' => 'Customer Name', 'user_gender' => 'Gender'];
 $sort = req('sort'); key_exists($sort, $fields) || $sort = 'user_Email';
@@ -29,6 +29,7 @@ $params = ["%$email%", $status, $status === null];
 $p = new SimplePager($sql, $params, 10, $page);
 $arr = $p->result;
 
+// Handle POST actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_id = req('user_id');
     if (isset($_POST['update'])) {
@@ -41,10 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
     } elseif (isset($_POST['ban'])) {
         $new = req('status') === 'Banned' ? 'Active' : 'Banned';
-        $stm = $_db->prepare("UPDATE user SET status=? WHERE user_id=?");
-        $success = $stm->execute([$new, $user_id]);
-    } elseif (isset($_POST['lock'])) {
-        $new = req('status') === 'Inactive' ? 'Active' : 'Inactive';
         $stm = $_db->prepare("UPDATE user SET status=? WHERE user_id=?");
         $success = $stm->execute([$new, $user_id]);
     }
@@ -108,9 +105,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <?php endforeach; ?>
             </select>
             <button name="update" class="button-update">Update</button>
-            <button name="lock" class="<?= $c->status==='Inactive' ? 'button-unlock' : 'button-lock' ?>">
-              <?= $c->status==='Inactive' ? 'Unlock' : 'Lock' ?>
-            </button>
             <button name="ban" class="<?= $c->status==='Banned' ? 'button-unblock' : 'button-block' ?>">
               <?= $c->status==='Banned' ? 'Unban' : 'Ban' ?>
             </button>
