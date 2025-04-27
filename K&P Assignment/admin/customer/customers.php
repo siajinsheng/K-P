@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </td>
         <td class="status-<?= strtolower($c->status) ?>">
           <?= $user_status[$c->status] ?? 'Unknown' ?>
-        </td>`
+        </td>
         <td class="actions">
           <form method="post">
             <input type="hidden" name="user_id" value="<?= $c->user_id ?>">
