@@ -1,27 +1,9 @@
 <?php
-$_title = 'K&P - Admin Login';
+$_title = 'K&P - Staff Login';
 require '../../_base.php';
 
 // Use the safe_session_start function instead of directly calling session_start()
 safe_session_start();
-
-// OUTPUT DIAGNOSTIC INFORMATION
-if (isset($_GET['debug'])) {
-    echo "<div style='background:#f8f9fa;padding:10px;margin:10px;border:1px solid #ddd;'>";
-    echo "<h3>SESSION DIAGNOSTIC</h3>";
-    echo "Session ID: " . session_id() . "<br>";
-    echo "Session Status: " . session_status() . "<br>";
-    echo "Session Cookie Parameters:<br><pre>";
-    print_r(session_get_cookie_params());
-    echo "</pre>";
-    echo "Session Data:<br><pre>";
-    print_r($_SESSION);
-    echo "</pre>";
-    echo "Cookie Data:<br><pre>";
-    print_r($_COOKIE);
-    echo "</pre>";
-    echo "</div>";
-}
 
 // Check if user is already logged in
 if (isset($_SESSION['user'])) {
@@ -60,7 +42,6 @@ if ($_SESSION['login_attempts'] >= 3 && $time_passed < $lockout_time) {
 if (is_post() && isset($_POST['login']) && !isset($account_locked)) {
     $email = req('email');
     $password = req('password');
-    $remember = req('remember') ? true : false;
 
     // Validation
     if (empty($email)) {
@@ -116,17 +97,6 @@ if (is_post() && isset($_POST['login']) && !isset($account_locked)) {
                     // Create a direct admin authentication token as an alternate auth mechanism
                     $_SESSION['admin_token'] = md5($user->user_id . $user->user_Email . time());
                     
-                    // Set remember me cookie if requested
-                    if ($remember) {
-                        // Set cookies to store user_id and a secure hashed token
-                        $token_base = $user->user_id . $user->user_password . 'K&P_ADMIN_SECRET_KEY';
-                        $remember_token = hash('sha256', $token_base);
-                        
-                        // Store in cookies for 7 days (604800 seconds)
-                        setcookie('admin_user_id', $user->user_id, time() + (604800), '/');
-                        setcookie('admin_remember_token', $remember_token, time() + (604800), '/');
-                    }
-
                     // Update last login timestamp
                     $stm = $_db->prepare("UPDATE user SET user_update_time = NOW() WHERE user_id = ?");
                     $stm->execute([$user->user_id]);
@@ -182,13 +152,8 @@ $attempts_remaining = isset($account_locked) ? 0 : max(0, 3 - $login_attempts);
 <body>
     <div class="container">
         <div class="login-form">
-            <!-- Debug Link (only for development) -->
-            <div style="text-align:right;margin-bottom:10px;">
-                <a href="?debug=1" style="font-size:12px;color:#999">Diagnostics</a>
-            </div>
-            
             <img src="../../img/K&P logo.png" alt="K&P Logo" class="logo">
-            <h1>Admin Login <span class="admin-badge">Secure Area</span></h1>
+            <h1>Staff Login <span class="admin-badge">Secure Area</span></h1>
             
             <?php if ($success_message): ?>
                 <div class="alert alert-success">
@@ -233,13 +198,6 @@ $attempts_remaining = isset($account_locked) ? 0 : max(0, 3 - $login_attempts);
                             <i class="fas fa-eye-slash toggle-password"></i>
                         </div>
                         <?= err('password') ?>
-                    </div>
-                    
-                    <div class="form-group remember-me">
-                        <div class="checkbox-wrapper">
-                            <input type="checkbox" id="remember" name="remember" value="1">
-                            <label for="remember">Remember me</label>
-                        </div>
                     </div>
                     
                     <div class="form-group">

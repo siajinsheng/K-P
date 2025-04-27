@@ -129,66 +129,8 @@ try {
     <title><?= $_title ?></title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .dashboard-card {
-            transition: all 0.3s;
-        }
-        
-        .dashboard-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-        
-        .stat-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            margin-right: 1rem;
-        }
-        
-        .status-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        
-        .status-badge.active {
-            background-color: #d1fae5;
-            color: #065f46;
-        }
-        
-        .status-badge.upcoming {
-            background-color: #dbeafe;
-            color: #1e40af;
-        }
-        
-        .status-badge.expired {
-            background-color: #fee2e2;
-            color: #991b1b;
-        }
-        
-        .product-image {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 4px;
-        }
-        
-        .date-range-badge {
-            background-color: #f3f4f6;
-            border-radius: 4px;
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-            color: #4b5563;
-            display: inline-flex;
-            align-items: center;
-        }
-    </style>
+    <link href="discount.css" rel="stylesheet">
+    <script src="discount.js"></script>
 </head>
 <body class="bg-gray-50">
     <div class="container mx-auto px-4 py-8">
@@ -505,48 +447,5 @@ try {
     </div>
 
     <?php require '../headFooter/footer.php'; ?>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Limit select change handler
-            document.getElementById('limitSelect').addEventListener('change', function() {
-                const url = new URL(window.location.href);
-                url.searchParams.set('limit', this.value);
-                url.searchParams.set('page', 1); // Reset to first page
-                window.location.href = url.toString();
-            });
-            
-            // Sort headers click handler
-            document.querySelectorAll('th[data-sort]').forEach(header => {
-                header.addEventListener('click', function() {
-                    const sort = this.getAttribute('data-sort');
-                    const currentSort = '<?= $sort ?>';
-                    const currentDir = '<?= $dir ?>';
-                    
-                    let dir = 'asc';
-                    if (sort === currentSort) {
-                        dir = currentDir === 'asc' ? 'desc' : 'asc';
-                    }
-                    
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('sort', sort);
-                    url.searchParams.set('dir', dir);
-                    window.location.href = url.toString();
-                });
-            });
-            
-            // Automatically hide alerts after 5 seconds
-            const alerts = document.querySelectorAll('#successAlert, #errorAlert');
-            alerts.forEach(alert => {
-                setTimeout(() => {
-                    if (alert) {
-                        alert.style.transition = 'opacity 0.5s';
-                        alert.style.opacity = '0';
-                        setTimeout(() => alert.remove(), 500);
-                    }
-                }, 5000);
-            });
-        });
-    </script>
 </body>
 </html>

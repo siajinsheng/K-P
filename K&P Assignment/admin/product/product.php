@@ -333,6 +333,8 @@ if (is_post() && isset($_FILES['csv_file'])) {
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="/admin/product/product.css" rel="stylesheet">
+    <script src="product.js"></script>
+
 </head>
 
 <body class="bg-gray-50">
@@ -920,15 +922,7 @@ if (is_post() && isset($_FILES['csv_file'])) {
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <script>
-            setTimeout(function() {
-                const alert = document.getElementById('errorAlert');
-                if (alert) {
-                    alert.classList.add('translate-x-full');
-                    setTimeout(() => alert.remove(), 500);
-                }
-            }, 5000);
-        </script>
+
     <?php endif; ?>
 
     <?php $success = temp('success');
@@ -942,31 +936,7 @@ if (is_post() && isset($_FILES['csv_file'])) {
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <script>
-            setTimeout(function() {
-                const alert = document.getElementById('successAlert');
-                if (alert) {
-                    alert.classList.add('translate-x-full');
-                    setTimeout(() => alert.remove(), 500);
-                }
-            }, 5000);
 
-            // Add script to position alerts dynamically when page loads
-            document.addEventListener('DOMContentLoaded', function() {
-                const header = document.querySelector('.navbar');
-                const headerHeight = header ? header.offsetHeight + 10 : 85;
-
-                const errorAlert = document.getElementById('errorAlert');
-                if (errorAlert) errorAlert.style.top = `${headerHeight}px`;
-
-                const successAlert = document.getElementById('successAlert');
-                if (successAlert) {
-                    successAlert.style.top = errorAlert ?
-                        `${headerHeight + errorAlert.offsetHeight + 10}px` :
-                        `${headerHeight}px`;
-                }
-            });
-        </script>
     <?php endif; ?>
 
     <?php require '../headFooter/footer.php'; ?>

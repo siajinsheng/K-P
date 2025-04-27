@@ -1,0 +1,17 @@
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .container, .container * {
+        visibility: visible;
+    }
+    .container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    button, .actions {
+        display: none !important;
+    }
+}

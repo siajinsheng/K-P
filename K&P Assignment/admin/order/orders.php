@@ -247,7 +247,7 @@ function canStaffUpdateToStatus($currentStatus, $newStatus) {
     <title><?= $_title ?></title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="../css/orders.css">
+    <link rel="stylesheet" href="orders.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
@@ -707,91 +707,6 @@ function canStaffUpdateToStatus($currentStatus, $newStatus) {
         document.getElementById('filterForm').submit();
     }
     </script>
-
-    <style>
-        /* Additional styles not covered by Tailwind */
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            text-transform: capitalize;
-        }
-        
-        .status-badge.pending {
-            background-color: #FEF3C7;
-            color: #92400E;
-        }
-        
-        .status-badge.processing {
-            background-color: #DBEAFE;
-            color: #1E40AF;
-        }
-        
-        .status-badge.shipped {
-            background-color: #E0E7FF;
-            color: #4338CA;
-        }
-        
-        .status-badge.delivered {
-            background-color: #D1FAE5;
-            color: #065F46;
-        }
-        
-        .status-badge.cancelled {
-            background-color: #FEE2E2;
-            color: #B91C1C;
-        }
-        
-        .payment-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        
-        .payment-badge.completed {
-            background-color: #D1FAE5;
-            color: #065F46;
-        }
-        
-        .payment-badge.pending {
-            background-color: #FEF3C7;
-            color: #92400E;
-        }
-        
-        .payment-badge.failed {
-            background-color: #FEE2E2;
-            color: #B91C1C;
-        }
-        
-        .payment-badge.refunded {
-            background-color: #E0E7FF;
-            color: #4338CA;
-        }
-        
-        .sortable-header {
-            display: flex;
-            align-items: center;
-            color: inherit;
-            text-decoration: none;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        
-        .sortable-header:hover {
-            color: #4F46E5;
-        }
-        
-        .active-view {
-            background-color: #4F46E5;
-            color: white;
-        }
-    </style>
 </body>
 </html>
 
