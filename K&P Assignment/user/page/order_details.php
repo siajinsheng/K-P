@@ -600,18 +600,10 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                             ],
                             'Shipped' => [
                                 'label' => 'Shipped',
-                                'position' => 33,
+                                'position' => 50,
                                 'completed' => in_array($order->delivery_status, ['Out for Delivery', 'Delivered']),
                                 'current' => false,
                                 'date' => $order->delivery_status !== 'Processing' ? date('M d, Y', strtotime($order_date . ' +1 day')) : ''
-                            ],
-                            'Out for Delivery' => [
-                                'label' => 'Out for Delivery',
-                                'position' => 66,
-                                'completed' => in_array($order->delivery_status, ['Out for Delivery', 'Delivered']),
-                                'current' => $order->delivery_status === 'Out for Delivery',
-                                'date' => $order->delivery_status === 'Out for Delivery' || $order->delivery_status === 'Delivered' 
-                                    ? date('M d, Y', strtotime($order_date . ' +2 days')) : ''
                             ],
                             'Delivered' => [
                                 'label' => 'Delivered',
