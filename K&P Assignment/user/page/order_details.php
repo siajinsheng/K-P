@@ -21,6 +21,51 @@ if (empty($order_id)) {
     exit;
 }
 
+// Handle order cancellation
+if (is_post() && isset($_POST['cancel_order'])) {
+    try {
+        // Check if the order exists and belongs to the user
+        $stmt = $_db->prepare("SELECT orders_status FROM orders WHERE order_id = ? AND user_id = ?");
+        $stmt->execute([$order_id, $user_id]);
+        $order = $stmt->fetch();
+
+        if (!$order) {
+            temp('error', "Order not found or you do not have permission to cancel it.");
+            redirect("order_details.php?id=$order_id");
+        } elseif (!in_array($order->orders_status, ['Pending', 'Processing'])) {
+            temp('error', "Only orders in 'Pending' or 'Processing' status can be canceled.");
+            redirect("order_details.php?id=$order_id");
+        } else {
+            // Update the order status to "Cancelled"
+            $_db->beginTransaction();
+
+            $updateOrderQuery = "UPDATE orders SET orders_status = 'Cancelled' WHERE order_id = ?";
+            $updateDeliveryQuery = "UPDATE delivery d 
+                                    JOIN orders o ON d.delivery_id = o.delivery_id 
+                                    SET d.delivery_status = 'Failed' 
+                                    WHERE o.order_id = ?";
+
+            $stmt = $_db->prepare($updateOrderQuery);
+            $stmt->execute([$order_id]);
+
+            $stmt = $_db->prepare($updateDeliveryQuery);
+            $stmt->execute([$order_id]);
+
+            $_db->commit();
+
+            temp('success', "Order #$order_id has been successfully canceled.");
+            redirect("order_details.php?id=$order_id");
+        }
+    } catch (PDOException $e) {
+        if ($_db->inTransaction()) {
+            $_db->rollBack();
+        }
+        error_log("Error canceling order: " . $e->getMessage());
+        temp('error', "An error occurred while canceling the order. Please try again.");
+        redirect("order_details.php?id=$order_id");
+    }
+}
+
 // Initialize variables
 $error_message = temp('error');
 $success_message = temp('success');
@@ -38,13 +83,13 @@ try {
     ");
     $stmt->execute([$order_id, $user_id]);
     $order = $stmt->fetch();
-    
+
     if (!$order) {
         temp('error', 'Order not found or you do not have permission to view it');
         redirect('orders.php');
         exit;
     }
-    
+
     // Get order items
     $stmt = $_db->prepare("
         SELECT od.*, p.product_name, p.product_pic1, q.size
@@ -55,14 +100,13 @@ try {
     ");
     $stmt->execute([$order_id]);
     $order_items = $stmt->fetchAll();
-    
+
     // Get delivery address
     $stmt = $_db->prepare("
         SELECT * FROM address WHERE address_id = ?
     ");
     $stmt->execute([$order->address_id]);
     $address = $stmt->fetch();
-    
 } catch (PDOException $e) {
     error_log("Error fetching order details: " . $e->getMessage());
     temp('error', 'An error occurred while retrieving the order details');
@@ -89,6 +133,7 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -101,10 +146,10 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
         .order-details-container {
             background-color: white;
             border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             margin-top: 20px;
         }
-        
+
         .order-details-header {
             padding: 20px 30px;
             border-bottom: 1px solid #eee;
@@ -114,7 +159,7 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             flex-wrap: wrap;
             gap: 15px;
         }
-        
+
         .order-details-title {
             margin: 0;
             font-size: 1.5rem;
@@ -122,36 +167,36 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             display: flex;
             align-items: center;
         }
-        
+
         .order-details-title .status-badge {
             margin-left: 15px;
         }
-        
+
         .order-meta {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
             gap: 5px;
         }
-        
+
         .order-date-info {
             font-size: 0.85rem;
             color: #666;
         }
-        
+
         .order-id-info {
             font-weight: 600;
         }
-        
+
         .order-details-section {
             padding: 30px;
             border-bottom: 1px solid #eee;
         }
-        
+
         .order-details-section:last-child {
             border-bottom: none;
         }
-        
+
         .section-title {
             font-size: 1.2rem;
             margin: 0 0 20px;
@@ -160,17 +205,17 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             display: flex;
             align-items: center;
         }
-        
+
         .section-title i {
             margin-right: 10px;
             color: #666;
         }
-        
+
         .order-items-table {
             width: 100%;
             border-collapse: collapse;
         }
-        
+
         .order-items-table th {
             text-align: left;
             padding: 12px 15px;
@@ -178,55 +223,58 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             font-weight: 600;
             color: #333;
         }
-        
+
         .order-items-table td {
             padding: 15px;
             border-bottom: 1px solid #eee;
             vertical-align: middle;
         }
-        
+
         .order-items-table tr:last-child td {
             border-bottom: none;
         }
-        
+
         .product-image {
             width: 60px;
             height: 60px;
             object-fit: cover;
         }
-        
+
         .product-details {
             line-height: 1.4;
         }
-        
+
         .product-name {
             font-weight: 500;
             margin-bottom: 5px;
         }
-        
-        .product-size, .product-id {
+
+        .product-size,
+        .product-id {
             font-size: 0.85rem;
             color: #666;
         }
-        
-        .item-quantity, .item-price, .item-total {
+
+        .item-quantity,
+        .item-price,
+        .item-total {
             font-weight: 500;
         }
-        
+
         .order-summary {
             background-color: #f9f9f9;
             padding: 20px;
             border-radius: 5px;
             margin-top: 20px;
         }
-        
+
         .summary-row {
             display: flex;
             justify-content: space-between;
             padding: 8px 0;
             font-size: 0.95rem;
         }
-        
+
         .summary-row.total {
             font-weight: 600;
             font-size: 1.1rem;
@@ -234,20 +282,21 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             padding-top: 12px;
             margin-top: 5px;
         }
-        
-        .shipping-details, .payment-details {
+
+        .shipping-details,
+        .payment-details {
             margin-top: 30px;
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 30px;
         }
-        
+
         .info-card {
             background-color: #f9f9f9;
             padding: 20px;
             border-radius: 5px;
         }
-        
+
         .info-card-title {
             font-weight: 600;
             margin: 0 0 15px;
@@ -256,26 +305,26 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             display: flex;
             align-items: center;
         }
-        
+
         .info-card-title i {
             margin-right: 8px;
         }
-        
+
         .info-row {
             margin-bottom: 10px;
             font-size: 0.95rem;
         }
-        
+
         .info-label {
             font-weight: 500;
             color: #666;
             margin-bottom: 5px;
         }
-        
+
         .info-value {
             color: #333;
         }
-        
+
         .action-buttons {
             display: flex;
             justify-content: center;
@@ -283,7 +332,7 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             margin-top: 30px;
             padding: 0 30px 30px;
         }
-        
+
         .action-button {
             padding: 12px 25px;
             border-radius: 5px;
@@ -294,31 +343,31 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             justify-content: center;
             min-width: 180px;
         }
-        
+
         .action-button i {
             margin-right: 8px;
         }
-        
+
         .primary-action {
             background-color: #000;
             color: white;
             border: none;
         }
-        
+
         .primary-action:hover {
             background-color: #333;
         }
-        
+
         .secondary-action {
             background-color: white;
             color: #000;
             border: 1px solid #000;
         }
-        
+
         .secondary-action:hover {
             background-color: #f5f5f5;
         }
-        
+
         .tracking-info {
             background-color: #f0f7ff;
             border-radius: 5px;
@@ -326,16 +375,16 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             margin-top: 20px;
             border-left: 3px solid #0066cc;
         }
-        
+
         .tracking-info p {
             margin: 5px 0;
             font-size: 0.95rem;
         }
-        
+
         .delivery-timeline {
             margin: 25px 0 15px;
         }
-        
+
         .timeline-track {
             position: relative;
             height: 4px;
@@ -343,7 +392,7 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             margin: 40px 0 60px;
             border-radius: 4px;
         }
-        
+
         .timeline-progress {
             position: absolute;
             top: 0;
@@ -352,13 +401,13 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             background-color: #000;
             border-radius: 4px;
         }
-        
+
         .timeline-steps {
             position: relative;
             display: flex;
             justify-content: space-between;
         }
-        
+
         .timeline-step {
             position: absolute;
             top: -34px;
@@ -368,7 +417,7 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             align-items: center;
             width: 120px;
         }
-        
+
         .step-icon {
             width: 24px;
             height: 24px;
@@ -383,125 +432,130 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             border: 2px solid white;
             z-index: 1;
         }
-        
+
         .step-icon.completed {
             background-color: #000;
         }
-        
+
         .step-icon.current {
             background-color: #000;
             animation: pulse 1.5s infinite;
         }
-        
+
         .step-text {
             font-size: 0.85rem;
             text-align: center;
             color: #666;
             font-weight: 500;
         }
-        
+
         .step-date {
             font-size: 0.75rem;
             color: #999;
             margin-top: 3px;
         }
-        
+
         @keyframes pulse {
             0% {
                 box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.4);
             }
+
             70% {
                 box-shadow: 0 0 0 8px rgba(0, 0, 0, 0);
             }
+
             100% {
                 box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
             }
         }
-        
+
         @media (max-width: 768px) {
-            .shipping-details, .payment-details {
+
+            .shipping-details,
+            .payment-details {
                 grid-template-columns: 1fr;
                 gap: 20px;
             }
-            
+
             .order-details-header {
                 flex-direction: column;
                 align-items: flex-start;
             }
-            
+
             .order-meta {
                 align-items: flex-start;
             }
-            
+
             .action-buttons {
                 flex-direction: column;
                 align-items: stretch;
             }
-            
+
             .action-button {
                 width: 100%;
             }
-            
+
             .order-items-table {
                 display: block;
                 overflow-x: auto;
             }
-            
+
             .timeline-step {
                 width: 90px;
                 font-size: 0.8rem;
             }
         }
-        
+
         @media (max-width: 576px) {
             .order-details-section {
                 padding: 20px;
             }
-            
+
             .timeline-track {
                 margin: 30px 0 80px;
             }
-            
+
             .timeline-step {
                 width: 70px;
             }
-            
+
             .step-text {
                 font-size: 0.75rem;
             }
         }
     </style>
 </head>
+
 <body>
     <?php include('../header.php'); ?>
 
     <div class="container">
         <h1 class="page-title">Order Details</h1>
-        
+
         <?php if ($success_message): ?>
             <div class="alert alert-success">
                 <i class="fas fa-check-circle"></i> <?= $success_message ?>
             </div>
         <?php endif; ?>
-        
+
         <?php if ($info_message): ?>
             <div class="alert alert-info">
                 <i class="fas fa-info-circle"></i> <?= $info_message ?>
             </div>
         <?php endif; ?>
-        
+
         <?php if ($error_message): ?>
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-circle"></i> <?= $error_message ?>
             </div>
         <?php endif; ?>
-        
+
         <div class="back-link">
             <a href="orders.php">
                 <i class="fas fa-arrow-left"></i> Back to My Orders
             </a>
         </div>
-        
+
         <div class="order-details-container">
             <div class="order-details-header">
                 <h2 class="order-details-title">
@@ -510,18 +564,18 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                         <?= htmlspecialchars($order->orders_status) ?>
                     </span>
                 </h2>
-                
+
                 <div class="order-meta">
                     <div class="order-date-info">Placed on: <?= $order_date ?></div>
                     <div class="order-id-info">Order ID: <?= htmlspecialchars($order->order_id) ?></div>
                 </div>
             </div>
-            
+
             <div class="order-details-section">
                 <h3 class="section-title">
                     <i class="fas fa-box-open"></i> Order Items
                 </h3>
-                
+
                 <table class="order-items-table">
                     <thead>
                         <tr>
@@ -554,7 +608,7 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-                
+
                 <div class="order-summary">
                     <div class="summary-row">
                         <div>Subtotal</div>
@@ -580,12 +634,12 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                     </div>
                 </div>
             </div>
-            
+
             <div class="order-details-section">
                 <h3 class="section-title">
                     <i class="fas fa-truck"></i> Shipment Details
                 </h3>
-                
+
                 <?php if (in_array($order->delivery_status, ['Processing', 'Out for Delivery', 'Delivered'])): ?>
                     <div class="delivery-timeline">
                         <?php
@@ -613,7 +667,7 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                                 'date' => $order->delivery_status === 'Delivered' ? $delivered_date : $estimated_date
                             ]
                         ];
-                        
+
                         // Determine progress width based on current status
                         $progress_width = 0;
                         foreach ($steps as $status => $step) {
@@ -626,7 +680,7 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                             }
                         }
                         ?>
-                        
+
                         <div class="timeline-track">
                             <div class="timeline-progress" style="width: <?= $progress_width ?>%;"></div>
                             <div class="timeline-steps">
@@ -643,17 +697,17 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                                 <?php endforeach; ?>
                             </div>
                         </div>
-                        
+
                     </div>
-                    
+
                     <div class="tracking-info">
                         <p>
-                            <strong>Estimated Delivery:</strong> 
+                            <strong>Estimated Delivery:</strong>
                             <?= $estimated_date ?>
                         </p>
                         <?php if ($order->delivery_status === 'Delivered'): ?>
                             <p>
-                                <strong>Delivered On:</strong> 
+                                <strong>Delivered On:</strong>
                                 <?= $delivered_date ?>
                             </p>
                         <?php endif; ?>
@@ -669,7 +723,7 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                 <?php else: ?>
                     <p>Delivery information is not available at this time.</p>
                 <?php endif; ?>
-                
+
                 <div class="shipping-details">
                     <div class="info-card">
                         <h4 class="info-card-title">
@@ -683,14 +737,14 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                                 <p><?= htmlspecialchars($address->address_line2) ?></p>
                             <?php endif; ?>
                             <p>
-                                <?= htmlspecialchars($address->city) ?>, 
-                                <?= htmlspecialchars($address->state) ?>, 
+                                <?= htmlspecialchars($address->city) ?>,
+                                <?= htmlspecialchars($address->state) ?>,
                                 <?= htmlspecialchars($address->post_code) ?>
                             </p>
                             <p><?= htmlspecialchars($address->country) ?></p>
                         </div>
                     </div>
-                    
+
                     <div class="info-card">
                         <h4 class="info-card-title">
                             <i class="fas fa-shipping-fast"></i> Delivery Method
@@ -716,12 +770,12 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                     </div>
                 </div>
             </div>
-            
+
             <div class="order-details-section">
                 <h3 class="section-title">
                     <i class="fas fa-credit-card"></i> Payment Information
                 </h3>
-                
+
                 <div class="payment-details">
                     <div class="info-card">
                         <h4 class="info-card-title">
@@ -773,7 +827,7 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="info-card">
                         <h4 class="info-card-title">
                             <i class="fas fa-file-invoice-dollar"></i> Billing Summary
@@ -805,16 +859,15 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
                     </div>
                 </div>
             </div>
-            
+
             <div class="action-buttons">
-                <?php if ($order->orders_status === 'Delivered'): ?>
-                    <a href="#" class="action-button primary-action">
-                        <i class="fas fa-star"></i> Write a Review
-                    </a>
-                <?php elseif ($order->orders_status !== 'Cancelled'): ?>
-                    <a href="contact.php?subject=Order%20<?= $order->order_id ?>%20Inquiry" class="action-button primary-action">
-                        <i class="fas fa-question-circle"></i> Need Help?
-                    </a>
+                <?php if (in_array($order->orders_status, ['Pending', 'Processing'])): ?>
+                    <form method="post" onsubmit="return confirm('Are you sure you want to cancel this order?');">
+                        <input type="hidden" name="cancel_order" value="1">
+                        <button type="submit" class="action-button primary-action">
+                            <i class="fas fa-times-circle"></i> Cancel Order
+                        </button>
+                    </form>
                 <?php endif; ?>
                 <a href="orders.php" class="action-button secondary-action">
                     <i class="fas fa-list"></i> Back to Orders
@@ -822,7 +875,8 @@ $discount = $total - $subtotal - $tax - $delivery_fee;
             </div>
         </div>
     </div>
-    
+
     <?php include('../footer.php'); ?>
 </body>
+
 </html>

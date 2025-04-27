@@ -220,17 +220,6 @@ if (is_post() && isset($_POST['proceed_to_payment'])) {
                 // Redirect to confirmation page
                 redirect('checkout_confirm.php');
                 exit;
-            } else {
-                // New card (payment_method_id is empty)
-                $_SESSION['checkout_data']['payment_option'] = 'new';
-                $_SESSION['checkout_data']['payment_type'] = 'Credit Card';
-                $_SESSION['checkout_data']['save_payment'] = $save_payment;
-                
-                error_log("[$username] Using new credit card, save card: $save_payment");
-                
-                // Redirect to payment page for card details
-                redirect('checkout_payment.php');
-                exit;
             }
         } else if ($payment_method_type === 'Stripe') {
             // Stripe payment

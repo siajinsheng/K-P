@@ -1,7 +1,6 @@
 <?php
 require_once '../../_base.php';
 
-// Ensure session is started and user is authenticated
 safe_session_start();
 
 // Authentication check
@@ -17,6 +16,49 @@ $page_title = "My Orders";
 $error_message = temp('error');
 $success_message = temp('success');
 $info_message = temp('info');
+
+// Handle order cancellation
+if (is_post() && isset($_POST['cancel_order_id'])) {
+    $cancel_order_id = post('cancel_order_id');
+
+    try {
+        // Check if the order exists and belongs to the user
+        $stmt = $_db->prepare("SELECT orders_status FROM orders WHERE order_id = ? AND user_id = ?");
+        $stmt->execute([$cancel_order_id, $user_id]);
+        $order = $stmt->fetch();
+
+        if (!$order) {
+            $error_message = "Order not found or you do not have permission to cancel it.";
+        } elseif (!in_array($order->orders_status, ['Pending', 'Processing'])) {
+            $error_message = "Only orders in 'Pending' or 'Processing' status can be canceled.";
+        } else {
+            // Update the order status to "Cancelled"
+            $_db->beginTransaction();
+
+            $updateOrderQuery = "UPDATE orders SET orders_status = 'Cancelled' WHERE order_id = ?";
+            $updateDeliveryQuery = "UPDATE delivery d 
+                                    JOIN orders o ON d.delivery_id = o.delivery_id 
+                                    SET d.delivery_status = 'Failed' 
+                                    WHERE o.order_id = ?";
+
+            $stmt = $_db->prepare($updateOrderQuery);
+            $stmt->execute([$cancel_order_id]);
+
+            $stmt = $_db->prepare($updateDeliveryQuery);
+            $stmt->execute([$cancel_order_id]);
+
+            $_db->commit();
+
+            $success_message = "Order #$cancel_order_id has been successfully canceled.";
+        }
+    } catch (PDOException $e) {
+        if ($_db->inTransaction()) {
+            $_db->rollBack();
+        }
+        error_log("Error canceling order: " . $e->getMessage());
+        $error_message = "An error occurred while canceling the order. Please try again.";
+    }
+}
 
 // Pagination settings
 $items_per_page = 10;
@@ -36,7 +78,7 @@ try {
         GROUP BY o.order_id, o.order_date, o.orders_status, o.order_total, p.payment_method, p.payment_status
         ORDER BY o.order_date DESC
     ";
-    
+
     // Count total records for pagination
     $count_query = "
         SELECT COUNT(*) FROM (
@@ -46,19 +88,19 @@ try {
             GROUP BY o.order_id
         ) as temp
     ";
-    
+
     $count_stmt = $_db->prepare($count_query);
     $count_stmt->execute([':user_id' => $user_id]);
     $total_records = (int)$count_stmt->fetchColumn();
     $total_pages = ceil($total_records / $items_per_page);
-    
+
     // Adjust current page if out of bounds
     if ($current_page < 1) {
         $current_page = 1;
     } elseif ($current_page > $total_pages && $total_pages > 0) {
         $current_page = $total_pages;
     }
-    
+
     // Add pagination
     $query .= " LIMIT :offset, :per_page";
     $params = [
@@ -66,23 +108,22 @@ try {
         ':offset' => $offset,
         ':per_page' => $items_per_page
     ];
-    
+
     // Execute the query
     $stmt = $_db->prepare($query);
-    
+
     // PDO doesn't support binding LIMIT parameters directly, so we need to do this
     foreach ($params as $key => $value) {
         $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
     }
-    
+
     $stmt->execute();
     $orders = $stmt->fetchAll();
-    
+
     // Get total orders count
     $stmt = $_db->prepare("SELECT COUNT(*) FROM orders WHERE user_id = ?");
     $stmt->execute([$user_id]);
     $total_orders = $stmt->fetchColumn();
-    
 } catch (PDOException $e) {
     error_log("Error fetching orders: " . $e->getMessage());
     $orders = [];
@@ -93,7 +134,8 @@ try {
 }
 
 // Helper function to build URLs with parameters
-function build_url($params = []) {
+function build_url($params = [])
+{
     $current_params = $_GET;
     $new_params = array_merge($current_params, $params);
     return '?' . http_build_query($new_params);
@@ -102,6 +144,7 @@ function build_url($params = []) {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -110,36 +153,37 @@ function build_url($params = []) {
     <link rel="stylesheet" href="../css/orders.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
+
 <body>
     <?php include('../header.php'); ?>
 
     <div class="container">
         <h1 class="page-title">My Orders</h1>
-        
+
         <?php if ($success_message): ?>
             <div class="alert alert-success">
                 <i class="fas fa-check-circle"></i> <?= $success_message ?>
             </div>
         <?php endif; ?>
-        
+
         <?php if ($info_message): ?>
             <div class="alert alert-info">
                 <i class="fas fa-info-circle"></i> <?= $info_message ?>
             </div>
         <?php endif; ?>
-        
+
         <?php if ($error_message): ?>
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-circle"></i> <?= $error_message ?>
             </div>
         <?php endif; ?>
-        
+
         <div class="back-link">
             <a href="profile.php#order-history">
                 <i class="fas fa-arrow-left"></i> Back to My Profile
             </a>
         </div>
-        
+
         <div class="orders-container">
             <?php if (empty($orders)): ?>
                 <div class="empty-state">
@@ -151,7 +195,7 @@ function build_url($params = []) {
                 <div class="order-summary">
                     <p>Showing all orders (<?= $total_records ?>)</p>
                 </div>
-                
+
                 <!-- Orders List -->
                 <div class="orders-list">
                     <div class="order-header">
@@ -162,7 +206,7 @@ function build_url($params = []) {
                         <div class="order-col">Status</div>
                         <div class="order-col">Action</div>
                     </div>
-                    
+
                     <?php foreach ($orders as $order): ?>
                         <div class="order-row">
                             <div class="order-col order-id">
@@ -194,12 +238,18 @@ function build_url($params = []) {
                                 <?php endif; ?>
                             </div>
                             <div class="order-col order-action">
+                                <form method="post" onsubmit="return confirm('Are you sure you want to cancel this order?');">
+                                    <input type="hidden" name="cancel_order_id" value="<?= htmlspecialchars($order->order_id) ?>">
+                                    <button type="submit" class="btn outline-btn sm" <?= !in_array($order->orders_status, ['Pending', 'Processing']) ? 'disabled' : '' ?>>
+                                        Cancel
+                                    </button>
+                                </form>
                                 <a href="order_details.php?id=<?= $order->order_id ?>" class="btn outline-btn sm">View Details</a>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
-                
+
                 <!-- Pagination -->
                 <?php if ($total_pages > 1): ?>
                     <div class="pagination">
@@ -208,13 +258,13 @@ function build_url($params = []) {
                                 <i class="fas fa-chevron-left"></i> Previous
                             </a>
                         <?php endif; ?>
-                        
+
                         <div class="page-numbers">
                             <?php
                             $max_visible_pages = 5;
                             $start_page = max(1, min($current_page - floor($max_visible_pages / 2), $total_pages - $max_visible_pages + 1));
                             $end_page = min($start_page + $max_visible_pages - 1, $total_pages);
-                            
+
                             // Display first page if not in visible range
                             if ($start_page > 1) {
                                 echo '<a href="orders.php' . build_url(['page' => 1]) . '" class="page-number">1</a>';
@@ -222,7 +272,7 @@ function build_url($params = []) {
                                     echo '<span class="page-ellipsis">...</span>';
                                 }
                             }
-                            
+
                             // Display visible page numbers
                             for ($i = $start_page; $i <= $end_page; $i++) {
                                 if ($i == $current_page) {
@@ -231,7 +281,7 @@ function build_url($params = []) {
                                     echo '<a href="orders.php' . build_url(['page' => $i]) . '" class="page-number">' . $i . '</a>';
                                 }
                             }
-                            
+
                             // Display last page if not in visible range
                             if ($end_page < $total_pages) {
                                 if ($end_page < $total_pages - 1) {
@@ -241,7 +291,7 @@ function build_url($params = []) {
                             }
                             ?>
                         </div>
-                        
+
                         <?php if ($current_page < $total_pages): ?>
                             <a href="orders.php<?= build_url(['page' => $current_page + 1]) ?>" class="page-link">
                                 Next <i class="fas fa-chevron-right"></i>
@@ -249,11 +299,12 @@ function build_url($params = []) {
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
-                
+
             <?php endif; ?>
         </div>
     </div>
-    
+
     <?php include('../footer.php'); ?>
 </body>
+
 </html>
