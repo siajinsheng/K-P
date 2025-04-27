@@ -28,14 +28,13 @@ if (!isset($user->role) || ($user->role !== 'admin' && $user->role !== 'staff'))
     exit;
 }
 
-$photo = isset($user->admin_profile_pic) 
-    ? $user->admin_profile_pic 
+$photo = isset($user->user_profile_pic) && !empty($user->user_profile_pic)
+    ? $user->user_profile_pic 
     : 'default.png';
 
-$photoPath = $_SERVER['DOCUMENT_ROOT'] . '/admin/pic/' . $photo;
-if (!file_exists($photoPath)) {
+// Using a simpler approach for path checking
+if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/img/' . $photo)) {
     $photo = 'default.png';
-    error_log("Missing profile photo: " . $photoPath);
 }
 
 // Determine active page
@@ -70,7 +69,7 @@ if ($user->role === 'staff' && $isStaffPage) {
             </button>
             <div class="logo">
                 <a href="../home/home.php"><img src="../../img/K&P logo.png" alt="K&P Logo"></a>
-                <span class="logo-text">K&P Admin</span>
+                <span class="logo-text">K&P Staff</span>
             </div>
         </div>
 
@@ -88,11 +87,13 @@ if ($user->role === 'staff' && $isStaffPage) {
                 <?php endif; ?>
                 <li class="user-profile-container">
                     <div class="user-profile">
-                        <img src="../../img/<?= htmlspecialchars($photo) ?>" alt="<?= htmlspecialchars($user->user_name ?? 'Admin') ?>" class="profile-pic">
+                        <img src="../../img/<?= htmlspecialchars($photo) ?>" alt="<?= htmlspecialchars($user->user_name ?? 'Admin') ?>" class="profile-pic"
+                             onerror="this.onerror=null; this.src='../../img/default.png';">
                         <i class="fas fa-chevron-down"></i>
                         <div class="profile-dropdown">
                             <div class="profile-header">
-                                <img src="../../img/<?= htmlspecialchars($photo) ?>" alt="<?= htmlspecialchars($user->user_name ?? 'Admin') ?>">
+                                <img src="../../img/<?= htmlspecialchars($photo) ?>" alt="<?= htmlspecialchars($user->user_name ?? 'Admin') ?>"
+                                     onerror="this.onerror=null; this.src='../../img/default.png';">
                                 <div class="profile-info">
                                     <span class="profile-name"><?= htmlspecialchars($user->user_name ?? 'Admin') ?></span>
                                     <span class="profile-email"><?= htmlspecialchars($user->user_Email ?? '') ?></span>

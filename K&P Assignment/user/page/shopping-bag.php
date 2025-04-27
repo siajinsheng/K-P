@@ -38,26 +38,30 @@ function generate_id($table, $id_field, $prefix, $pad_length = 3) {
     return sprintf('%s%0' . $pad_length . 'd', $prefix, $next_num);
 }
 
-// CONTINUE TO CHECKOUT Action - Create order, payment, delivery records
+// CONTINUE TO CHECKOUT Action - Prepare for checkout
 if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_checkout') {
     try {
-        $_db->beginTransaction();
+        error_log("[$username] Starting checkout process from shopping bag");
         
         // Fetch cart items
         $stm = $_db->prepare("
-            SELECT c.*, p.product_price, p.product_name 
+            SELECT c.*, p.product_price, p.product_name, p.product_pic1, q.quantity_id, q.size
             FROM cart c
             JOIN product p ON c.product_id = p.product_id
+            LEFT JOIN quantity q ON c.quantity_id = q.quantity_id
             WHERE c.user_id = ?
         ");
         $stm->execute([$user_id]);
         $cart_items = $stm->fetchAll();
         
         if (empty($cart_items)) {
+            error_log("[$username] Cart is empty, redirecting back to shopping bag");
             temp('error', 'Your shopping bag is empty');
             redirect('shopping-bag.php');
             exit;
         }
+        
+        error_log("[$username] Found " . count($cart_items) . " items in cart");
         
         // Check if all items are in stock
         $all_in_stock = true;
@@ -67,19 +71,21 @@ if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_check
             // Get stock information
             $stm = $_db->prepare("
                 SELECT product_stock FROM quantity 
-                WHERE product_id = ? AND size = ?
+                WHERE quantity_id = ?
             ");
-            $stm->execute([$item->product_id, $item->size]);
+            $stm->execute([$item->quantity_id]);
             $stock = $stm->fetchColumn();
             
             if ($stock < $item->quantity) {
                 $all_in_stock = false;
                 $items_with_issues[] = $item->product_name;
+                error_log("[$username] Item {$item->product_name} has insufficient stock: requested {$item->quantity}, available $stock");
             }
         }
         
         if (!$all_in_stock) {
             $error_msg = 'Some items are out of stock: ' . implode(', ', $items_with_issues);
+            error_log("[$username] Stock check failed: $error_msg");
             temp('error', $error_msg);
             redirect('shopping-bag.php');
             exit;
@@ -98,10 +104,13 @@ if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_check
         }
         
         if (!$address_id) {
+            error_log("[$username] No delivery address found");
             temp('error', 'Please add a delivery address first');
-            redirect('address.php?redirect=shopping-bag.php');
+            redirect('add_address.php?redirect=shopping-bag.php');
             exit;
         }
+        
+        error_log("[$username] Using address ID: $address_id");
         
         // Calculate subtotal and total
         $subtotal = 0;
@@ -114,105 +123,44 @@ if (is_post() && isset($_POST['action']) && $_POST['action'] === 'continue_check
         $stm->execute([$address_id]);
         $state = $stm->fetchColumn();
         
-        // Set delivery fee based on state (East Malaysia higher fee)
-        $delivery_fee = in_array($state, ['Sabah', 'Sarawak', 'Labuan']) ? 40 : 20;
+        // Modified delivery fee calculation
+        // Free shipping for orders over RM100
+        if ($subtotal >= 100) {
+            $delivery_fee = 0; // Free delivery
+            error_log("[$username] Free delivery applied (order > RM100)");
+        } else {
+            // Set delivery fee based on state (East Malaysia higher fee)
+            $delivery_fee = in_array($state, ['Sabah', 'Sarawak', 'Labuan']) ? 40 : 20;
+            error_log("[$username] Delivery fee set to RM$delivery_fee for state: $state");
+        }
         
         // Calculate tax (6%)
         $tax = round($subtotal * 0.06, 2);
         
         // Calculate total (no discount for now)
         $order_total = $subtotal + $tax + $delivery_fee;
-        $discount = 0; // No discount applied
         
-        // Generate IDs in required format
-        $order_id = generate_id('orders', 'order_id', 'OR');
-        $payment_id = generate_id('payment', 'payment_id', 'PM');
-        $delivery_id = generate_id('delivery', 'delivery_id', 'DV');
+        // Store checkout data in session
+        $_SESSION['checkout_data'] = [
+            'cart_items' => $cart_items,
+            'address_id' => $address_id,
+            'subtotal' => $subtotal,
+            'tax' => $tax,
+            'delivery_fee' => $delivery_fee,
+            'total' => $order_total,
+            'prepared_at' => time()
+        ];
         
-        error_log("Generated IDs - Order: $order_id, Payment: $payment_id, Delivery: $delivery_id");
+        error_log("[$username] Checkout data saved to session: subtotal=$subtotal, tax=$tax, delivery=$delivery_fee, total=$order_total");
         
-        // Set estimated delivery date (3 days from now)
-        $estimated_date = date('Y-m-d', strtotime('+3 days'));
-        
-        // Insert delivery record
-        $stm = $_db->prepare("
-            INSERT INTO delivery (
-                delivery_id, address_id, delivery_fee, 
-                delivery_status, estimated_date
-            ) VALUES (?, ?, ?, 'Processing', ?)
-        ");
-        $stm->execute([$delivery_id, $address_id, $delivery_fee, $estimated_date]);
-        
-        // Insert order record
-        $stm = $_db->prepare("
-            INSERT INTO orders (
-                order_id, user_id, delivery_id, 
-                order_date, orders_status, order_subtotal, order_total
-            ) VALUES (?, ?, ?, NOW(), 'Pending', ?, ?)
-        ");
-        $stm->execute([
-            $order_id, 
-            $user_id, 
-            $delivery_id, 
-            $subtotal,
-            $order_total
-        ]);
-        
-        // Insert payment record
-        $stm = $_db->prepare("
-            INSERT INTO payment (
-                payment_id, order_id, tax, 
-                total_amount, payment_method, payment_status, 
-                payment_date, discount
-            ) VALUES (?, ?, ?, ?, '', 'Pending', NOW(), ?)
-        ");
-        $stm->execute([
-            $payment_id,
-            $order_id,
-            $tax,
-            $order_total,
-            $discount
-        ]);
-        
-        // Insert order details for each cart item
-        foreach ($cart_items as $item) {
-            $stm = $_db->prepare("
-                INSERT INTO order_details (
-                    order_id, product_id, quantity, unit_price
-                ) VALUES (?, ?, ?, ?)
-            ");
-            $stm->execute([
-                $order_id,
-                $item->product_id,
-                $item->quantity,
-                $item->product_price
-            ]);
-        }
-        
-        // Clear cart items
-        $stm = $_db->prepare("DELETE FROM cart WHERE user_id = ?");
-        $stm->execute([$user_id]);
-        
-        // Commit all database changes
-        $_db->commit();
-        
-        // Store order information in session for checkout page
-        $_SESSION['checkout_order_id'] = $order_id;
-        $_SESSION['checkout_payment_id'] = $payment_id;
-        $_SESSION['checkout_delivery_id'] = $delivery_id;
-        
-        // Log the successful checkout
-        error_log("User $username ($user_id) checked out successfully. Order ID: $order_id");
-        
-        // Redirect to checkout confirmation page
-        temp('success', 'Your order has been placed!');
+        // Redirect to checkout page
+        error_log("[$username] Redirecting to checkout.php");
         redirect('checkout.php');
         exit;
     } catch (Exception $e) {
-        // Roll back all changes if something went wrong
-        $_db->rollBack();
-        error_log("Checkout error: " . $e->getMessage());
-        temp('error', 'An error occurred during checkout. Please try again.');
+        error_log("[$username] Checkout preparation error: " . $e->getMessage());
+        error_log("[$username] Error trace: " . $e->getTraceAsString());
+        temp('error', 'An error occurred while preparing checkout. Please try again.');
         redirect('shopping-bag.php');
         exit;
     }
@@ -225,9 +173,10 @@ if (isset($_GET['remove']) && is_get()) {
     try {
         // Get product details before removing (for logging)
         $stm = $_db->prepare("
-            SELECT c.product_id, c.size, c.quantity, p.product_name 
+            SELECT c.product_id, q.size, c.quantity, p.product_name 
             FROM cart c 
             JOIN product p ON c.product_id = p.product_id
+            JOIN quantity q ON c.quantity_id = q.quantity_id
             WHERE c.cart_id = ? AND c.user_id = ?
         ");
         $stm->execute([$cart_id, $user_id]);
@@ -270,7 +219,7 @@ if (is_post() && isset($_POST['update_cart'])) {
             try {
                 // Get current cart item info
                 $stm = $_db->prepare("
-                    SELECT c.product_id, c.size, c.quantity, p.product_name 
+                    SELECT c.product_id, c.quantity_id, c.quantity, p.product_name 
                     FROM cart c
                     JOIN product p ON c.product_id = p.product_id
                     WHERE c.cart_id = ? AND c.user_id = ?
@@ -287,9 +236,9 @@ if (is_post() && isset($_POST['update_cart'])) {
                     // Check stock
                     $stm = $_db->prepare("
                         SELECT product_stock FROM quantity 
-                        WHERE product_id = ? AND size = ?
+                        WHERE quantity_id = ?
                     ");
-                    $stm->execute([$current_item->product_id, $current_item->size]);
+                    $stm->execute([$current_item->quantity_id]);
                     $stock = $stm->fetchColumn();
                     
                     if ($stock < $quantity) {
@@ -330,12 +279,12 @@ if (is_post() && isset($_POST['update_cart'])) {
 // Get cart items with product details
 try {
     $stm = $_db->prepare("
-        SELECT c.cart_id, c.product_id, c.quantity, c.size, c.added_time,
+        SELECT c.cart_id, c.product_id, c.quantity, c.quantity_id, c.added_time,
                p.product_name, p.product_price, p.product_pic1, p.product_status,
-               q.product_stock
+               q.size, q.product_stock
         FROM cart c
         JOIN product p ON c.product_id = p.product_id
-        JOIN quantity q ON c.product_id = q.product_id AND c.size = q.size
+        JOIN quantity q ON c.quantity_id = q.quantity_id
         WHERE c.user_id = ?
         ORDER BY c.added_time DESC
     ");
@@ -370,8 +319,8 @@ try {
         $total_items += $item->quantity;
     }
     
-    // Determine shipping fee
-    $shipping_fee = $subtotal >= 100 ? 0 : 10;
+    // Modified shipping fee logic - free for orders over RM100
+    $shipping_fee = $subtotal >= 100 ? 0 : 20;
     
     // Calculate total
     $total = $subtotal + $shipping_fee;
@@ -543,10 +492,10 @@ $current_time = date('Y-m-d H:i:s');
                         <span class="total-value">RM <?= number_format($total, 2) ?></span>
                     </div>
                     
-                    <!-- Modified to use POST method for checkout process -->
-                    <form method="post" action="shopping-bag.php">
+                    <!-- Modified to use direct form with POST method for checkout process -->
+                    <form method="post" action="shopping-bag.php" id="checkout-form">
                         <input type="hidden" name="action" value="continue_checkout">
-                        <button type="submit" class="checkout-btn" <?= !empty($items_with_issues) ? 'disabled' : '' ?>>
+                        <button type="submit" name="checkout_button" id="checkout-button" class="checkout-btn" <?= !empty($items_with_issues) ? 'disabled' : '' ?>>
                             CONTINUE TO CHECKOUT
                         </button>
                     </form>
@@ -620,6 +569,22 @@ $current_time = date('Y-m-d H:i:s');
                 }
             });
         });
+
+        // Add extra debugging for the checkout button form submission
+        const checkoutForm = document.getElementById('checkout-form');
+        if (checkoutForm) {
+            checkoutForm.addEventListener('submit', function(e) {
+                console.log('Checkout form submitted');
+                // Add a short delay to make sure the browser registers the submission
+                setTimeout(function() {
+                    const checkoutButton = document.getElementById('checkout-button');
+                    if (checkoutButton) {
+                        checkoutButton.disabled = true;
+                        checkoutButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Please wait...';
+                    }
+                }, 100);
+            });
+        }
     });
     
     // Confirm remove item

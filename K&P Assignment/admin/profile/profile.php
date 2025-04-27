@@ -22,8 +22,9 @@ $created_date = date('F d, Y', strtotime($user->user_update_time ?? 'now'));
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Profile | K&P</title>
-  <link rel="stylesheet" href="appAdmin.css">
+  <link rel="stylesheet" href="profile.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="profile.js"></script>
 </head>
 <body>
   <div class="container">
@@ -59,11 +60,6 @@ $created_date = date('F d, Y', strtotime($user->user_update_time ?? 'now'));
             <li>
               <a href="#change-password">
                 <i class="fas fa-lock"></i> Security Settings
-              </a>
-            </li>
-            <li>
-              <a href="../../admin/index.php">
-                <i class="fas fa-tachometer-alt"></i> Dashboard
               </a>
             </li>
             <li>
@@ -164,58 +160,5 @@ $created_date = date('F d, Y', strtotime($user->user_update_time ?? 'now'));
   </div>
   
   <?php include '../headFooter/footer.php'; ?>
-  
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Navigation active state
-      const navLinks = document.querySelectorAll('.profile-nav a');
-      
-      navLinks.forEach(link => {
-        if (!link.classList.contains('danger')) {
-          link.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            const targetId = this.getAttribute('href');
-            if (targetId.startsWith('#')) {
-              // Update active class
-              document.querySelector('.profile-nav li.active').classList.remove('active');
-              this.parentElement.classList.add('active');
-              
-              // Scroll to section
-              document.querySelector(targetId).scrollIntoView({
-                behavior: 'smooth'
-              });
-            } else {
-              window.location.href = targetId;
-            }
-          });
-        }
-      });
-      
-      // Set active nav based on scroll position
-      window.addEventListener('scroll', function() {
-        const sections = document.querySelectorAll('.profile-section');
-        let current = '';
-        
-        sections.forEach(section => {
-          const sectionTop = section.offsetTop - 100;
-          const sectionHeight = section.clientHeight;
-          
-          if (window.pageYOffset >= sectionTop && window.pageYOffset < sectionTop + sectionHeight) {
-            current = '#' + section.getAttribute('id');
-          }
-        });
-        
-        if (current) {
-          navLinks.forEach(link => {
-            link.parentElement.classList.remove('active');
-            if (link.getAttribute('href') === current) {
-              link.parentElement.classList.add('active');
-            }
-          });
-        }
-      });
-    });
-  </script>
 </body>
 </html>

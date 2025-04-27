@@ -1,214 +1,258 @@
 <?php
 require_once '../../_base.php';
 
-// Start session explicitly
+// Define Stripe keys
+define('STRIPE_PUBLISHABLE_KEY', 'pk_test_51RISsNFxdKIHFmkels1EXKIkW89B9Uze2ZIpRHAPi543xSzAbWwffGC4hxO0aB4B55h4wFmRrXJP2suVnp4H0M0m00gX8BR3Wm');
+
+// Ensure session is started and user is authenticated
 safe_session_start();
 
-// Log the session status for debugging
-error_log("Checkout - Session ID: " . session_id());
+// Debug logging
+error_log("Is post: " . (is_post() ? 'true' : 'false') . ", proceed_to_payment: " . (isset($_POST['proceed_to_payment']) ? 'true' : 'false'));
+if (is_post()) {
+    error_log("POST data: " . print_r($_POST, true));
+}
 
-// Improved authentication check
+// Authentication check
 if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
-    error_log("Checkout - Auth failed: " . (isset($_SESSION['user']) ? "User object exists but no user_id" : "No user in session"));
-    temp('info', 'Please log in to continue');
+    temp('info', 'Please log in to checkout');
     redirect('login.php?redirect=' . urlencode($_SERVER['REQUEST_URI']));
 }
 
-// Authentication successful - proceed with the rest of the code
 $user_id = $_SESSION['user']->user_id;
 $username = $_SESSION['user']->user_name;
+$page_title = "Checkout";
 
-error_log("Checkout - User authenticated: $username (ID: $user_id)");
+// Initialize variables
+$error_message = temp('error');
+$success_message = temp('success');
+$info_message = temp('info');
 
-// Verify checkout session data exists
-if (!isset($_SESSION['checkout_order_id']) || 
-    !isset($_SESSION['checkout_payment_id']) || 
-    !isset($_SESSION['checkout_delivery_id'])) {
-    
-    error_log("Checkout - Missing checkout session data for user $user_id");
-    temp('error', 'Invalid checkout session. Please try again.');
-    redirect('shopping-bag.php');
-    exit;
-}
-
-// Get checkout data from session
-$order_id = $_SESSION['checkout_order_id'];
-$payment_id = $_SESSION['checkout_payment_id'];
-$delivery_id = $_SESSION['checkout_delivery_id'];
-
-// Handle form submission to complete checkout
-if (is_post() && isset($_POST['complete_checkout'])) {
-    try {
-        $_db->beginTransaction();
-        
-        // Update payment method
-        $payment_method = $_POST['payment_method'];
-        if (!in_array($payment_method, ['Credit Card', 'Online Banking', 'Cash on Delivery', 'E-Wallet'])) {
-            throw new Exception("Invalid payment method");
-        }
-        
-        $stm = $_db->prepare("UPDATE payment SET payment_method = ? WHERE payment_id = ?");
-        $stm->execute([$payment_method, $payment_id]);
-        
-        // Update delivery address if changed
-        if (isset($_POST['address_id']) && !empty($_POST['address_id'])) {
-            $address_id = $_POST['address_id'];
-            
-            // Verify address belongs to user
-            $stm = $_db->prepare("SELECT * FROM address WHERE address_id = ? AND user_id = ?");
-            $stm->execute([$address_id, $user_id]);
-            $address = $stm->fetch();
-            
-            if (!$address) {
-                throw new Exception("Invalid address selected");
-            }
-            
-            // Update delivery record with new address
-            $stm = $_db->prepare("UPDATE delivery SET address_id = ? WHERE delivery_id = ?");
-            $stm->execute([$address_id, $delivery_id]);
-            
-            // Recalculate delivery fee based on state
-            $delivery_fee = in_array($address->state, ['Sabah', 'Sarawak', 'Labuan']) ? 40 : 20;
-            
-            $stm = $_db->prepare("UPDATE delivery SET delivery_fee = ? WHERE delivery_id = ?");
-            $stm->execute([$delivery_fee, $delivery_id]);
-            
-            // Update order total with new delivery fee
-            $stm = $_db->prepare("
-                SELECT order_subtotal FROM orders WHERE order_id = ?
-            ");
-            $stm->execute([$order_id]);
-            $order_subtotal = $stm->fetchColumn();
-            
-            $stm = $_db->prepare("
-                SELECT tax FROM payment WHERE payment_id = ?
-            ");
-            $stm->execute([$payment_id]);
-            $tax = $stm->fetchColumn();
-            
-            $new_total = $order_subtotal + $tax + $delivery_fee;
-            
-            $stm = $_db->prepare("
-                UPDATE orders SET order_total = ? WHERE order_id = ?
-            ");
-            $stm->execute([$new_total, $order_id]);
-            
-            $stm = $_db->prepare("
-                UPDATE payment SET total_amount = ? WHERE payment_id = ?
-            ");
-            $stm->execute([$new_total, $payment_id]);
-        }
-        
-        // Update order status
-        $stm = $_db->prepare("UPDATE orders SET orders_status = 'Confirmed' WHERE order_id = ?");
-        $stm->execute([$order_id]);
-        
-        // Update status in delivery
-        $stm = $_db->prepare("UPDATE delivery SET delivery_status = 'Processing' WHERE delivery_id = ?");
-        $stm->execute([$delivery_id]);
-        
-        // Update status in payment
-        $stm = $_db->prepare("UPDATE payment SET payment_status = 'Completed' WHERE payment_id = ?");
-        $stm->execute([$payment_id]);
-        
-        // Update stock quantities
-        $stm = $_db->prepare("
-            SELECT od.product_id, od.quantity, od.size 
-            FROM order_details od 
-            WHERE od.order_id = ?
-        ");
-        $stm->execute([$order_id]);
-        $items = $stm->fetchAll();
-        
-        foreach ($items as $item) {
-            $stm = $_db->prepare("
-                UPDATE quantity 
-                SET product_stock = product_stock - ? 
-                WHERE product_id = ? AND size = ?
-            ");
-            $stm->execute([$item->quantity, $item->product_id, $item->size]);
-        }
-        
-        // Clear cart items if any remain
-        $stm = $_db->prepare("DELETE FROM cart WHERE user_id = ?");
-        $stm->execute([$user_id]);
-        
-        // Commit all database changes
-        $_db->commit();
-        
-        // Clear checkout session data
-        unset($_SESSION['checkout_order_id']);
-        unset($_SESSION['checkout_payment_id']);
-        unset($_SESSION['checkout_delivery_id']);
-        
-        // Log the successful order
-        error_log("User $username ($user_id) completed checkout. Order ID: $order_id, Payment method: $payment_method");
-        
-        // Redirect to order confirmation page
-        temp('success', 'Your order has been placed!');
-        redirect('order-confirmation.php?order_id=' . $order_id);
-        exit;
-        
-    } catch (Exception $e) {
-        $_db->rollBack();
-        error_log("Checkout completion error: " . $e->getMessage());
-        temp('error', 'An error occurred while processing your order. Please try again.');
-    }
-}
-
-// Get order details
+// Check if we have items in the cart
 try {
-    $stm = $_db->prepare("
-        SELECT o.*, d.delivery_id, d.address_id, d.delivery_fee,
-               d.delivery_status, d.estimated_date,
-               p.payment_id, p.tax, p.total_amount, p.payment_method,
-               p.payment_status, p.discount
-        FROM orders o
-        JOIN delivery d ON o.delivery_id = d.delivery_id
-        JOIN payment p ON o.order_id = p.order_id
-        WHERE o.order_id = ? AND o.user_id = ?
-    ");
-    $stm->execute([$order_id, $user_id]);
-    $order = $stm->fetch();
+    error_log("[$username] Starting checkout process for user ID: $user_id");
     
-    if (!$order) {
-        throw new Exception("Order not found");
+    // Get cart items with product details
+    $stm = $_db->prepare("
+        SELECT c.*, p.product_name, p.product_pic1, p.product_price, q.quantity_id, q.size
+        FROM cart c 
+        JOIN product p ON c.product_id = p.product_id 
+        LEFT JOIN quantity q ON c.quantity_id = q.quantity_id
+        WHERE c.user_id = ?
+    ");
+    $stm->execute([$user_id]);
+    $cart_items = $stm->fetchAll();
+    
+    if (empty($cart_items)) {
+        error_log("[$username] Cart is empty. Redirecting to shopping bag.");
+        temp('info', 'Your shopping bag is empty. Please add items before proceeding to checkout.');
+        redirect('shopping-bag.php');
+        exit;
     }
     
-    // Get order items
-    $stm = $_db->prepare("
-        SELECT od.*, p.product_name, p.product_pic1, p.product_price, od.size
-        FROM order_details od
-        JOIN product p ON od.product_id = p.product_id
-        WHERE od.order_id = ?
-    ");
-    $stm->execute([$order_id]);
-    $order_items = $stm->fetchAll();
+    error_log("[$username] Cart items found: " . count($cart_items));
     
     // Get user addresses
     $stm = $_db->prepare("
-        SELECT * FROM address WHERE user_id = ? ORDER BY is_default DESC
+        SELECT * FROM address
+        WHERE user_id = ?
+        ORDER BY is_default DESC, created_at DESC
     ");
     $stm->execute([$user_id]);
     $addresses = $stm->fetchAll();
     
-    // Get current delivery address details
-    $stm = $_db->prepare("
-        SELECT * FROM address WHERE address_id = ?
-    ");
-    $stm->execute([$order->address_id]);
-    $delivery_address = $stm->fetch();
+    if (empty($addresses)) {
+        error_log("[$username] No addresses found. Redirecting to add address page.");
+        temp('info', 'Please add a delivery address before proceeding to checkout.');
+        redirect('add_address.php?redirect=checkout.php');
+        exit;
+    }
     
-} catch (Exception $e) {
-    error_log("Checkout error: " . $e->getMessage());
-    temp('error', 'An error occurred while loading checkout details');
+    error_log("[$username] Addresses found: " . count($addresses));
+    
+    // Get saved credit cards
+    $stm = $_db->prepare("
+        SELECT * FROM payment_method
+        WHERE user_id = ? AND method_type = 'Credit Card'
+        ORDER BY is_default DESC, created_at DESC
+    ");
+    $stm->execute([$user_id]);
+    $credit_cards = $stm->fetchAll();
+    
+    error_log("[$username] Payment methods found: " . count($credit_cards) . " credit cards");
+    
+    // Calculate cart totals
+    $subtotal = 0;
+    foreach ($cart_items as $item) {
+        $subtotal += $item->quantity * $item->product_price;
+    }
+    
+    // Calculate tax (6%)
+    $tax = round($subtotal * 0.06, 2);
+    
+    // Calculate delivery fee based on user's default address
+    // Free shipping for orders over RM100
+    if ($subtotal >= 100) {
+        $delivery_fee = 0; // Free delivery
+        error_log("[$username] Free delivery applied (order > RM100)");
+    } else {
+        $delivery_fee = 20; // Default delivery fee
+        
+        if (!empty($addresses)) {
+            $default_address = null;
+            foreach ($addresses as $address) {
+                if ($address->is_default) {
+                    $default_address = $address;
+                    break;
+                }
+            }
+            
+            // If no default address, use the first one
+            if (!$default_address && !empty($addresses)) {
+                $default_address = $addresses[0];
+            }
+            
+            // Set delivery fee based on state
+            if ($default_address && isset($default_address->state) && 
+                in_array($default_address->state, ['Sabah', 'Sarawak', 'Labuan'])) {
+                $delivery_fee = 40; // Higher fee for East Malaysia
+            } else {
+                $delivery_fee = 20; // Standard fee for West Malaysia
+            }
+        }
+    }
+    
+    // Calculate total
+    $total = $subtotal + $tax + $delivery_fee;
+    
+    // Store cart data in session for later use
+    $_SESSION['checkout_data'] = [
+        'cart_items' => $cart_items,
+        'subtotal' => $subtotal,
+        'tax' => $tax,
+        'delivery_fee' => $delivery_fee,
+        'total' => $total
+    ];
+    
+    error_log("[$username] Checkout data stored in session. Subtotal: $subtotal, Tax: $tax, Delivery: $delivery_fee, Total: $total");
+    
+} catch (PDOException $e) {
+    error_log("Error in checkout process for user $username: " . $e->getMessage());
+    error_log("SQL State: " . $e->errorInfo[0] . ", Error Code: " . $e->errorInfo[1] . ", Message: " . $e->errorInfo[2]);
+    temp('error', 'An error occurred during checkout. Please try again.');
     redirect('shopping-bag.php');
     exit;
 }
 
-// Get success/error messages
-$success_message = temp('success');
-$error_message = temp('error');
+// Handle form submission to proceed to payment
+if (is_post() && isset($_POST['proceed_to_payment'])) {
+    // Validate form submission
+    $address_id = post('address_id');
+    $payment_method_type = post('payment_method_type');
+    $payment_method_id = post('payment_method_id');
+    $save_payment = isset($_POST['save_payment']) ? 1 : 0;
+    
+    error_log("[$username] Form submitted: address_id=$address_id, payment_method_type=$payment_method_type, payment_method_id=$payment_method_id, save_payment=$save_payment");
+    
+    try {
+        if (empty($address_id)) {
+            error_log("[$username] No address selected.");
+            temp('error', 'Please select a delivery address');
+            redirect('checkout.php');
+            exit;
+        }
+        
+        if (empty($payment_method_type) || !in_array($payment_method_type, ['Credit Card', 'Stripe'])) {
+            error_log("[$username] No payment method type selected.");
+            temp('error', 'Please select a payment method type (Credit Card or Stripe)');
+            redirect('checkout.php');
+            exit;
+        }
+        
+        // Verify address belongs to user
+        $stm = $_db->prepare("SELECT * FROM address WHERE address_id = ? AND user_id = ?");
+        $stm->execute([$address_id, $user_id]);
+        $address = $stm->fetch();
+        
+        if (!$address) {
+            error_log("[$username] Invalid address selected: $address_id");
+            temp('error', 'Invalid address selected');
+            redirect('checkout.php');
+            exit;
+        }
+        
+        // Update checkout data with selected address
+        $_SESSION['checkout_data']['address_id'] = $address_id;
+        
+        // Recalculate delivery fee based on selected address
+        if ($subtotal >= 100) {
+            $delivery_fee = 0; // Free delivery
+        } else {
+            // Set delivery fee based on state
+            $delivery_fee = (isset($address->state) && 
+                          in_array($address->state, ['Sabah', 'Sarawak', 'Labuan'])) ? 40 : 20;
+        }
+        
+        $_SESSION['checkout_data']['delivery_fee'] = $delivery_fee;
+        $_SESSION['checkout_data']['total'] = $subtotal + $tax + $delivery_fee;
+        
+        // Process based on payment method type
+        if ($payment_method_type === 'Credit Card') {
+            if (!empty($payment_method_id)) {
+                // Using saved card
+                $stm = $_db->prepare("SELECT * FROM payment_method WHERE method_id = ? AND user_id = ? AND method_type = 'Credit Card'");
+                $stm->execute([$payment_method_id, $user_id]);
+                $payment_method = $stm->fetch();
+                
+                if (!$payment_method) {
+                    error_log("[$username] Invalid credit card selected: $payment_method_id");
+                    temp('error', 'Invalid credit card selected');
+                    redirect('checkout.php');
+                    exit;
+                }
+                
+                $_SESSION['checkout_data']['payment_method_id'] = $payment_method_id;
+                $_SESSION['checkout_data']['payment_option'] = 'saved';
+                $_SESSION['checkout_data']['payment_type'] = 'Credit Card';
+                
+                error_log("[$username] Using saved credit card ID: $payment_method_id");
+                
+                // Redirect to confirmation page
+                redirect('checkout_confirm.php');
+                exit;
+            } else {
+                // New card (payment_method_id is empty)
+                $_SESSION['checkout_data']['payment_option'] = 'new';
+                $_SESSION['checkout_data']['payment_type'] = 'Credit Card';
+                $_SESSION['checkout_data']['save_payment'] = $save_payment;
+                
+                error_log("[$username] Using new credit card, save card: $save_payment");
+                
+                // Redirect to payment page for card details
+                redirect('checkout_payment.php');
+                exit;
+            }
+        } else if ($payment_method_type === 'Stripe') {
+            // Stripe payment
+            $_SESSION['checkout_data']['payment_type'] = 'Stripe';
+            
+            error_log("[$username] Using Stripe payment");
+            
+            // Redirect to Stripe page
+            redirect('checkout_stripe.php');
+            exit;
+        }
+    } catch (Exception $e) {
+        error_log("Error processing checkout form for user $username: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        temp('error', 'An error occurred during checkout. Please try again.');
+        redirect('checkout.php');
+        exit;
+    }
+}
+
+// Current date and time
+$current_date = date('Y-m-d H:i:s');
 ?>
 
 <!DOCTYPE html>
@@ -216,324 +260,9 @@ $error_message = temp('error');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>K&P - Checkout</title>
+    <title>K&P - <?= $page_title ?></title>
     <link rel="stylesheet" href="../css/checkout.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        .checkout-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .checkout-steps {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 40px;
-            position: relative;
-        }
-        .step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            z-index: 2;
-            width: 120px;
-        }
-        .step-number {
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            background-color: #f0f0f0;
-            color: #999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-        .step.active .step-number {
-            background-color: #000;
-            color: #fff;
-        }
-        .step.completed .step-number {
-            background-color: #4caf50;
-            color: #fff;
-        }
-        .step-text {
-            font-size: 14px;
-            color: #666;
-        }
-        .step.active .step-text,
-        .step.completed .step-text {
-            color: #000;
-            font-weight: 500;
-        }
-        .step-connector {
-            height: 2px;
-            background-color: #e0e0e0;
-            flex-grow: 1;
-            margin-top: 17px;
-            z-index: 1;
-            width: 100px;
-        }
-        .checkout-grid {
-            display: grid;
-            grid-template-columns: 1fr 350px;
-            gap: 30px;
-        }
-        @media (max-width: 768px) {
-            .checkout-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        .checkout-main {
-            background-color: #fff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            padding: 30px;
-        }
-        .checkout-sidebar {
-            align-self: start;
-        }
-        .order-summary {
-            background-color: #fff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            padding: 25px;
-        }
-        .summary-title {
-            margin-top: 0;
-            margin-bottom: 20px;
-            font-size: 18px;
-            font-weight: 500;
-        }
-        .checkout-section {
-            margin-bottom: 30px;
-            border-bottom: 1px solid #f0f0f0;
-            padding-bottom: 30px;
-        }
-        .checkout-section:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
-            margin-bottom: 0;
-        }
-        .section-title {
-            margin-top: 0;
-            margin-bottom: 20px;
-            font-size: 18px;
-            font-weight: 500;
-        }
-        .section-title i {
-            margin-right: 10px;
-            color: #555;
-        }
-        .address-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 15px;
-        }
-        .address-option input[type="radio"] {
-            display: none;
-        }
-        .address-card {
-            display: block;
-            border: 1px solid #e0e0e0;
-            padding: 15px;
-            cursor: pointer;
-            position: relative;
-            transition: all 0.2s;
-        }
-        .address-card.selected {
-            border-color: #000;
-            background-color: #f9f9f9;
-        }
-        .address-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .address-name {
-            font-weight: 500;
-        }
-        .default-badge {
-            background-color: #f0f0f0;
-            padding: 2px 8px;
-            border-radius: 2px;
-            font-size: 12px;
-            color: #666;
-        }
-        .address-details p {
-            margin: 5px 0;
-            font-size: 14px;
-            color: #555;
-        }
-        .add-new-address {
-            margin-top: 15px;
-        }
-        .add-address-btn {
-            display: inline-flex;
-            align-items: center;
-            color: #000;
-            text-decoration: none;
-            font-size: 14px;
-            padding: 8px 0;
-        }
-        .add-address-btn:hover {
-            text-decoration: underline;
-        }
-        .add-address-btn i {
-            margin-right: 8px;
-        }
-        .payment-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        .payment-option input[type="radio"] {
-            display: none;
-        }
-        .payment-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #e0e0e0;
-            padding: 15px;
-            cursor: pointer;
-            transition: all 0.2s;
-            height: 100px;
-        }
-        .payment-card.selected {
-            border-color: #000;
-            background-color: #f9f9f9;
-        }
-        .payment-icon {
-            font-size: 24px;
-            margin-bottom: 10px;
-            color: #555;
-        }
-        .order-items {
-            margin-bottom: 20px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .order-item {
-            display: flex;
-            padding: 10px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .order-item:last-child {
-            border-bottom: none;
-        }
-        .item-image {
-            width: 60px;
-            height: 60px;
-            position: relative;
-            margin-right: 15px;
-        }
-        .item-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .item-quantity {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background-color: #000;
-            color: #fff;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-        }
-        .item-details {
-            flex-grow: 1;
-        }
-        .item-name {
-            margin: 0 0 5px;
-            font-size: 14px;
-            font-weight: normal;
-        }
-        .item-price {
-            color: #000;
-            font-weight: 500;
-            font-size: 14px;
-        }
-        .cost-summary {
-            margin-bottom: 20px;
-        }
-        .cost-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            font-size: 14px;
-        }
-        .cost-item.discount {
-            color: #e53935;
-        }
-        .total-cost {
-            display: flex;
-            justify-content: space-between;
-            font-size: 16px;
-            font-weight: 500;
-            margin: 20px 0;
-        }
-        .order-id {
-            text-align: center;
-            font-size: 12px;
-            color: #666;
-            padding-top: 10px;
-        }
-        .checkout-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 30px;
-        }
-        .back-to-bag {
-            color: #666;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-        }
-        .back-to-bag:hover {
-            text-decoration: underline;
-            color: #000;
-        }
-        .back-to-bag i {
-            margin-right: 8px;
-        }
-        .place-order-btn {
-            background-color: #000;
-            color: #fff;
-            border: none;
-            padding: 12px 25px;
-            cursor: pointer;
-            text-transform: uppercase;
-            font-size: 14px;
-            letter-spacing: 0.5px;
-            transition: background-color 0.2s;
-        }
-        .place-order-btn:hover {
-            background-color: #333;
-        }
-        .place-order-btn i {
-            margin-left: 8px;
-        }
-        .shipping-fee {
-            display: block;
-            margin-top: 10px;
-            font-size: 13px;
-            color: #666;
-        }
-        /* Additional responsive styles */
-        @media (max-width: 992px) {
-            .address-options, .payment-options {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
 </head>
 <body>
     <?php include('../header.php'); ?>
@@ -547,192 +276,239 @@ $error_message = temp('error');
             </div>
         <?php endif; ?>
         
+        <?php if ($info_message): ?>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> <?= $info_message ?>
+            </div>
+        <?php endif; ?>
+        
         <?php if ($error_message): ?>
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-circle"></i> <?= $error_message ?>
             </div>
         <?php endif; ?>
         
-        <div class="checkout-container">
-            <div class="checkout-steps">
-                <div class="step completed">
-                    <div class="step-number">1</div>
-                    <div class="step-text">Shopping Bag</div>
-                </div>
-                <div class="step-connector"></div>
-                <div class="step active">
-                    <div class="step-number">2</div>
-                    <div class="step-text">Checkout</div>
-                </div>
-                <div class="step-connector"></div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-text">Confirmation</div>
-                </div>
+        <div class="checkout-steps">
+            <div class="step completed">
+                <div class="step-number">1</div>
+                <div class="step-text">Shopping Bag</div>
             </div>
-            
-            <div class="checkout-grid">
-                <div class="checkout-main">
-                    <form method="post" id="checkout-form">
-                        <div class="checkout-section">
-                            <h2 class="section-title">
-                                <i class="fas fa-map-marker-alt"></i> Shipping Address
-                            </h2>
-                            
-                            <div class="address-options">
-                                <?php foreach ($addresses as $address): ?>
-                                    <div class="address-option">
-                                        <input type="radio" 
-                                               name="address_id" 
-                                               id="address_<?= $address->address_id ?>" 
-                                               value="<?= $address->address_id ?>"
-                                               <?= $address->address_id == $order->address_id ? 'checked' : '' ?>>
-                                        <label for="address_<?= $address->address_id ?>" class="address-card <?= $address->address_id == $order->address_id ? 'selected' : '' ?>">
-                                            <div class="address-header">
-                                                <span class="address-name"><?= htmlspecialchars($address->address_name) ?></span>
-                                                <?php if ($address->is_default): ?>
-                                                    <span class="default-badge">Default</span>
-                                                <?php endif; ?>
-                                            </div>
-                                            
-                                            <div class="address-details">
-                                                <p><?= htmlspecialchars($address->address_line1) ?></p>
-                                                <?php if (!empty($address->address_line2)): ?>
-                                                    <p><?= htmlspecialchars($address->address_line2) ?></p>
-                                                <?php endif; ?>
-                                                <p>
-                                                    <?= htmlspecialchars($address->postcode) ?> 
-                                                    <?= htmlspecialchars($address->city) ?>, 
-                                                    <?= htmlspecialchars($address->state) ?>
-                                                </p>
-                                                <p>Phone: <?= htmlspecialchars($address->phone) ?></p>
-                                            </div>
-                                            
-                                            <div class="address-shipping-info">
-                                                <?php if (in_array($address->state, ['Sabah', 'Sarawak', 'Labuan'])): ?>
-                                                    <span class="shipping-fee">Shipping: RM 40.00 (East Malaysia)</span>
-                                                <?php else: ?>
-                                                    <span class="shipping-fee">Shipping: RM 20.00 (West Malaysia)</span>
-                                                <?php endif; ?>
-                                            </div>
-                                        </label>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                            
-                            <div class="add-new-address">
-                                <a href="address.php?redirect=checkout.php" class="add-address-btn">
-                                    <i class="fas fa-plus-circle"></i> Add New Address
-                                </a>
-                            </div>
-                        </div>
+            <div class="step-connector"></div>
+            <div class="step active">
+                <div class="step-number">2</div>
+                <div class="step-text">Checkout</div>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-text">Payment</div>
+            </div>
+        </div>
+        
+        <div class="checkout-content">
+            <div class="checkout-main">
+                <form method="post" id="checkout-form" action="checkout.php">
+                    <div class="checkout-section">
+                        <h2 class="section-title">
+                            <span class="section-number">1</span>
+                            Delivery Address
+                        </h2>
                         
-                        <div class="checkout-section">
-                            <h2 class="section-title">
-                                <i class="fas fa-credit-card"></i> Payment Method
-                            </h2>
-                            
-                            <div class="payment-options">
-                                <div class="payment-option">
-                                    <input type="radio" name="payment_method" id="payment_cod" value="Cash on Delivery" checked>
-                                    <label for="payment_cod" class="payment-card selected">
-                                        <i class="fas fa-money-bill-wave payment-icon"></i>
-                                        <span>Cash on Delivery</span>
+                        <div class="address-selection">
+                            <?php foreach ($addresses as $index => $address): ?>
+                                <div class="address-option">
+                                    <input type="radio" name="address_id" id="address_<?= $address->address_id ?>" value="<?= $address->address_id ?>" <?= $index === 0 ? 'checked' : '' ?>>
+                                    <label for="address_<?= $address->address_id ?>" class="address-card">
+                                        <div class="address-header">
+                                            <div class="address-name"><?= htmlspecialchars($address->address_name) ?></div>
+                                            <?php if ($address->is_default): ?>
+                                                <div class="default-badge">Default</div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="address-content">
+                                            <p class="recipient"><?= htmlspecialchars($address->recipient_name) ?></p>
+                                            <p class="phone"><?= htmlspecialchars($address->phone) ?></p>
+                                            <p class="address-line">
+                                                <?= htmlspecialchars($address->address_line1) ?>
+                                                <?= !empty($address->address_line2) ? ', ' . htmlspecialchars($address->address_line2) : '' ?>
+                                            </p>
+                                            <p class="location">
+                                                <?= htmlspecialchars($address->city) ?>, 
+                                                <?= htmlspecialchars($address->state) ?>,
+                                                <?= htmlspecialchars($address->post_code) ?>
+                                            </p>
+                                            <p class="country"><?= htmlspecialchars($address->country) ?></p>
+                                        </div>
                                     </label>
-                                </div>
-                                
-                                <div class="payment-option">
-                                    <input type="radio" name="payment_method" id="payment_card" value="Credit Card">
-                                    <label for="payment_card" class="payment-card">
-                                        <i class="fas fa-credit-card payment-icon"></i>
-                                        <span>Credit Card</span>
-                                    </label>
-                                </div>
-                                
-                                <div class="payment-option">
-                                    <input type="radio" name="payment_method" id="payment_banking" value="Online Banking">
-                                    <label for="payment_banking" class="payment-card">
-                                        <i class="fas fa-university payment-icon"></i>
-                                        <span>Online Banking</span>
-                                    </label>
-                                </div>
-                                
-                                <div class="payment-option">
-                                    <input type="radio" name="payment_method" id="payment_ewallet" value="E-Wallet">
-                                    <label for="payment_ewallet" class="payment-card">
-                                        <i class="fas fa-wallet payment-icon"></i>
-                                        <span>E-Wallet</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="checkout-actions">
-                            <a href="shopping-bag.php" class="back-to-bag">
-                                <i class="fas fa-arrow-left"></i> Back to Shopping Bag
-                            </a>
-                            <button type="submit" name="complete_checkout" value="1" class="place-order-btn">
-                                PLACE ORDER <i class="fas fa-arrow-right"></i>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                
-                <div class="checkout-sidebar">
-                    <div class="order-summary">
-                        <h2 class="summary-title">Order Summary</h2>
-                        
-                        <div class="order-items">
-                            <?php foreach ($order_items as $item): ?>
-                                <div class="order-item">
-                                    <div class="item-image">
-                                        <img src="../../img/<?= $item->product_pic1 ?>" alt="<?= htmlspecialchars($item->product_name) ?>">
-                                        <span class="item-quantity"><?= $item->quantity ?></span>
-                                    </div>
-                                    <div class="item-details">
-                                        <h3 class="item-name"><?= htmlspecialchars($item->product_name) ?></h3>
-                                        <p class="item-size">Size: <?= $item->size ?></p>
-                                        <div class="item-price">RM <?= number_format($item->unit_price, 2) ?></div>
-                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
+                            
+                        <div class="address-actions">
+                            <a href="add_address.php?redirect=checkout.php" class="btn secondary-btn">
+                                <i class="fas fa-plus"></i> Add New Address
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="checkout-section">
+                        <h2 class="section-title">
+                            <span class="section-number">2</span>
+                            Payment Method
+                        </h2>
                         
-                        <div class="summary-divider"></div>
+                        <!-- First, select payment method type -->
+                        <div class="payment-method-types">
+                            <div class="payment-type-option">
+                                <input type="radio" name="payment_method_type" id="type_credit_card" value="Credit Card" checked>
+                                <label for="type_credit_card" class="payment-type-label">
+                                    <i class="fas fa-credit-card"></i>
+                                    <span>Saved Cards</span>
+                                </label>
+                            </div>
+                            
+                            <div class="payment-type-option">
+                                <input type="radio" name="payment_method_type" id="type_stripe" value="Stripe">
+                                <label for="type_stripe" class="payment-type-label">
+                                    <i class="fab fa-stripe"></i>
+                                    <span>Pay with Stripe</span>
+                                </label>
+                            </div>
+                        </div>
                         
-                        <div class="cost-summary">
-                            <div class="cost-item">
-                                <span class="cost-label">Subtotal:</span>
-                                <span class="cost-value">RM <?= number_format($order->order_subtotal, 2) ?></span>
-                            </div>
-                            
-                            <div class="cost-item">
-                                <span class="cost-label">Shipping:</span>
-                                <span class="cost-value">RM <?= number_format($order->delivery_fee, 2) ?></span>
-                            </div>
-                            
-                            <div class="cost-item">
-                                <span class="cost-label">Tax (6%):</span>
-                                <span class="cost-value">RM <?= number_format($order->tax, 2) ?></span>
-                            </div>
-                            
-                            <?php if ($order->discount > 0): ?>
-                                <div class="cost-item discount">
-                                    <span class="cost-label">Discount:</span>
-                                    <span class="cost-value">-RM <?= number_format($order->discount, 2) ?></span>
+                        <div class="payment-options-container" style="margin-top: 20px;">
+                            <!-- Credit Card options - Combined layout -->
+                            <div id="credit_card_options" class="payment-options-section">
+                                <div class="payment-methods-grid">
+                                    <!-- Add new card option -->
+                                    <div class="payment-method-card">
+                                        <label for="new_card">
+                                            <input type="radio" id="new_card" name="payment_method_id" value="">
+                                            <div class="card-header">
+                                                <div class="card-icon">
+                                                    <i class="fas fa-plus-circle"></i>
+                                                    <span>Add New Card</span>
+                                                </div>
+                                            </div>
+                                            <div class="add-new-card">
+                                                <p class="card-content">Enter your card details in the next step</p>
+                                            </div>
+                                        </label>
+                                        <div class="save-card-option" id="save_card_option">
+                                            <input type="checkbox" id="save_payment" name="save_payment" checked>
+                                            <label for="save_payment">Save this card for future orders</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Saved cards -->
+                                    <?php foreach ($credit_cards as $card): ?>
+                                        <div class="payment-method-card">
+                                            <label for="card_<?= $card->method_id ?>">
+                                                <input type="radio" id="card_<?= $card->method_id ?>" name="payment_method_id" value="<?= $card->method_id ?>">
+                                                <div class="card-header">
+                                                    <?php
+                                                    $card_icon = 'fa-credit-card';
+                                                    if (isset($card->card_type)) {
+                                                        if ($card->card_type === 'Visa') {
+                                                            $card_icon = 'fa-cc-visa';
+                                                        } elseif ($card->card_type === 'MasterCard') {
+                                                            $card_icon = 'fa-cc-mastercard';
+                                                        } elseif ($card->card_type === 'American Express') {
+                                                            $card_icon = 'fa-cc-amex';
+                                                        }
+                                                    }
+                                                    ?>
+                                                    <div class="card-icon">
+                                                        <i class="fab <?= $card_icon ?>"></i>
+                                                        <span><?= isset($card->card_type) ? htmlspecialchars($card->card_type) : 'Credit Card' ?></span>
+                                                    </div>
+                                                    <?php if ($card->is_default): ?>
+                                                        <div class="default-badge">Default</div>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div class="card-content">
+                                                    <div>•••• •••• •••• <?= htmlspecialchars($card->last_four) ?></div>
+                                                    <div>Expires: <?= sprintf('%02d', $card->expiry_month) ?>/<?= $card->expiry_year ?></div>
+                                                    <div><?= htmlspecialchars($card->cardholder_name) ?></div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    <?php endforeach; ?>
                                 </div>
-                            <?php endif; ?>
+                            </div>
+                            
+                            <!-- Stripe option -->
+                            <div id="stripe_options" class="payment-options-section" style="display: none;">
+                                <div class="stripe-info">
+                                    <div class="stripe-logo" style="text-align: center; margin-bottom: 20px;">
+                                        <i class="fab fa-stripe" style="font-size: 40px; color: #6772e5;"></i>
+                                    </div>
+                                    <div class="stripe-message" style="text-align: center; margin-bottom: 20px;">
+                                        <p>Pay securely using Stripe's payment platform.</p>
+                                        <p>You'll enter your card details in the next step.</p>
+                                        <div class="demo-info" style="background-color: #f0f7ff; padding: 10px; margin-top: 15px; border-radius: 5px;">
+                                            <p style="font-size: 14px; color: #0c5460;"><strong>Demo Mode:</strong> Use test card number 4242 4242 4242 4242 with any future expiration date and any 3-digit CVC.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+                    
+                    <div class="checkout-actions">
+                        <a href="shopping-bag.php" class="btn outline-btn back-btn">
+                            <i class="fas fa-arrow-left"></i> Back to Bag
+                        </a>
                         
-                        <div class="summary-divider"></div>
-                        
-                        <div class="total-cost">
-                            <span class="total-label">Total:</span>
-                            <span class="total-value">RM <?= number_format($order->total_amount, 2) ?></span>
+                        <button type="submit" name="proceed_to_payment" class="btn primary-btn">
+                            Continue to Payment <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="checkout-sidebar">
+                <div class="order-summary">
+                    <h2 class="summary-title">Order Summary</h2>
+                    
+                    <div class="summary-items">
+                        <?php foreach ($cart_items as $item): ?>
+                            <div class="summary-item">
+                                <div class="item-image">
+                                    <img src="../../img/<?= $item->product_pic1 ?>" alt="<?= htmlspecialchars($item->product_name) ?>">
+                                    <span class="item-quantity"><?= $item->quantity ?></span>
+                                </div>
+                                <div class="item-details">
+                                    <h3 class="item-name"><?= htmlspecialchars($item->product_name) ?></h3>
+                                    <p class="item-size">Size: <?= $item->size ?></p>
+                                    <div class="item-price">RM <?= number_format($item->product_price, 2) ?></div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    
+                    <div class="summary-totals">
+                        <div class="summary-row">
+                            <span>Subtotal</span>
+                            <span>RM <?= number_format($subtotal, 2) ?></span>
                         </div>
-                        
-                        <div class="order-id">
-                            Order #<?= $order_id ?>
+                        <div class="summary-row">
+                            <span>Shipping</span>
+                            <span>
+                                <?php if ($delivery_fee > 0): ?>
+                                    RM <?= number_format($delivery_fee, 2) ?>
+                                <?php else: ?>
+                                    <span style="color: #4caf50; font-weight: 500;">Free</span>
+                                <?php endif; ?>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Tax (6%)</span>
+                            <span>RM <?= number_format($tax, 2) ?></span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Total</span>
+                            <span>RM <?= number_format($total, 2) ?></span>
                         </div>
                     </div>
                 </div>
@@ -741,36 +517,191 @@ $error_message = temp('error');
     </div>
     
     <?php include('../footer.php'); ?>
-    
+
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Toggle address selection
-        const addressRadios = document.querySelectorAll('input[name="address_id"]');
-        addressRadios.forEach(radio => {
-            radio.addEventListener('change', function() {
-                document.querySelectorAll('.address-card').forEach(card => {
-                    card.classList.remove('selected');
+        console.log('DOM loaded, initializing checkout functionality');
+        
+        // Payment method type selection (Credit Card or Stripe)
+        const creditCardRadio = document.getElementById('type_credit_card');
+        const stripeRadio = document.getElementById('type_stripe');
+        const creditCardOptions = document.getElementById('credit_card_options');
+        const stripeOptions = document.getElementById('stripe_options');
+        
+        function showCreditCardOptions() {
+            creditCardOptions.style.display = 'block';
+            stripeOptions.style.display = 'none';
+            console.log('Showing Credit Card options');
+        }
+        
+        function showStripeOptions() {
+            creditCardOptions.style.display = 'none';
+            stripeOptions.style.display = 'block';
+            console.log('Showing Stripe options');
+        }
+        
+        if (creditCardRadio && stripeRadio) {
+            creditCardRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    showCreditCardOptions();
+                }
+            });
+            
+            stripeRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    showStripeOptions();
+                }
+            });
+            
+            // Initialize the default view
+            if (creditCardRadio.checked) {
+                showCreditCardOptions();
+            } else if (stripeRadio.checked) {
+                showStripeOptions();
+            }
+        }
+        
+        // Credit Card selection styling
+        const paymentMethodCards = document.querySelectorAll('.payment-method-card');
+        const saveCardOption = document.getElementById('save_card_option');
+        const newCardRadio = document.getElementById('new_card');
+        
+        // Select the first card by default (new card)
+        if (newCardRadio) {
+            newCardRadio.checked = true;
+            newCardRadio.closest('.payment-method-card').classList.add('selected');
+            if (saveCardOption) {
+                saveCardOption.style.display = 'block';
+            }
+        }
+        
+        paymentMethodCards.forEach(card => {
+            const radioInput = card.querySelector('input[type="radio"]');
+            
+            // Add click event to the entire card
+            card.addEventListener('click', function() {
+                radioInput.checked = true;
+                
+                // Remove 'selected' class from all cards
+                paymentMethodCards.forEach(c => {
+                    c.classList.remove('selected');
                 });
                 
-                if (this.checked) {
-                    this.parentElement.querySelector('.address-card').classList.add('selected');
+                // Add 'selected' class to clicked card
+                this.classList.add('selected');
+                
+                // Show save option only for new card
+                if (saveCardOption) {
+                    if (radioInput.id === 'new_card') {
+                        saveCardOption.style.display = 'block';
+                    } else {
+                        saveCardOption.style.display = 'none';
+                    }
                 }
             });
         });
         
-        // Toggle payment method selection
-        const paymentRadios = document.querySelectorAll('input[name="payment_method"]');
-        paymentRadios.forEach(radio => {
-            radio.addEventListener('change', function() {
-                document.querySelectorAll('.payment-card').forEach(card => {
-                    card.classList.remove('selected');
+        // Form validation and direct submission
+        const checkoutForm = document.getElementById('checkout-form');
+        if (checkoutForm) {
+            console.log('Checkout form found, adding submission handler');
+            
+            checkoutForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // Prevent the default form submission
+                
+                let isValid = true;
+                console.log('Form submitted, validating...');
+                
+                // Log form data
+                const formData = new FormData(this);
+                for (let [key, value] of formData.entries()) {
+                    console.log(key + ': ' + value);
+                }
+                
+                // Check if address is selected
+                const addressRadios = document.querySelectorAll('input[name="address_id"]');
+                let addressSelected = false;
+                let selectedAddressId = '';
+                
+                addressRadios.forEach(radio => {
+                    if (radio.checked) {
+                        addressSelected = true;
+                        selectedAddressId = radio.value;
+                    }
                 });
                 
-                if (this.checked) {
-                    this.parentElement.querySelector('.payment-card').classList.add('selected');
+                if (!addressSelected) {
+                    alert('Please select a delivery address');
+                    isValid = false;
+                    console.log('Validation failed: No address selected');
+                    return;
                 }
+                
+                // Check if payment method type is selected
+                const paymentMethodType = document.querySelector('input[name="payment_method_type"]:checked');
+                if (!paymentMethodType) {
+                    alert('Please select a payment method type');
+                    isValid = false;
+                    console.log('Validation failed: No payment method type selected');
+                    return;
+                }
+                
+                // Create our custom form submission
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'checkout.php';
+                form.style.display = 'none';
+                
+                // Add hidden fields
+                const addHiddenField = (name, value) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value;
+                    form.appendChild(input);
+                };
+                
+                // Add the proceed_to_payment flag
+                addHiddenField('proceed_to_payment', '1');
+                
+                // Add the address_id
+                addHiddenField('address_id', selectedAddressId);
+                
+                // Add payment_method_type
+                addHiddenField('payment_method_type', paymentMethodType.value);
+                
+                // If Credit Card is selected, check for payment_method_id
+                if (paymentMethodType.value === 'Credit Card') {
+                    const paymentMethodRadio = document.querySelector('input[name="payment_method_id"]:checked');
+                    if (paymentMethodRadio) {
+                        addHiddenField('payment_method_id', paymentMethodRadio.value);
+                    } else {
+                        addHiddenField('payment_method_id', '');
+                    }
+                    
+                    // Check if save_payment is checked for new card
+                    const savePaymentCheckbox = document.getElementById('save_payment');
+                    if (savePaymentCheckbox && savePaymentCheckbox.checked) {
+                        addHiddenField('save_payment', '1');
+                    }
+                }
+                
+                // Add the form to the document and submit it
+                document.body.appendChild(form);
+                
+                // Disable the button to prevent double submission
+                const submitBtn = checkoutForm.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                }
+                
+                console.log('Form validation passed, submitting custom form...');
+                form.submit();
             });
-        });
+        } else {
+            console.error('Checkout form not found!');
+        }
     });
     </script>
 </body>

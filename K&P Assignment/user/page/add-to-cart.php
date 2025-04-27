@@ -47,7 +47,7 @@ if (!is_post()) {
 
 // Get form data
 $product_id = post('product_id');
-$size = post('size', ''); // Size is optional for products page, required for product details page
+$quantity_id = post('quantity_id'); // Changed: Now receiving quantity_id instead of size
 $quantity = (int) post('quantity', 1);
 $current_time = date('Y-m-d H:i:s'); // Current time (UTC)
 
@@ -73,13 +73,13 @@ if ($quantity < 1) {
     exit;
 }
 
-// Validate size if provided
-if (!empty($size) && !in_array($size, ['S', 'M', 'L', 'XL', 'XXL'])) {
+// Validate quantity_id if provided
+if (empty($quantity_id)) {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'message' => 'Invalid size selected',
-        'field' => 'size'
+        'message' => 'Please select a size',
+        'field' => 'quantity_id'
     ]);
     exit;
 }
@@ -101,62 +101,33 @@ try {
         exit;
     }
 
-    // If size is not provided, determine the best available size
-    if (empty($size)) {
-        // Try to find the most available size, prioritizing Medium
-        $stm = $_db->prepare("
-            SELECT size, product_stock FROM quantity 
-            WHERE product_id = ? AND product_stock > 0
-            ORDER BY CASE size 
-                WHEN 'M' THEN 1 
-                WHEN 'L' THEN 2 
-                WHEN 'S' THEN 3 
-                WHEN 'XL' THEN 4 
-                WHEN 'XXL' THEN 5 
-            END
-            LIMIT 1
-        ");
-        $stm->execute([$product_id]);
-        $available_size = $stm->fetch();
+    // Check quantity_id exists and has available stock
+    $stm = $_db->prepare("
+        SELECT q.quantity_id, q.size, q.product_stock 
+        FROM quantity q
+        WHERE q.quantity_id = ? AND q.product_id = ?
+    ");
+    $stm->execute([$quantity_id, $product_id]);
+    $available_size = $stm->fetch();
 
-        if (!$available_size) {
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'message' => 'No sizes available for this product'
-            ]);
-            exit;
-        }
+    if (!$available_size) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Selected size is not available',
+            'field' => 'quantity_id'
+        ]);
+        exit;
+    }
 
-        $size = $available_size->size;
-    } else {
-        // Check stock for the selected size
-        $stm = $_db->prepare("
-            SELECT product_stock FROM quantity 
-            WHERE product_id = ? AND size = ?
-        ");
-        $stm->execute([$product_id, $size]);
-        $stock = $stm->fetchColumn();
-
-        if ($stock === false) {
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'message' => 'Selected size is not available',
-                'field' => 'size'
-            ]);
-            exit;
-        }
-
-        if ($stock < $quantity) {
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'message' => "Only $stock items available in this size",
-                'field' => 'quantity'
-            ]);
-            exit;
-        }
+    if ($available_size->product_stock < $quantity) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => "Only {$available_size->product_stock} items available in this size",
+            'field' => 'quantity'
+        ]);
+        exit;
     }
 
     // Begin transaction
@@ -168,12 +139,12 @@ try {
         return 'CART_' . date('YmdHis') . '_' . substr(uniqid(), -8);
     }
 
-    // Check if product already in cart for this user and size
+    // Check if product already in cart for this user and quantity_id
     $stm = $_db->prepare("
         SELECT cart_id, quantity FROM cart 
-        WHERE user_id = ? AND product_id = ? AND size = ?
+        WHERE user_id = ? AND product_id = ? AND quantity_id = ?
     ");
-    $stm->execute([$user_id, $product_id, $size]);
+    $stm->execute([$user_id, $product_id, $quantity_id]);
     $cart_item = $stm->fetch();
 
     if ($cart_item) {
@@ -181,18 +152,11 @@ try {
         $new_quantity = $cart_item->quantity + $quantity;
 
         // Check stock again with new quantity
-        $stm = $_db->prepare("
-            SELECT product_stock FROM quantity 
-            WHERE product_id = ? AND size = ?
-        ");
-        $stm->execute([$product_id, $size]);
-        $stock = $stm->fetchColumn();
-
-        if ($new_quantity > $stock) {
+        if ($new_quantity > $available_size->product_stock) {
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
-                'message' => "Cannot add $quantity more. You already have {$cart_item->quantity} in your cart and only $stock are available.",
+                'message' => "Cannot add $quantity more. You already have {$cart_item->quantity} in your cart and only {$available_size->product_stock} are available.",
                 'field' => 'quantity'
             ]);
             $_db->rollBack();
@@ -211,10 +175,10 @@ try {
         $cartId = generateCartId();
 
         $stm = $_db->prepare("
-            INSERT INTO cart (cart_id, user_id, product_id, size, quantity, added_time) 
+            INSERT INTO cart (cart_id, user_id, product_id, quantity_id, quantity, added_time) 
             VALUES (?, ?, ?, ?, ?, ?)
         ");
-        $stm->execute([$cartId, $user_id, $product_id, $size, $quantity, $current_time]);
+        $stm->execute([$cartId, $user_id, $product_id, $quantity_id, $quantity, $current_time]);
 
         $totalQuantity = $quantity;
     }
@@ -238,7 +202,7 @@ try {
 
     // Log the successful cart addition
     $username = $_SESSION['user']->user_name ?? 'Unknown';
-    error_log("[" . date('Y-m-d H:i:s') . "] User $username ($user_id) added product $product_id (size: $size, qty: $quantity) to cart $cartId");
+    error_log("[" . date('Y-m-d H:i:s') . "] User $username ($user_id) added product $product_id (size: {$available_size->size}, qty: $quantity) to cart $cartId");
 
     // Return success response
     header('Content-Type: application/json');
@@ -250,7 +214,7 @@ try {
             'id' => $product_id,
             'name' => $product->product_name,
             'price' => $product->product_price,
-            'size' => $size,
+            'size' => $available_size->size,
             'quantity' => $quantity
         ],
         'totalQuantity' => $totalQuantity,

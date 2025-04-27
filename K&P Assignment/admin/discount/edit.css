@@ -1,0 +1,83 @@
+.product-card {
+    transition: all 0.3s ease;
+}
+
+.product-image {
+    height: 160px;
+    object-fit: cover;
+}
+
+.err {
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.discount-preview {
+    transition: all 0.3s ease;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    background-color: #e5e7eb;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 1.5rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -30px;
+    top: 0;
+    height: 12px;
+    width: 12px;
+    border-radius: 50%;
+    background-color: #818cf8;
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px #818cf8;
+}
+
+.timeline-item.active::before {
+    background-color: #34d399;
+    box-shadow: 0 0 0 2px #34d399;
+}
+
+.timeline-item.expired::before {
+    background-color: #f87171;
+    box-shadow: 0 0 0 2px #f87171;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-badge.active {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.upcoming {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.status-badge.expired {
+    background-color: #fee2e2;
+    color: #991b1b;
+}

@@ -1,6 +1,46 @@
 <?php
-$_title = 'Admin Dashboard';
+$_title = 'Admin Home';
 require '../../_base.php';
+// Ensure session is started and check if we have active admin session
+safe_session_start();
+
+// If no user in session, check remember-me cookies
+if (!isset($_SESSION['user'])) {
+    if (isset($_COOKIE['admin_user_id']) && isset($_COOKIE['admin_remember_token'])) {
+        try {
+            $user_id = $_COOKIE['admin_user_id'];
+            $remember_token = $_COOKIE['admin_remember_token'];
+            
+            // Get user from database
+            $stm = $_db->prepare("SELECT * FROM user WHERE user_id = ?");
+            $stm->execute([$user_id]);
+            $user = $stm->fetch();
+            
+            // Verify user exists, is active, and token matches expected value
+            if ($user && $user->status === 'Active') {
+                $expected_token = hash('sha256', $user->user_id . $user->user_password . 'K&P_ADMIN_SECRET_KEY');
+                
+                if ($remember_token === $expected_token) {
+                    // Valid remember-me token, set user in session
+                    $_SESSION['user'] = $user;
+                    
+                    // Update last login timestamp
+                    $stm = $_db->prepare("UPDATE user SET user_update_time = NOW() WHERE user_id = ?");
+                    $stm->execute([$user->user_id]);
+                    
+                    // Extend the cookies for another 30 seconds
+                    setcookie('admin_user_id', $user->user_id, time() + 30, '/');
+                    setcookie('admin_remember_token', $remember_token, time() + 30, '/');
+                    
+                    // Log the auto-login
+                    error_log("Admin remember-me login: {$user->user_name} ({$user->user_id}) as {$user->role}");
+                }
+            }
+        } catch (Exception $e) {
+            error_log("Remember-me error: " . $e->getMessage());
+        }
+    }
+}
 auth('admin', 'staff');
 require '../headFooter/header.php';
 
@@ -173,7 +213,7 @@ foreach ($monthly_revenue as $month => $revenue) {
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="/admin/home/home.css" rel="stylesheet">
+    <link href="home.css" rel="stylesheet">
 </head>
 
 <body class="bg-gray-50">
@@ -275,11 +315,7 @@ foreach ($monthly_revenue as $month => $revenue) {
                         <p class="text-2xl font-bold">RM<?= number_format($total_revenue, 2) ?></p>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-5 py-2">
-                    <a href="reports.php" class="text-purple-600 hover:text-purple-800 text-sm font-medium">
-                        View reports <i class="fas fa-arrow-right ml-1"></i>
-                    </a>
-                </div>
+                
             </div>
         </div>
 
@@ -462,9 +498,6 @@ foreach ($monthly_revenue as $month => $revenue) {
                         <a href="#" onclick="toggleProductView('photo'); return false;" class="toggle-view text-sm px-3 py-1 rounded <?= $product_view_type === 'photo' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' ?>">
                             <i class="fas fa-th-large mr-1"></i> Photo
                         </a>
-                        <a href="reports.php?view=top_products" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium ml-2">
-                            View All <i class="fas fa-arrow-right ml-1"></i>
-                        </a>
                     </div>
                 </div>
                 
@@ -569,7 +602,7 @@ foreach ($monthly_revenue as $month => $revenue) {
             <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden">
                 <div class="flex justify-between items-center p-5 border-b border-gray-200">
                     <h3 class="text-lg font-bold text-gray-800">Low Stock Alerts</h3>
-                    <a href="reports.php?view=low_stock" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                    <a href="../product/product.php" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
                         View All <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>
@@ -616,44 +649,6 @@ foreach ($monthly_revenue as $month => $revenue) {
 
     <?php require '../headFooter/footer.php'; ?>
 
-    <script>
-        // Function to toggle between table and photo views
-        function toggleProductView(viewType) {
-            const tableView = document.getElementById('product-table-view');
-            const photoView = document.getElementById('product-photo-view');
-            const toggleButtons = document.querySelectorAll('.toggle-view');
-            
-            if (viewType === 'table') {
-                tableView.classList.remove('hidden');
-                photoView.classList.add('hidden');
-                
-                // Update button styles
-                toggleButtons.forEach(button => {
-                    if (button.textContent.includes('Table')) {
-                        button.classList.add('bg-indigo-600', 'text-white');
-                        button.classList.remove('bg-gray-100', 'text-gray-700');
-                    } else {
-                        button.classList.remove('bg-indigo-600', 'text-white');
-                        button.classList.add('bg-gray-100', 'text-gray-700');
-                    }
-                });
-            } else {
-                tableView.classList.add('hidden');
-                photoView.classList.remove('hidden');
-                
-                // Update button styles
-                toggleButtons.forEach(button => {
-                    if (button.textContent.includes('Photo')) {
-                        button.classList.add('bg-indigo-600', 'text-white');
-                        button.classList.remove('bg-gray-100', 'text-gray-700');
-                    } else {
-                        button.classList.remove('bg-indigo-600', 'text-white');
-                        button.classList.add('bg-gray-100', 'text-gray-700');
-                    }
-                });
-            }
-        }
-    </script>
     <script src="/admin/home/home.js"></script>
 </body>
 

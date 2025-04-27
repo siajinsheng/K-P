@@ -223,3 +223,43 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+
+
+
+// Function to toggle between table and photo views
+function toggleProductView(viewType) {
+    const tableView = document.getElementById('product-table-view');
+    const photoView = document.getElementById('product-photo-view');
+    const toggleButtons = document.querySelectorAll('.toggle-view');
+    
+    if (viewType === 'table') {
+        tableView.classList.remove('hidden');
+        photoView.classList.add('hidden');
+        
+        // Update button styles
+        toggleButtons.forEach(button => {
+            if (button.textContent.includes('Table')) {
+                button.classList.add('bg-indigo-600', 'text-white');
+                button.classList.remove('bg-gray-100', 'text-gray-700');
+            } else {
+                button.classList.remove('bg-indigo-600', 'text-white');
+                button.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        });
+    } else {
+        tableView.classList.add('hidden');
+        photoView.classList.remove('hidden');
+        
+        // Update button styles
+        toggleButtons.forEach(button => {
+            if (button.textContent.includes('Photo')) {
+                button.classList.add('bg-indigo-600', 'text-white');
+                button.classList.remove('bg-gray-100', 'text-gray-700');
+            } else {
+                button.classList.remove('bg-indigo-600', 'text-white');
+                button.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        });
+    }
+}

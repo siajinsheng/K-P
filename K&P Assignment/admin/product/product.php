@@ -333,6 +333,8 @@ if (is_post() && isset($_FILES['csv_file'])) {
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="/admin/product/product.css" rel="stylesheet">
+    <script src="product.js"></script>
+
 </head>
 
 <body class="bg-gray-50">
@@ -346,9 +348,9 @@ if (is_post() && isset($_FILES['csv_file'])) {
                 <a href="../category/Add_Category.php" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg flex items-center">
                     <i class="fas fa-folder-plus mr-2"></i> Add Category
                 </a>
-                <button id="batchUploadBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg flex items-center">
+                <a href="product_csv_upload.php" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg flex items-center">
                     <i class="fas fa-file-upload mr-2"></i> Batch Upload
-                </button>
+                </a>
                 <button id="batchUpdateBtn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg flex items-center">
                     <i class="fas fa-edit mr-2"></i> Batch Update
                 </button>
@@ -920,15 +922,7 @@ if (is_post() && isset($_FILES['csv_file'])) {
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <script>
-            setTimeout(function() {
-                const alert = document.getElementById('errorAlert');
-                if (alert) {
-                    alert.classList.add('translate-x-full');
-                    setTimeout(() => alert.remove(), 500);
-                }
-            }, 5000);
-        </script>
+
     <?php endif; ?>
 
     <?php $success = temp('success');
@@ -942,31 +936,7 @@ if (is_post() && isset($_FILES['csv_file'])) {
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <script>
-            setTimeout(function() {
-                const alert = document.getElementById('successAlert');
-                if (alert) {
-                    alert.classList.add('translate-x-full');
-                    setTimeout(() => alert.remove(), 500);
-                }
-            }, 5000);
 
-            // Add script to position alerts dynamically when page loads
-            document.addEventListener('DOMContentLoaded', function() {
-                const header = document.querySelector('.navbar');
-                const headerHeight = header ? header.offsetHeight + 10 : 85;
-
-                const errorAlert = document.getElementById('errorAlert');
-                if (errorAlert) errorAlert.style.top = `${headerHeight}px`;
-
-                const successAlert = document.getElementById('successAlert');
-                if (successAlert) {
-                    successAlert.style.top = errorAlert ?
-                        `${headerHeight + errorAlert.offsetHeight + 10}px` :
-                        `${headerHeight}px`;
-                }
-            });
-        </script>
     <?php endif; ?>
 
     <?php require '../headFooter/footer.php'; ?>
@@ -1000,30 +970,6 @@ if (is_post() && isset($_FILES['csv_file'])) {
             if (closeLowStockBtn) {
                 closeLowStockBtn.addEventListener('click', function() {
                     lowStockModal.classList.add('hidden');
-                });
-            }
-
-            // Batch upload modal
-            const batchUploadBtn = document.getElementById('batchUploadBtn');
-            const batchUploadModal = document.getElementById('batchUploadModal');
-            const closeBatchUploadModal = document.getElementById('closeBatchUploadModal');
-            const cancelBatchUpload = document.getElementById('cancelBatchUpload');
-
-            if (batchUploadBtn) {
-                batchUploadBtn.addEventListener('click', function() {
-                    batchUploadModal.classList.remove('hidden');
-                });
-            }
-
-            if (closeBatchUploadModal) {
-                closeBatchUploadModal.addEventListener('click', function() {
-                    batchUploadModal.classList.add('hidden');
-                });
-            }
-
-            if (cancelBatchUpload) {
-                cancelBatchUpload.addEventListener('click', function() {
-                    batchUploadModal.classList.add('hidden');
                 });
             }
 

@@ -1,0 +1,78 @@
+.product-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.product-card.selected {
+    border-color: #4f46e5;
+    background-color: #eef2ff;
+}
+
+.product-image {
+    height: 120px;
+    object-fit: cover;
+}
+
+.err {
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.product-search-highlight {
+    background-color: #fef3c7;
+}
+
+.discount-preview {
+    transition: all 0.3s ease;
+}
+
+/* Badge for selected count */
+.selection-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background-color: #4f46e5;
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 2px solid white;
+}
+
+/* Category filter pills */
+.category-pill {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.category-pill.active {
+    background-color: #4f46e5;
+    color: white;
+}
+
+/* Product type filter buttons */
+.type-filter {
+    transition: all 0.2s ease;
+}
+
+.type-filter.active {
+    background-color: #4f46e5;
+    color: white;
+}
+
+.selected-products-container {
+    max-height: 300px;
+    overflow-y: auto;
+}

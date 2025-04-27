@@ -69,49 +69,8 @@ $recent_categories = $stmt->fetchAll();
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="category.css" rel="stylesheet">
-    <style>
-        /* Additional custom styles */
-        .card-hover-effect {
-            transition: all 0.3s ease;
-        }
-        .card-hover-effect:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-        .form-input:focus {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-        }
-        .category-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            font-weight: 600;
-            font-size: 0.875rem;
-            line-height: 1.25rem;
-            margin: 0.25rem;
-            transition: all 0.2s ease;
-        }
-        .category-badge:hover {
-            transform: scale(1.05);
-        }
-        .pulse-animation {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.7;
-            }
-        }
-        .preview-container {
-            background-image: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
-            border: 1px dashed #cbd5e0;
-        }
-    </style>
+    <link href="add_category.css" rel="stylesheet">
+    <script src="add_category.js"></script>
 </head>
 <body class="bg-gray-50">
     <div class="container mx-auto px-4 py-8">
@@ -301,29 +260,7 @@ $recent_categories = $stmt->fetchAll();
     
     <?php require '../headFooter/footer.php'; ?>
     
-    <script>
-        // Character counter for category name
-        document.getElementById('category_name').addEventListener('input', function() {
-            const count = this.value.length;
-            document.getElementById('charCount').textContent = count + '/255';
-            
-            // Change color based on length
-            if (count > 200) {
-                document.getElementById('charCount').className = 'text-orange-500 text-xs';
-            } else {
-                document.getElementById('charCount').className = 'text-gray-400 text-xs';
-            }
-        });
-        
-        // Trigger initial character count
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputElement = document.getElementById('category_name');
-            if (inputElement.value) {
-                const event = new Event('input');
-                inputElement.dispatchEvent(event);
-            }
-        });
-    </script>
+
 </body>
 </html>
 <?php

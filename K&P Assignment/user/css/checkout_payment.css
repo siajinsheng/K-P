@@ -1,0 +1,368 @@
+/* Payment Form Styling */
+.checkout-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.payment-form {
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 30px;
+    margin-bottom: 30px;
+    border-radius: 5px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.form-group input:focus {
+    border-color: #000;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+}
+
+.form-group input.error-field {
+    border-color: #d32f2f;
+    background-color: #fff8f8;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.form-group .error {
+    color: #d32f2f;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.form-group .format-hint {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.card-icons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.card-icon {
+    font-size: 24px;
+    color: #999;
+    transition: all 0.3s ease;
+}
+
+.card-icon.active {
+    color: #000;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.process-payment-btn {
+    display: block;
+    width: 100%;
+    background-color: #000;
+    color: #fff;
+    border: none;
+    padding: 15px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    margin-top: 20px;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.process-payment-btn:hover {
+    background-color: #333;
+}
+
+.card-expiry-selects {
+    display: flex;
+    gap: 10px;
+}
+
+.card-expiry-selects select {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    flex-grow: 1;
+}
+
+.card-expiry-selects select.error-field {
+    border-color: #d32f2f;
+    background-color: #fff8f8;
+}
+
+.secure-payment-note {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: #666;
+    margin-top: 20px;
+    justify-content: center;
+}
+
+.secure-payment-note i {
+    margin-right: 8px;
+    color: #4caf50;
+}
+
+.payment-method-header {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    font-size: 16px;
+}
+
+.payment-method-header i {
+    margin-right: 10px;
+    font-size: 24px;
+}
+
+.checkout-summary {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-left: 3px solid #000;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.checkout-summary h3 {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.checkout-summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.checkout-summary-row.total {
+    font-weight: 600;
+    font-size: 16px;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.field-tip {
+    position: relative;
+    display: inline-block;
+    margin-left: 5px;
+}
+
+.field-tip .field-tip-content {
+    visibility: hidden;
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 4px;
+    width: 200px;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 100;
+}
+
+.field-tip .field-tip-content::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+.field-tip:hover .field-tip-content {
+    visibility: visible;
+    opacity: 1;
+}
+
+.error-message {
+    color: #d32f2f;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+/* Payment Methods Tab Styling */
+.payment-method-tabs {
+    background: white;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 30px;
+}
+
+.tab-headers {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+}
+
+.tab-header {
+    flex: 1;
+    padding: 15px;
+    background: none;
+    border: none;
+    border-right: 1px solid #eee;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.tab-header:last-child {
+    border-right: none;
+}
+
+.tab-header i {
+    margin-right: 8px;
+}
+
+.tab-header.active {
+    color: #000;
+    background-color: #f9f9f9;
+    border-bottom: 2px solid #000;
+}
+
+.tab-panel {
+    display: none;
+    padding: 20px;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+.back-to-bag {
+    color: #666;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.3s;
+}
+
+.back-to-bag:hover {
+    text-decoration: underline;
+    color: #000;
+}
+
+.back-to-bag i {
+    margin-right: 8px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .checkout-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .card-expiry-selects {
+        flex-direction: row;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .form-actions .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 576px) {
+    .checkout-steps {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .step {
+        margin-bottom: 15px;
+    }
+    
+    .step-connector {
+        display: none;
+    }
+}
+
+/* Input with Icon Styling */
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon input {
+    padding-right: 40px;
+}
+
+.input-with-icon i {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+}
+
+/* Checkbox Styling */
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    margin-top: 15px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.checkbox-label {
+    font-weight: normal;
+    margin-bottom: 0;
+}
+
+/* PayPal Panel */
+.paypal-icon {
+    text-align: center;
+    margin-bottom: 20px;
+}
