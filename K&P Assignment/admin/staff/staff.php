@@ -161,7 +161,7 @@ require '../headFooter/header.php';
           <th>Actions</th>
         </tr>
       </thead>
-      <button type="submit" name="batch_delete" class="button-delete">Delete Selected</button>
+      <button type="submit" name="batch_delete" class="button-delete" onclick="return confirm('Are you sure you want to delete all the staff?');">Delete Selected</button>
       <tbody>
         <?php foreach ($staffs as $s): ?>
         <tr>
