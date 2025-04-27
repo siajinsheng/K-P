@@ -380,25 +380,6 @@ $current_date = date('Y-m-d H:i:s');
                             <!-- Credit Card options - Combined layout -->
                             <div id="credit_card_options" class="payment-options-section">
                                 <div class="payment-methods-grid">
-                                    <!-- Add new card option -->
-                                    <div class="payment-method-card">
-                                        <label for="new_card">
-                                            <input type="radio" id="new_card" name="payment_method_id" value="">
-                                            <div class="card-header">
-                                                <div class="card-icon">
-                                                    <i class="fas fa-plus-circle"></i>
-                                                    <span>Add New Card</span>
-                                                </div>
-                                            </div>
-                                            <div class="add-new-card">
-                                                <p class="card-content">Enter your card details in the next step</p>
-                                            </div>
-                                        </label>
-                                        <div class="save-card-option" id="save_card_option">
-                                            <input type="checkbox" id="save_payment" name="save_payment" checked>
-                                            <label for="save_payment">Save this card for future orders</label>
-                                        </div>
-                                    </div>
                                     
                                     <!-- Saved cards -->
                                     <?php foreach ($credit_cards as $card): ?>
@@ -437,7 +418,6 @@ $current_date = date('Y-m-d H:i:s');
                                 </div>
                             </div>
                             
-                            <!-- Stripe option -->
                             <div id="stripe_options" class="payment-options-section" style="display: none;">
                                 <div class="stripe-info">
                                     <div class="stripe-logo" style="text-align: center; margin-bottom: 20px;">
@@ -445,10 +425,6 @@ $current_date = date('Y-m-d H:i:s');
                                     </div>
                                     <div class="stripe-message" style="text-align: center; margin-bottom: 20px;">
                                         <p>Pay securely using Stripe's payment platform.</p>
-                                        <p>You'll enter your card details in the next step.</p>
-                                        <div class="demo-info" style="background-color: #f0f7ff; padding: 10px; margin-top: 15px; border-radius: 5px;">
-                                            <p style="font-size: 14px; color: #0c5460;"><strong>Demo Mode:</strong> Use test card number 4242 4242 4242 4242 with any future expiration date and any 3-digit CVC.</p>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
