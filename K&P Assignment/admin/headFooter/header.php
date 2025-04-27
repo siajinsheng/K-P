@@ -32,7 +32,7 @@ $photo = isset($user->admin_profile_pic)
     ? $user->admin_profile_pic 
     : 'default.png';
 
-$photoPath = $_SERVER['DOCUMENT_ROOT'] . '/admin/pic/' . $photo;
+$photoPath = $_SERVER['DOCUMENT_ROOT'] . '../../img/' . $photo;
 if (!file_exists($photoPath)) {
     $photo = 'default.png';
     error_log("Missing profile photo: " . $photoPath);

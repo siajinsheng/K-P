@@ -275,11 +275,7 @@ foreach ($monthly_revenue as $month => $revenue) {
                         <p class="text-2xl font-bold">RM<?= number_format($total_revenue, 2) ?></p>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-5 py-2">
-                    <a href="reports.php" class="text-purple-600 hover:text-purple-800 text-sm font-medium">
-                        View reports <i class="fas fa-arrow-right ml-1"></i>
-                    </a>
-                </div>
+                
             </div>
         </div>
 
@@ -462,9 +458,6 @@ foreach ($monthly_revenue as $month => $revenue) {
                         <a href="#" onclick="toggleProductView('photo'); return false;" class="toggle-view text-sm px-3 py-1 rounded <?= $product_view_type === 'photo' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' ?>">
                             <i class="fas fa-th-large mr-1"></i> Photo
                         </a>
-                        <a href="reports.php?view=top_products" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium ml-2">
-                            View All <i class="fas fa-arrow-right ml-1"></i>
-                        </a>
                     </div>
                 </div>
                 
@@ -569,7 +562,7 @@ foreach ($monthly_revenue as $month => $revenue) {
             <div class="dashboard-card bg-white rounded-lg shadow overflow-hidden">
                 <div class="flex justify-between items-center p-5 border-b border-gray-200">
                     <h3 class="text-lg font-bold text-gray-800">Low Stock Alerts</h3>
-                    <a href="reports.php?view=low_stock" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                    <a href="../product/product.php" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
                         View All <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>

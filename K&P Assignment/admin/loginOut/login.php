@@ -26,14 +26,14 @@ if (!isset($_SESSION['last_attempt_time'])) {
     $_SESSION['last_attempt_time'] = 0;
 }
 
-// Check if account is temporarily locked (10 minutes lockout period)
-$lockout_time = 10; // 10 minutes in seconds
+// Check if account is temporarily locked (10 seconds)
+$lockout_time = 10; // 10 seconds
 $time_passed = time() - $_SESSION['last_attempt_time'];
 $time_remaining = $lockout_time - $time_passed;
 
 if ($_SESSION['login_attempts'] >= 3 && $time_passed < $lockout_time) {
-    $minutes_remaining = ceil($time_remaining / 60);
-    $_err['login'] = "Too many failed login attempts. Please try again in {$minutes_remaining} minutes.";
+    $minutes_remaining = ceil($time_remaining);
+    $_err['login'] = "Too many failed login attempts. Please try again in {$minutes_remaining} seconds.";
     $account_locked = true;
 }
 

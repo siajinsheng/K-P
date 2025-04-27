@@ -62,11 +62,6 @@ $created_date = date('F d, Y', strtotime($user->user_update_time ?? 'now'));
               </a>
             </li>
             <li>
-              <a href="../../admin/index.php">
-                <i class="fas fa-tachometer-alt"></i> Dashboard
-              </a>
-            </li>
-            <li>
               <a href="../loginOut/logout.php" class="danger">
                 <i class="fas fa-sign-out-alt"></i> Logout
               </a>
