@@ -1,6 +1,46 @@
 <?php
-$_title = 'Admin Dashboard';
+$_title = 'Admin Home';
 require '../../_base.php';
+// Ensure session is started and check if we have active admin session
+safe_session_start();
+
+// If no user in session, check remember-me cookies
+if (!isset($_SESSION['user'])) {
+    if (isset($_COOKIE['admin_user_id']) && isset($_COOKIE['admin_remember_token'])) {
+        try {
+            $user_id = $_COOKIE['admin_user_id'];
+            $remember_token = $_COOKIE['admin_remember_token'];
+            
+            // Get user from database
+            $stm = $_db->prepare("SELECT * FROM user WHERE user_id = ?");
+            $stm->execute([$user_id]);
+            $user = $stm->fetch();
+            
+            // Verify user exists, is active, and token matches expected value
+            if ($user && $user->status === 'Active') {
+                $expected_token = hash('sha256', $user->user_id . $user->user_password . 'K&P_ADMIN_SECRET_KEY');
+                
+                if ($remember_token === $expected_token) {
+                    // Valid remember-me token, set user in session
+                    $_SESSION['user'] = $user;
+                    
+                    // Update last login timestamp
+                    $stm = $_db->prepare("UPDATE user SET user_update_time = NOW() WHERE user_id = ?");
+                    $stm->execute([$user->user_id]);
+                    
+                    // Extend the cookies for another 30 seconds
+                    setcookie('admin_user_id', $user->user_id, time() + 30, '/');
+                    setcookie('admin_remember_token', $remember_token, time() + 30, '/');
+                    
+                    // Log the auto-login
+                    error_log("Admin remember-me login: {$user->user_name} ({$user->user_id}) as {$user->role}");
+                }
+            }
+        } catch (Exception $e) {
+            error_log("Remember-me error: " . $e->getMessage());
+        }
+    }
+}
 auth('admin', 'staff');
 require '../headFooter/header.php';
 

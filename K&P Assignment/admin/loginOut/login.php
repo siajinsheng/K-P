@@ -2,14 +2,34 @@
 $_title = 'K&P - Admin Login';
 require '../../_base.php';
 
-// Ensure session is started
+// Use the safe_session_start function instead of directly calling session_start()
 safe_session_start();
+
+// OUTPUT DIAGNOSTIC INFORMATION
+if (isset($_GET['debug'])) {
+    echo "<div style='background:#f8f9fa;padding:10px;margin:10px;border:1px solid #ddd;'>";
+    echo "<h3>SESSION DIAGNOSTIC</h3>";
+    echo "Session ID: " . session_id() . "<br>";
+    echo "Session Status: " . session_status() . "<br>";
+    echo "Session Cookie Parameters:<br><pre>";
+    print_r(session_get_cookie_params());
+    echo "</pre>";
+    echo "Session Data:<br><pre>";
+    print_r($_SESSION);
+    echo "</pre>";
+    echo "Cookie Data:<br><pre>";
+    print_r($_COOKIE);
+    echo "</pre>";
+    echo "</div>";
+}
 
 // Check if user is already logged in
 if (isset($_SESSION['user'])) {
     // Check if they have appropriate role
     if ($_SESSION['user']->role === 'admin' || $_SESSION['user']->role === 'staff') {
-        redirect('../home/home.php'); // Redirect to admin home if already logged in
+        // Redirect to admin home if already logged in
+        header("Location: ../home/home.php");
+        exit();
     } else {
         // If logged in but incorrect role, log them out and show error
         logout();
@@ -17,7 +37,7 @@ if (isset($_SESSION['user'])) {
     }
 }
 
-// Initialize login attempt tracking variables if not set
+// Initialize login attempt tracking variables
 if (!isset($_SESSION['login_attempts'])) {
     $_SESSION['login_attempts'] = 0;
 }
@@ -26,7 +46,7 @@ if (!isset($_SESSION['last_attempt_time'])) {
     $_SESSION['last_attempt_time'] = 0;
 }
 
-// Check if account is temporarily locked (10 seconds)
+// Check if account is temporarily locked
 $lockout_time = 10; // 10 seconds
 $time_passed = time() - $_SESSION['last_attempt_time'];
 $time_remaining = $lockout_time - $time_passed;
@@ -61,10 +81,16 @@ if (is_post() && isset($_POST['login']) && !isset($account_locked)) {
             $stm->execute([$email]);
             $user = $stm->fetch();
 
+            // Display the user's role for debugging (only during development)
+            if ($user) {
+                error_log("Found user: {$user->user_name} with role: {$user->role}");
+            }
+
             // Check if user exists and password is correct
             if ($user && password_verify($password, $user->user_password)) {
-                // Check if user has admin or staff role
-                if ($user->role !== 'admin' && $user->role !== 'staff') {
+                // Check if user has admin or staff role (case-insensitive check)
+                $user_role = strtolower($user->role);
+                if ($user_role != 'admin' && $user_role != 'staff') {
                     $_err['login'] = 'You do not have permission to access the admin area.';
                     $_SESSION['login_attempts']++;
                     $_SESSION['last_attempt_time'] = time();
@@ -78,9 +104,17 @@ if (is_post() && isset($_POST['login']) && !isset($account_locked)) {
                     // Reset login attempts
                     $_SESSION['login_attempts'] = 0;
                     
-                    // Start session and store user data
-                    safe_session_start();
+                    // Clear session then store user data
+                    session_unset();
+                    
+                    // Create a new session ID to prevent fixation
+                    session_regenerate_id(true);
+                    
+                    // Store user in session
                     $_SESSION['user'] = $user;
+                    
+                    // Create a direct admin authentication token as an alternate auth mechanism
+                    $_SESSION['admin_token'] = md5($user->user_id . $user->user_Email . time());
                     
                     // Set remember me cookie if requested
                     if ($remember) {
@@ -88,20 +122,31 @@ if (is_post() && isset($_POST['login']) && !isset($account_locked)) {
                         $token_base = $user->user_id . $user->user_password . 'K&P_ADMIN_SECRET_KEY';
                         $remember_token = hash('sha256', $token_base);
                         
-                        // Store in cookies for 10s (more secure for admin)
-                        setcookie('admin_user_id', $user->user_id, time() + (10), '/');
-                        setcookie('admin_remember_token', $remember_token, time() + (10), '/');
+                        // Store in cookies for 7 days (604800 seconds)
+                        setcookie('admin_user_id', $user->user_id, time() + (604800), '/');
+                        setcookie('admin_remember_token', $remember_token, time() + (604800), '/');
                     }
 
                     // Update last login timestamp
                     $stm = $_db->prepare("UPDATE user SET user_update_time = NOW() WHERE user_id = ?");
                     $stm->execute([$user->user_id]);
 
-                    // Log the successful admin login
-                    error_log("Admin login: {$user->user_name} ({$user->user_id}) logged in as {$user->role}");
-
-                    // Redirect to admin home
-                    redirect('../home/home.php');
+                    // Force session data to be saved
+                    session_write_close();
+                    
+                    // Make sure session cookie is set with proper parameters
+                    setcookie(session_name(), session_id(), [
+                        'expires' => time() + 86400,
+                        'path' => '/',
+                        'domain' => '',
+                        'secure' => isset($_SERVER['HTTPS']),
+                        'httponly' => true,
+                        'samesite' => 'Lax'
+                    ]);
+                    
+                    // Redirect to admin home - using absolute path
+                    header("Location: ../home/home.php?token={$_SESSION['admin_token']}");
+                    exit();
                 }
             } else {
                 $_err['login'] = 'Invalid email or password';
@@ -112,51 +157,6 @@ if (is_post() && isset($_POST['login']) && !isset($account_locked)) {
             error_log("Admin login error: " . $e->getMessage());
             $_err['database'] = 'Login failed. Please try again.';
         }
-    }
-}
-
-// Handle remember me cookie (auto-login)
-if (!isset($_SESSION['user']) && isset($_COOKIE['admin_user_id']) && isset($_COOKIE['admin_remember_token'])) {
-    try {
-        $user_id = $_COOKIE['admin_user_id'];
-        $remember_token = $_COOKIE['admin_remember_token'];
-        
-        // Get user from database
-        $stm = $_db->prepare("SELECT * FROM user WHERE user_id = ?");
-        $stm->execute([$user_id]);
-        $user = $stm->fetch();
-        
-        // Verify user exists, is active, has appropriate role, and token matches expected value
-        if ($user && $user->status === 'Active' && ($user->role === 'admin' || $user->role === 'staff')) {
-            $expected_token = hash('sha256', $user->user_id . $user->user_password . 'K&P_ADMIN_SECRET_KEY');
-            
-            if ($remember_token === $expected_token) {
-                // Log the user in
-                safe_session_start();
-                $_SESSION['user'] = $user;
-                
-                // Update last login timestamp
-                $stm = $_db->prepare("UPDATE user SET user_update_time = NOW() WHERE user_id = ?");
-                $stm->execute([$user->user_id]);
-                
-                // Log the auto-login
-                error_log("Admin auto-login: {$user->user_name} ({$user->user_id}) logged in via remember-me as {$user->role}");
-                
-                // Redirect to admin home
-                redirect('../home/home.php');
-            }
-        }
-        
-        // If we reach here, either the user doesn't exist, isn't admin/staff, or the token is invalid
-        // Clear cookies
-        setcookie('admin_user_id', '', time() - 3600, '/');
-        setcookie('admin_remember_token', '', time() - 3600, '/');
-        
-    } catch (Exception $e) {
-        // Clear invalid cookies
-        setcookie('admin_user_id', '', time() - 3600, '/');
-        setcookie('admin_remember_token', '', time() - 3600, '/');
-        error_log("Admin auto-login error: " . $e->getMessage());
     }
 }
 
@@ -178,11 +178,15 @@ $attempts_remaining = isset($account_locked) ? 0 : max(0, 3 - $login_attempts);
     <title><?= $_title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="login.css" rel="stylesheet">
-
 </head>
 <body>
     <div class="container">
         <div class="login-form">
+            <!-- Debug Link (only for development) -->
+            <div style="text-align:right;margin-bottom:10px;">
+                <a href="?debug=1" style="font-size:12px;color:#999">Diagnostics</a>
+            </div>
+            
             <img src="../../img/K&P logo.png" alt="K&P Logo" class="logo">
             <h1>Admin Login <span class="admin-badge">Secure Area</span></h1>
             

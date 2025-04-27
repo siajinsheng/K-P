@@ -103,83 +103,81 @@ function safe_session_start()
 // Enhanced auth function for better debugging
 function auth(...$roles)
 {
-    safe_session_start(); // Ensure the session is started
+    // Use safe_session_start to prevent duplicate session_start calls
+    safe_session_start();
 
     global $_db;
 
     // Check if we're in admin section to determine correct login path
     $is_admin = strpos($_SERVER['REQUEST_URI'], '/admin/') !== false;
-    $login_path = $is_admin ? '/admin/loginOut/login.php' : '/user/page/login.php';
+    $login_path = $is_admin ? '../loginOut/login.php' : '../../user/page/login.php';
 
-    // Debug the session data
-    error_log("Auth check - Session data: " . (isset($_SESSION['user']) ?
-        "User: {$_SESSION['user']->user_name}, ID: {$_SESSION['user']->user_id}, Role: {$_SESSION['user']->role}" :
-        "No user in session"));
+    // DIAGNOSTIC OUTPUT
+    if (isset($_GET['debug'])) {
+        echo "<div style='background:#f8f9fa;padding:10px;margin:10px;border:1px solid #ddd;'>";
+        echo "<h3>AUTH FUNCTION DIAGNOSTIC</h3>";
+        echo "Request URI: " . $_SERVER['REQUEST_URI'] . "<br>";
+        echo "Is Admin Section: " . ($is_admin ? 'Yes' : 'No') . "<br>";
+        echo "Login Path: $login_path<br>";
+        echo "Session ID: " . session_id() . "<br>";
+        echo "Session Data:<br><pre>";
+        print_r($_SESSION);
+        echo "</pre>";
+        echo "Required Roles:<br><pre>";
+        print_r($roles);
+        echo "</pre>";
+        echo "</div>";
+    }
 
     // Check if a user is logged in
     if (!isset($_SESSION['user']) || empty($_SESSION['user']->user_id)) {
-        error_log("Auth failed - No user in session or missing user_id");
-        temp('info', 'Please log in to access this page');
-        redirect($login_path);
+        header("Location: $login_path");
+        exit();
     }
 
     // Get the user object from session
     $user = $_SESSION['user'];
 
-    // Print user details for debugging
-    error_log("Auth check - User details: ID: {$user->user_id}, Name: {$user->user_name}, Role: {$user->role}");
-
-    // Check if user exists and is active
     try {
+        // Use the user from session, but verify against database
         $stm = $_db->prepare('SELECT * FROM user WHERE user_id = ?');
         $stm->execute([$user->user_id]);
         $db_user = $stm->fetch();
 
         if (!$db_user) {
-            error_log("Auth failed - User ID {$user->user_id} not found in database");
-            temp('info', 'Your account could not be found');
-            logout($login_path);
+            header("Location: $login_path");
+            exit();
         }
 
         if ($db_user->status !== "Active") {
-            error_log("Auth failed - User ID {$user->user_id} has non-active status: {$db_user->status}");
-            temp('info', 'Your account has been blocked or is inactive');
-            logout($login_path);
+            header("Location: $login_path");
+            exit();
         }
 
-        // Update session with latest user data
-        $_SESSION['user'] = $db_user;
-        
-        // Also update current_user for backward compatibility
-        $_SESSION['current_user'] = json_encode($db_user);
-
-        // If no specific roles are required (empty roles array), any authenticated user is allowed
+        // If no specific roles are required, any authenticated user is allowed
         if (empty($roles)) {
-            error_log("Auth success - No specific role required, user allowed");
-            return; // User is authenticated, no specific role required
+            return;
         }
 
-        // Check if user has one of the required roles
+        // Check if user has one of the required roles (case insensitive comparison)
         $hasRequiredRole = false;
         foreach ($roles as $role) {
-            if ($db_user->role == $role) {
+            if (strtolower($db_user->role) == strtolower($role)) {
                 $hasRequiredRole = true;
-                error_log("Auth success - User has required role: {$role}");
                 break;
             }
         }
 
         // If no matching role is found, redirect
         if (!$hasRequiredRole) {
-            error_log("Auth failed - User ID {$user->user_id} role {$db_user->role} does not match required roles: " . implode(', ', $roles));
-            temp('info', 'You do not have permission to access this page');
-            redirect($login_path);
+            header("Location: $login_path");
+            exit();
         }
     } catch (PDOException $e) {
-        // Log the error
-        error_log("Authentication error: " . $e->getMessage());
-        temp('error', 'An authentication error occurred');
-        redirect($login_path);
+        // Log the error and redirect
+        error_log("Authentication error in auth function: " . $e->getMessage());
+        header("Location: $login_path");
+        exit();
     }
 }
 
@@ -449,10 +447,11 @@ function html_select($key, $items, $default = '- Select One -', $attr = '')
  * 
  * @return bool True if in development environment, false otherwise
  */
-function is_development() {
+function is_development()
+{
     // TEMPORARY OVERRIDE - Force emails to be sent even in development
     return false;
-    
+
     // Original implementation
     // $dev_hosts = ['localhost', '127.0.0.1'];
     // return in_array($_SERVER['SERVER_NAME'], $dev_hosts) || 
@@ -611,7 +610,8 @@ function delete_token($token, $type = 'email_verification')
  * @param string $token The verification token
  * @return bool True if email sent successfully, false otherwise
  */
-function send_verification_email($email, $name, $token) {
+function send_verification_email($email, $name, $token)
+{
     try {
         $mail = get_mail();
         $mail->addAddress($email, $name);
@@ -620,18 +620,18 @@ function send_verification_email($email, $name, $token) {
         // Create verification link using absolute URLs
         $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https://" : "http://";
         $server_name = $_SERVER['HTTP_HOST'];
-        
+
         // Adjust this path to match your server structure
         // Try removing K&P%20Assignment if it's part of your DOCUMENT_ROOT
         $verification_link = $protocol . $server_name . "/user/page/verify_email.php?token=" . urlencode($token);
-        
+
         // Alternative options if the above doesn't work:
         // $verification_link = $protocol . $server_name . "/verify_email.php?token=" . urlencode($token);
         // $verification_link = $protocol . $server_name . "/K-P/K&P%20Assignment/user/page/verify_email.php?token=" . urlencode($token);
-        
+
         // For debugging
         error_log("Verification link generated: " . $verification_link);
-        
+
         // Email body with responsive design
         $mail_body = "
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;'>
@@ -657,7 +657,7 @@ function send_verification_email($email, $name, $token) {
         $mail->isHTML(true);
         $mail->Body = $mail_body;
         $mail->AltBody = strip_tags(str_replace('<br>', "\r\n", $mail_body));
-        
+
         // Send the email
         if (is_development()) {
             error_log("Development mode: Email would be sent to $email with subject '{$mail->Subject}'");
@@ -680,7 +680,8 @@ function send_verification_email($email, $name, $token) {
  * @param string $token The reset token
  * @return bool True if email sent successfully, false otherwise
  */
-function send_reset_email($email, $name, $token) {
+function send_reset_email($email, $name, $token)
+{
     try {
         $mail = get_mail();
         $mail->addAddress($email, $name);
@@ -689,12 +690,12 @@ function send_reset_email($email, $name, $token) {
         // Create reset link using absolute URLs
         $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https://" : "http://";
         $server_name = $_SERVER['HTTP_HOST'];
-        
+
         $reset_link = $protocol . $server_name . "/user/page/reset_password.php?token=" . urlencode($token);
-        
+
         // For debugging
         error_log("Password reset link generated: " . $reset_link);
-        
+
         // Email body with responsive design
         $mail_body = "
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;'>
@@ -720,7 +721,7 @@ function send_reset_email($email, $name, $token) {
         $mail->isHTML(true);
         $mail->Body = $mail_body;
         $mail->AltBody = strip_tags(str_replace('<br>', "\r\n", $mail_body));
-        
+
         // Send the email
         if (is_development()) {
             error_log("Development mode: Password reset email would be sent to $email with subject '{$mail->Subject}'");
