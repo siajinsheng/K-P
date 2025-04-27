@@ -49,6 +49,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('staff.php');
     }
 
+    if (isset($_POST['batch_delete'])) {
+        $ids = $_POST['selected_ids'] ?? [];
+        if (!empty($ids)) {
+            $in = implode(',', array_fill(0, count($ids), '?'));
+            $stm = $_db->prepare("DELETE FROM user WHERE user_id IN ($in)");
+            $ok = $stm->execute($ids);
+            temp($ok ? 'info' : 'error', $ok ? 'Selected staff deleted.' : 'Batch delete failed.');
+        } else {
+            temp('error', 'No staff selected.');
+        }
+        redirect('staff.php');
+    }
+
     $userId = req('user_id');
     if (isset($_POST['update'])) {
         $stm = $_db->prepare(
@@ -140,24 +153,26 @@ require '../headFooter/header.php';
     <button type="submit">Search</button>
   </form>
 
-  <p class="record">Showing <?= $p->count ?> of <?= $p->item_count ?> | Page <?= $p->page ?> of <?= $p->page_count ?></p>
-
-  <table class="table mb-4">
-    <thead>
-      <tr>
-      <th>Email</th>
-        <th>Username</th>
-        <th>Genders</th>
-        <th>Photo</th>
-        <th>Updated</th>
-        <th>Status</th>
-        <th>Role</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <?php foreach ($staffs as $s): ?>
+  <form method="post" id="batch-form">
+    <button type="submit" name="batch_delete" class="button-delete mb-4" onclick="return confirm('Delete selected staff?')">Delete Selected</button>
+    <table class="table mb-4">
+      <thead>
         <tr>
+          <th><input type="checkbox" id="select-all"></th>
+          <th>Email</th>
+          <th>Username</th>
+          <th>Genders</th>
+          <th>Photo</th>
+          <th>Updated</th>
+          <th>Status</th>
+          <th>Role</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($staffs as $s): ?>
+        <tr>
+          <td><input type="checkbox" name="selected_ids[]" value="<?= $s->user_id ?>"></td>
           <td><?= htmlspecialchars($s->user_Email) ?></td>
           <td><?= htmlspecialchars($s->user_name) ?></td>
           <td><?= htmlspecialchars($s->user_gender) ?></td>
@@ -184,57 +199,64 @@ require '../headFooter/header.php';
             </form>
           </td>
         </tr>
-      <?php endforeach; ?>
-    </tbody>
-  </table>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </form>
 
   <script>
-  function confirmAction(form) {
-    const action = [...form.elements].find(e => e.tagName === "BUTTON" && e === document.activeElement)?.name;
-    if (action === "delete") {
-      return confirm("Are you sure you want to delete this staff?");
+    document.getElementById('select-all').onclick = function() {
+      const checkboxes = document.querySelectorAll('input[name="selected_ids[]"]');
+      checkboxes.forEach(cb => cb.checked = this.checked);
+    };
+
+    function confirmAction(form) {
+      const action = [...form.elements].find(e => e.tagName === "BUTTON" && e === document.activeElement)?.name;
+      if (action === "delete") {
+        return confirm("Are you sure you want to delete this staff?");
+      }
+      return true;
     }
-    return true;
-  }
-
-  document.querySelector('.add-form').addEventListener('submit', function(e) {
-    const name = document.getElementById('user_name');
-    const email = document.getElementById('user_Email');
-    const password = document.getElementById('user_password');
-    const gender = document.getElementById('user_gender');
-
-    let messages = [];
-
-    if (!name.value.trim()) messages.push("Name is required.");
-    if (!email.value.trim()) {
-      messages.push("Email is required.");
-    } else if (!/^\S+@\S+\.\S+$/.test(email.value)) {
-      messages.push("Email must be a valid email format.");
-    }
-    if (!password.value.trim()) messages.push("Password is required.");
-    if (password.value.length > 0 && password.value.length < 8) messages.push("Password must be at least 8 characters.");
-    if (!gender.value) messages.push("Gender selection is required.");
-
-    if (messages.length > 0) {
-      alert(messages.join("\n"));
-      e.preventDefault();
-    }
-  });
   </script>
 
-  <?php $base = "staff.php?sort={$sort}&dir={$dir}&email=" . urlencode($email) . "&status=" . urlencode($status); ?>
-  <nav class="pagination-nav">
-    <a href="<?= $base ?>&page=1">First</a>
-    <?php if ($p->page > 1): ?>
-      <a href="<?= $base ?>&page=<?= $p->page - 1 ?>">Previous</a>
-    <?php else: ?>
-      <span class="disabled">Previous</span>
-    <?php endif; ?>
-    <?php if ($p->page < $p->page_count): ?>
-      <a href="<?= $base ?>&page=<?= $p->page + 1 ?>">Next</a>
-    <?php else: ?>
-      <span class="disabled">Next</span>
-    <?php endif; ?>
-    <a href="<?= $base ?>&page=<?= $p->page_count ?>">Last</a>
-  </nav>
+<script>
+document.querySelector('.add-form').addEventListener('submit', function(e) {
+  const name = document.getElementById('user_name');
+  const email = document.getElementById('user_Email');
+  const password = document.getElementById('user_password');
+  const gender = document.getElementById('user_gender');
+
+  let messages = [];
+
+  if (!name.value.trim()) messages.push("Name is required.");
+  if (!email.value.trim()) {
+    messages.push("Email is required.");
+  } else if (!/^\S+@\S+\.\S+$/.test(email.value)) {
+    messages.push("Email must be a valid email format.");
+  }
+  if (!password.value.trim()) messages.push("Password is required.");
+  if (password.value.length > 0 && password.value.length < 8) messages.push("Password must be at least 8 characters.");
+  if (gender.value.trim() === "") messages.push("Gender selection is required.");
+
+  if (messages.length > 0) {
+    alert(messages.join("\n"));
+    e.preventDefault();
+  }
+});
+</script>
+<?php $base = "staff.php?sort={$sort}&dir={$dir}&email=" . urlencode($email) . "&status=" . urlencode($status); ?>
+<nav class="pagination-nav">
+  <a href="<?= $base ?>&page=1">First</a>
+  <?php if ($p->page > 1): ?>
+    <a href="<?= $base ?>&page=<?= $p->page - 1 ?>">Previous</a>
+  <?php else: ?>
+    <span class="disabled">Previous</span>
+  <?php endif; ?>
+  <?php if ($p->page < $p->page_count): ?>
+    <a href="<?= $base ?>&page=<?= $p->page + 1 ?>">Next</a>
+  <?php else: ?>
+    <span class="disabled">Next</span>
+  <?php endif; ?>
+  <a href="<?= $base ?>&page=<?= $p->page_count ?>">Last</a>
+</nav>
 </div>
