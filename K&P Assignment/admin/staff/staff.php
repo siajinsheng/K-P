@@ -57,13 +57,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $userId = req('user_id');
     if (isset($_POST['update'])) {
+        // Update name, email, gender
         $stm = $_db->prepare("UPDATE user SET user_name = ?, user_Email = ?, user_gender = ? WHERE user_id = ?");
-        $ok = $stm->execute([
+        $ok1 = $stm->execute([
             req('user_name'),
             req('user_Email'),
             req('user_gender'),
             $userId
         ]);
+
+        // Check if a new password was entered
+        $newPassword = trim(req('new_password'));
+        if (!empty($newPassword)) {
+            if (strlen($newPassword) < 8) {
+                temp('error', 'Password must be at least 8 characters.');
+                redirect('staff.php');
+            }
+            $stm2 = $_db->prepare("UPDATE user SET user_password = ? WHERE user_id = ?");
+            $ok2 = $stm2->execute([
+                password_hash($newPassword, PASSWORD_DEFAULT),
+                $userId
+            ]);
+        } else {
+            $ok2 = true; // No password change needed
+        }
+
+        $ok = $ok1 && $ok2;
     } elseif (isset($_POST['ban'])) {
         $new = req('status') === 'Banned' ? 'Active' : 'Banned';
         $stm = $_db->prepare("UPDATE user SET status = ? WHERE user_id = ?");
@@ -177,6 +196,7 @@ require '../headFooter/header.php';
             <form method="post">
               <input type="hidden" name="user_id" value="<?= $s->user_id ?>">
               <input type="hidden" name="status" value="<?= $s->status ?>">
+
               <input name="user_name" type="text" value="<?= htmlspecialchars($s->user_name) ?>" required>
               <input name="user_Email" type="email" value="<?= htmlspecialchars($s->user_Email) ?>" required>
               <select name="user_gender">
@@ -184,6 +204,8 @@ require '../headFooter/header.php';
                   <option value="<?= $g ?>" <?= $s->user_gender === $g ? ' selected' : '' ?>><?= $g ?></option>
                 <?php endforeach; ?>
               </select>
+              <input name="new_password" type="password" placeholder="New Password (optional)" minlength="8">
+
               <button name="update" class="button-update" type="submit">Update</button>
               <button name="ban" class="button-block" type="submit">
                 <?= $s->status === 'Banned' ? 'Unban' : 'Ban' ?>
@@ -245,5 +267,21 @@ document.getElementById('add-staff-form').addEventListener('submit', function(e)
 document.getElementById('select-all').addEventListener('change', function() {
   const checkboxes = document.querySelectorAll('input[name="selected_ids[]"]');
   checkboxes.forEach(cb => cb.checked = this.checked);
+});
+document.querySelectorAll('form').forEach(form => {
+  form.addEventListener('submit', function(e) {
+    const newPasswordInput = this.querySelector('input[name="new_password"]');
+    if (newPasswordInput && newPasswordInput.value.trim().length > 0) {
+      if (!confirm('Are you sure you want to change the password?')) {
+        e.preventDefault();
+      } else {
+        const hiddenConfirmInput = document.createElement('input');
+        hiddenConfirmInput.type = 'hidden';
+        hiddenConfirmInput.name = 'confirm_password_change';
+        hiddenConfirmInput.value = 'yes';
+        this.appendChild(hiddenConfirmInput);
+      }
+    }
+  });
 });
 </script>
