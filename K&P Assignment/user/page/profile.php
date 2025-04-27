@@ -144,7 +144,7 @@ if (is_post() && isset($_POST['update_profile'])) {
                 $photo = save_photo_user((object)$file, '../../img', 300, 300);
                 
                 // Delete old photo if it exists and isn't the default
-                if ($user->user_profile_pic && $user->user_profile_pic !== 'default.png' && file_exists('../../img/' . $user->user_profile_pic)) {
+                if ($user->user_profile_pic && $user->user_profile_pic !== 'default.jpg' && file_exists('../../img/' . $user->user_profile_pic)) {
                     unlink('../../img/' . $user->user_profile_pic);
                 }
             }
@@ -278,7 +278,7 @@ if (isset($_GET['default_payment']) && is_get()) {
             <div class="profile-sidebar">
                 <div class="profile-sidebar-header">
                     <div class="profile-photo">
-                        <img src="<?= isset($user->user_profile_pic) && $user->user_profile_pic ? '../../img/' . $user->user_profile_pic : '../../img/default.png' ?>" alt="Profile Photo">
+                        <img src="<?= isset($user->user_profile_pic) && $user->user_profile_pic ? '../../img/' . $user->user_profile_pic : '../../img/default.jpg' ?>" alt="Profile Photo">
                     </div>
                     <h2><?= htmlspecialchars($user->user_name) ?></h2>
                     <p class="text-muted">Member since <?= date('M d, Y', strtotime($user->user_update_time)) ?></p>
