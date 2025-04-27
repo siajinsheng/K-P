@@ -263,7 +263,9 @@ $total = $order->order_total;
             </div>
             <h1 class="confirmation-title">Thank you for your order!</h1>
             <p class="order-number">Order Number: <strong><?= $order_id ?></strong></p>
-
+            <div class="confirmation-message">
+                <p>Your order has been placed and a confirmation has been sent to your email.</p>
+            </div>
         </div>
         
         <div class="order-details-container">
