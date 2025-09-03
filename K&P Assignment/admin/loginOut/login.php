@@ -37,7 +37,7 @@ $lockout_time = 10;
 $time_passed = time() - $_SESSION['last_attempt_time'];
 $time_remaining = $lockout_time - $time_passed;
 
-if ($_SESSION['login_attempts'] >= 3 && $time_passed < $lockout_time) {
+if ($_SESSION['login_attempts'] >= 2 && $time_passed < $lockout_time) {
     $minutes_remaining = ceil($time_remaining);
     $_err['login'] = "Too many failed login attempts. Please try again in {$minutes_remaining} seconds.";
     $account_locked = true;
